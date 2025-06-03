@@ -1,3 +1,8 @@
+# 🧹 Disable Consumer Features to prevent automatic installation of third-party apps and games
+New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent" -Force | Out-Null
+Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent" -Name "DisableWindowsConsumerFeatures" -Type DWord -Value 1
+Write-Host "✅ Disabled Windows Consumer Features (prevents automatic app installs)"
+
 # Uninstall default Microsoft applications
 Get-AppxPackage "Microsoft.3DBuilder" | Remove-AppxPackage
 Get-AppxPackage "Microsoft.AppConnector" | Remove-AppxPackage
