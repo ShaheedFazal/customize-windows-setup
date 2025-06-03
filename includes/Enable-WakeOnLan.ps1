@@ -31,8 +31,4 @@ Get-NetAdapter | Where-Object {
     }
 }
 
-# Disable Fast Startup to ensure proper shutdown state
-Write-Host "Disabling Fast Startup..."
-reg add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Power" /v HiberbootEnabled /t REG_DWORD /d 0 /f
-
 Write-Host "📄 Wake on LAN configuration complete."
