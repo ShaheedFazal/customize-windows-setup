@@ -19,10 +19,7 @@ The project started as a fork of [filipnet/customize-windows-client](https://git
    step, use:
 
    ```powershell
-   powershell -NoProfile -ExecutionPolicy Bypass -Command "& {
-       iwr -useb https://raw.githubusercontent.com/ShaheedFazal/customize-windows-setup/main/download-repo.ps1 | iex
-       & \"$env:USERPROFILE\Downloads\customize-windows-setup\customize-windows-setup-main\customize-windows-client.ps1\"
-   }"
+   powershell -NoProfile -ExecutionPolicy Bypass -Command "iwr -useb https://raw.githubusercontent.com/ShaheedFazal/customize-windows-setup/main/download-repo.ps1 | iex; & \"$env:USERPROFILE\Downloads\customize-windows-setup\customize-windows-setup-main\customize-windows-client.ps1\""
    ```
 
    **Caution:** Review the downloaded script before executing it.
