@@ -27,10 +27,13 @@ $graphics  = [System.Drawing.Graphics]::FromImage($image)
 $font      = New-Object System.Drawing.Font('Arial',14)
 $brush     = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::Yellow)
 
-$infoText  = "PC: $computerName`nModel: $pcModel`nSerial: $serialNumber`nWorkgroup: $workgroup`nWindows: $windowsVer"
-$size      = $graphics.MeasureString($infoText,$font)
-$x         = $image.Width  - $size.Width  - 10
-$y         = $image.Height - $size.Height - 10
+$infoText      = "PC: $computerName`nModel: $pcModel`nSerial: $serialNumber`nWorkgroup: $workgroup`nWindows: $windowsVer"
+$size          = $graphics.MeasureString($infoText,$font)
+
+# leave extra space so the taskbar doesn't cover the overlay text
+$bottomMargin  = 60
+$x             = $image.Width  - $size.Width  - 10
+$y             = $image.Height - $size.Height - $bottomMargin
 $graphics.DrawString($infoText,$font,$brush,$x,$y)
 
 # Save the temporary bitmap (wallpaper must be BMP format)
