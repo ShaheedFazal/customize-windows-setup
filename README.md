@@ -21,7 +21,7 @@ The project started as a fork of [filipnet/customize-windows-client](https://git
    powershell -ExecutionPolicy Bypass .\customize-windows-client.ps1
    ```
 
-Each script in `includes` performs a single customization step—such as disabling Cortana, configuring Windows Update, or installing useful tools. `Set-WallpaperWithStats.ps1` can also set a wallpaper and overlay basic system information.
+Each script in `includes` performs a single customization step—such as disabling Cortana, blocking Microsoft account sign-in and Windows Hello for Business, configuring Windows Update, or installing useful tools. `Set-WallpaperWithStats.ps1` can also set a wallpaper and overlay basic system information.
 
 ## Contributing
 Contributions are welcome! New customization modules or improvements to existing scripts help keep this project useful for different environments.

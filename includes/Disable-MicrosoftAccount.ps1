@@ -63,3 +63,7 @@ reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v Bloc
 
 # Disable Microsoft 365 promotional notifications
 reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement" /v ScoobeSystemSettingEnabled /t REG_DWORD /d 0 /f
+
+# Disable Windows Hello for Business sign-in
+Write-Host 'Disabling Windows Hello for Business...'
+reg add "HKLM\SOFTWARE\Policies\Microsoft\PassportForWork" /v Enabled /t REG_DWORD /d 0 /f
