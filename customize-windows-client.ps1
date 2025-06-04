@@ -19,8 +19,6 @@ https://github.com/filipnet/customize-windows-client
 #>
  
 # Variables
-$HOSTNAME = "win10client"
-$WORKGROUP = "WORKGROUP"
 $DRIVELABELSYS = "OS"
 $TEMPFOLDER = "C:\Temp"
 $INSTALLFOLDER = "C:\Install"
@@ -104,23 +102,7 @@ if ($confirmation -eq 'y') {
     }
 }
 
-# Start renaming client
-Write-Host ($CR +"Hostname and workgroup will be changed") -foregroundcolor $FOREGROUNDCOLOR $CR
-$confirmation = Read-Host "Are you sure you want to change it? [press: y]"
-if ($confirmation -eq 'y') {
-    # Set hostname and workgroup
-    Try {
-        Rename-Computer -NewName $HOSTNAME -ErrorAction Stop
-    } Catch {
-        Write-Warning $Error[0]
-    }
-    Try {
-        Add-Computer -WorkgroupName $WORKGROUP -ErrorAction Stop
-    } Catch {
-        Write-Warning $Error[0]
-    }
-    Write-Host ("Server renamed to $HOSTNAME and joined to workgroup $WORKGROUP") -foregroundcolor $FOREGROUNDCOLOR $CR 
-}
+
 
 # Restart to apply all changes
 Write-Host ($CR +"This system will restart to apply all changes") -foregroundcolor $FOREGROUNDCOLOR $CR 
