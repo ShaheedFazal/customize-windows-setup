@@ -2,7 +2,7 @@
 
 # Clears existing pins (except File Explorer) and pins Chrome, Telegram, WhatsApp Web and Gemini.
 
-Write-Host "\xF0\x9F\x94\x8F Configuring Start menu pins..." -ForegroundColor Cyan
+Write-Host "[INFO] Configuring Start menu pins..." -ForegroundColor Cyan
 
 # Locate Chrome executable for the web shortcuts (WhatsApp Web and Gemini)
 
@@ -12,7 +12,7 @@ if (-not $chromeExe) {
     foreach ($p in $paths) { if (Test-Path $p) { $chromeExe = $p; break } }
 }
 if (-not $chromeExe) {
-    Write-Host "❌ Google Chrome not found. Skipping Start menu pin configuration." -ForegroundColor Red
+    Write-Host "[ERROR] Google Chrome not found. Skipping Start menu pin configuration." -ForegroundColor Red
     return
 }
 
@@ -62,9 +62,9 @@ try {
     # Apply layout for the current user and set it as the default for new accounts
     Import-StartLayout -LayoutPath $tempJson
     Import-StartLayout -LayoutPath $tempJson -MountPath $env:SystemDrive\
-    Write-Host "✅ Start menu layout applied." -ForegroundColor Green
+    Write-Host "[OK] Start menu layout applied." -ForegroundColor Green
 } catch {
-    Write-Host "❌ Failed to apply Start menu layout: $_" -ForegroundColor Red
+    Write-Host "[ERROR] Failed to apply Start menu layout: $_" -ForegroundColor Red
 }
 
 Remove-Item $tempJson -ErrorAction SilentlyContinue
