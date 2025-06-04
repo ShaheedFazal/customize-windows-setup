@@ -1,3 +1,26 @@
+# Ensure TLS 1.2 for GitHub downloads
+if (-not ([System.Net.ServicePointManager]::SecurityProtocol -band [System.Net.SecurityProtocolType]::Tls12)) {
+    [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
+}
+
+function Download-File {
+    param(
+        [string]$Url,
+        [string]$Path
+    )
+
+    $maxRetries = 3
+    for ($i = 1; $i -le $maxRetries; $i++) {
+        try {
+            Invoke-WebRequest -Uri $Url -OutFile $Path -UseBasicParsing -ErrorAction Stop
+            return
+        } catch {
+            if ($i -eq $maxRetries) { throw }
+            Start-Sleep -Seconds (2 * $i)
+        }
+    }
+}
+
 # Ensure winget is available
 # If the 'winget' command-line tool is missing, attempt to install it
 # automatically using the official App Installer package. If installation fails
@@ -8,7 +31,7 @@ if (-not (Get-Command "winget" -ErrorAction SilentlyContinue)) {
     try {
         $wingetUrl = "https://github.com/microsoft/winget-cli/releases/latest/download/Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle"
         $wingetPath = Join-Path $env:TEMP "AppInstaller.msixbundle"
-        Invoke-WebRequest -Uri $wingetUrl -OutFile $wingetPath -UseBasicParsing
+        Download-File -Url $wingetUrl -Path $wingetPath
         Add-AppxPackage -Path $wingetPath -ForceApplicationShutdown
         Remove-Item $wingetPath -ErrorAction SilentlyContinue
         Write-Host "[OK] winget installed successfully." -ForegroundColor Green
@@ -105,7 +128,7 @@ $setUserFtaPath = Join-Path $scriptFolder 'SetUserFTA.exe'
 if (-not (Test-Path $setUserFtaPath)) {
     try {
         Write-Host "Downloading SetUserFTA..." -ForegroundColor Cyan
-        Invoke-WebRequest -Uri $setUserFtaUrl -OutFile $setUserFtaPath -UseBasicParsing
+        Download-File -Url $setUserFtaUrl -Path $setUserFtaPath
         Write-Host "[OK] SetUserFTA downloaded to $setUserFtaPath" -ForegroundColor Green
     } catch {
         Write-Host "[ERROR] Failed to download SetUserFTA: $_" -ForegroundColor Red
