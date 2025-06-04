@@ -49,11 +49,20 @@ function Test-Administrator {
     }
 }
 
+# Ensure the temp folder exists so a transcript can be written
+if(!(Test-Path $TEMPFOLDER)) {
+    New-Item -ItemType Directory -Force -Path $TEMPFOLDER | Out-Null
+}
+
 if(-not (Test-Administrator)) {
     Write-Error "This script must be executed as Administrator.";
     Read-Host "Press ENTER to continue..."
     exit 1;
 }
+
+# Start logging the console output
+$LogPath = Join-Path $TEMPFOLDER ("customize-windows-client-{0:yyyyMMdd-HHmmss}.log" -f (Get-Date))
+Start-Transcript -Path $LogPath | Out-Null
 # Ask whether to create a restore point and registry backup
 $restoreChoice = Read-Host "Create a system restore point and backup the registry? [press: y]"
  
@@ -118,8 +127,11 @@ if ($confirmation -eq 'y') {
 
 
 # Restart to apply all changes
-Write-Host ($CR +"This system will restart to apply all changes") -foregroundcolor $FOREGROUNDCOLOR $CR 
+Write-Host ($CR +"This system will restart to apply all changes") -foregroundcolor $FOREGROUNDCOLOR $CR
 $confirmation = Read-Host "Are you sure you want to proceed restart? [press: y]"
 if ($confirmation -eq 'y') {
+    Stop-Transcript | Out-Null
     Restart-Computer -ComputerName localhost
+} else {
+    Stop-Transcript | Out-Null
 }
