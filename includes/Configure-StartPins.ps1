@@ -59,8 +59,9 @@ $tempJson = Join-Path $env:TEMP 'StartPins.json'
 Set-Content -Path $tempJson -Value $layoutJson -Encoding UTF8
 
 try {
-    # Apply layout for the current user and set it as the default for new accounts
-    Import-StartLayout -LayoutPath $tempJson
+    # Apply layout for the running system and also set it as the default
+    # for any new accounts. Using -MountPath avoids interactive prompts on
+    # recent Windows builds where the parameter is required.
     Import-StartLayout -LayoutPath $tempJson -MountPath "$env:SystemDrive\"
     Write-Host "[OK] Start menu layout applied." -ForegroundColor Green
 } catch {
