@@ -97,3 +97,17 @@ try {
 } catch {
     Write-Host "⚠️ Failed to register scheduled task: $_" -ForegroundColor Red
 }
+
+# 4️⃣ Download SetUserFTA for file association scripts
+$setUserFtaUrl  = 'https://github.com/clechasseur/setuserfta/releases/download/v1.7.1/SetUserFTA.exe'
+$setUserFtaPath = Join-Path $scriptFolder 'SetUserFTA.exe'
+
+if (-not (Test-Path $setUserFtaPath)) {
+    try {
+        Write-Host "Downloading SetUserFTA..." -ForegroundColor Cyan
+        Invoke-WebRequest -Uri $setUserFtaUrl -OutFile $setUserFtaPath -UseBasicParsing
+        Write-Host "✅ SetUserFTA downloaded to $setUserFtaPath" -ForegroundColor Green
+    } catch {
+        Write-Host "❌ Failed to download SetUserFTA: $_" -ForegroundColor Red
+    }
+}

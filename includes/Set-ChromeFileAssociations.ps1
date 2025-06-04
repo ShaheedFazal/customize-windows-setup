@@ -4,18 +4,11 @@
 
 Write-Host "🔧 Setting Google Chrome defaults..."
 
-$setUserFtaUrl  = 'https://github.com/clechasseur/setuserfta/releases/download/v1.7.1/SetUserFTA.exe'
-$setUserFtaPath = Join-Path $env:TEMP 'SetUserFTA.exe'
+$setUserFtaPath = 'C:\\Scripts\\SetUserFTA.exe'
 
 if (-not (Test-Path $setUserFtaPath)) {
-    try {
-        Write-Host "Downloading SetUserFTA..." -ForegroundColor Cyan
-        Invoke-WebRequest -Uri $setUserFtaUrl -OutFile $setUserFtaPath -UseBasicParsing
-    }
-    catch {
-        Write-Host "❌ Failed to download SetUserFTA: $_" -ForegroundColor Red
-        return
-    }
+    Write-Host "⚠️ SetUserFTA not found at $setUserFtaPath. Skipping default browser configuration." -ForegroundColor Yellow
+    return
 }
 
 # Verify that Chrome is installed before proceeding
