@@ -42,3 +42,4 @@ Contributions are welcome! New customization modules or improvements to existing
 
 ## License
 This repository and all scripts are distributed under the BSD 3-Clause license. See [LICENSE](LICENSE) for the full text.
+

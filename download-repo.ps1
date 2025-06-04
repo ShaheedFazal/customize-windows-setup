@@ -33,6 +33,12 @@ if ($executionPolicy -eq 'Restricted') {
     Write-Warning "Run 'Set-ExecutionPolicy RemoteSigned -Scope CurrentUser' or invoke the script with -ExecutionPolicy Bypass."
 }
 
+# Ensure $PSScriptRoot has a sensible value when the script is invoked
+# via a download-and-execute one-liner (where it may be $null)
+if (-not $PSScriptRoot) {
+    $PSScriptRoot = Get-Location
+}
+
 # Path to store the downloaded zip
 $zipPath = Join-Path $PSScriptRoot 'customize-windows-setup.zip'
 
