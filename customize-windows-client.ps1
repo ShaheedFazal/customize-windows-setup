@@ -51,16 +51,34 @@ function Test-Administrator {
 
 if(-not (Test-Administrator)) {
     Write-Error "This script must be executed as Administrator.";
-    Read-Host “Press ENTER to continue...”
+    Read-Host "Press ENTER to continue..."
     exit 1;
 }
+# Ask whether to create a restore point and registry backup
+$restoreChoice = Read-Host "Create a system restore point and backup the registry? [press: y]"
+ 
+if ($restoreChoice -eq 'y') {
 
 ## Create System Restore Point
 Write-Host ($CR + "Create system restore point" + $BLANK + $TIME) -foregroundcolor $FOREGROUNDCOLOR $CR
 try {
+    # Ensure System Restore is enabled and required services are running
+    Enable-ComputerRestore -Drive "$env:SystemDrive" -ErrorAction SilentlyContinue
+    foreach ($svc in 'VSS','swprv') {
+        $service = Get-Service -Name $svc -ErrorAction SilentlyContinue
+        if ($service) {
+            if ($service.StartType -eq 'Disabled') {
+                Set-Service -Name $svc -StartupType Manual -ErrorAction SilentlyContinue
+            }
+            if ($service.Status -ne 'Running') {
+                Start-Service -Name $svc -ErrorAction SilentlyContinue
+            }
+        }
+    }
     Checkpoint-Computer -Description "Before customizations" -RestorePointType MODIFY_SETTINGS | Out-Null
 } catch {
     Write-Warning "Failed to create restore point: $_"
+}
 }
 
 # Create C:\Temp and C:\Install folders if not exists
@@ -72,12 +90,14 @@ If(!(test-path $INSTALLFOLDER)) {
     New-Item -ItemType Directory -Force -Path $INSTALLFOLDER
 }
 
+if ($restoreChoice -eq 'y') {
 ## Backup Registry
 Write-Host ($CR +"Create Registry Backup" + $BLANK + $TIME) -foregroundcolor $FOREGROUNDCOLOR $CR
 reg export HKLM C:\Install\registry-backup-hklm.reg /y | Out-Null
 reg export HKCU C:\Install\registry-backup-hkcu.reg /y | Out-Null
 reg export HKCR C:\Install\registry-backup-hkcr.reg /y | Out-Null
 
+}
 # Start customization
 Write-Host ($CR +"This system will customized and minimized") -foregroundcolor $FOREGROUNDCOLOR $CR
 $confirmation = Read-Host "Are you sure you want to proceed? [press: y]"

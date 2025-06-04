@@ -50,7 +50,7 @@ The project started as a fork of [filipnet/customize-windows-client](https://git
    powershell -ExecutionPolicy Bypass .\customize-windows-client.ps1
    ```
 
-   The script asks for confirmation before customizing Windows and again before rebooting. Press `y` and **Enter** when prompted.
+   The script asks whether to create a system restore point and backup the registry, then asks for confirmation before customizing Windows and again before rebooting. Press `y` and **Enter** when prompted.
 
 Each script in `includes` performs a single customization step—such as disabling Cortana, blocking Microsoft account sign-in and Windows Hello for Business, configuring Windows Update, or installing useful tools. `Configure-StartPins.ps1` resets pinned items to File Explorer, Google Chrome, Telegram and WhatsApp Web. `Set-WallpaperWithStats.ps1` can set a wallpaper and overlay basic system information.
 
@@ -68,6 +68,15 @@ Remove-AppxProvisionedPackage : The system cannot find the path specified.
 The script checks whether each package is installed before attempting removal.
 If a package was partially removed or corrupted you may still see these
 messages. They generally mean the app is already gone and can be ignored.
+
+### Restore point creation fails
+
+The script can optionally create a system restore point before running customizations. You'll be prompted at runtime.
+If this step fails with a `ServiceDisabled` error it usually
+means that **System Protection** or the *Volume Shadow Copy* services are
+disabled. The script now enables protection on the system drive and starts the
+required services automatically, but you may still need to ensure restore points
+are allowed on your drive in **System Properties**.
 
 ## Contributing
 Contributions are welcome! New customization modules or improvements to existing scripts help keep this project useful for different environments.
