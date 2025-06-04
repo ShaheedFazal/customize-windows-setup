@@ -32,4 +32,4 @@ Set-ItemProperty -Path $cdmPath -Name "SubscribedContent-310093Enabled" -Type DW
 Set-ItemProperty -Path $cdmPath -Name "SubscribedContent-338389Enabled" -Type DWord -Value 0 -ErrorAction SilentlyContinue
 Set-ItemProperty -Path $cdmPath -Name "SystemPaneSuggestionsEnabled" -Type DWord -Value 0 -ErrorAction SilentlyContinue
 
-Write-Host "✅ Privacy settings strengthened."
+Write-Host "[OK] Privacy settings strengthened."
