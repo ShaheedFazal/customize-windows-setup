@@ -17,6 +17,8 @@ if (-not (Test-Path $wallpaperImage)) {
 $computerName  = $env:COMPUTERNAME
 $workgroup     = (Get-CimInstance Win32_ComputerSystem).Workgroup
 $windowsVer    = (Get-CimInstance Win32_OperatingSystem).Caption
+$pcModel       = (Get-CimInstance Win32_ComputerSystem).Model
+$serialNumber  = (Get-CimInstance Win32_BIOS).SerialNumber
 
 # Load image and overlay text
 Add-Type -AssemblyName System.Drawing
@@ -25,8 +27,11 @@ $graphics  = [System.Drawing.Graphics]::FromImage($image)
 $font      = New-Object System.Drawing.Font('Arial',14)
 $brush     = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::Yellow)
 
-$infoText  = "PC: $computerName`nWorkgroup: $workgroup`nWindows: $windowsVer"
-$graphics.DrawString($infoText,$font,$brush,10,10)
+$infoText  = "PC: $computerName`nModel: $pcModel`nSerial: $serialNumber`nWorkgroup: $workgroup`nWindows: $windowsVer"
+$size      = $graphics.MeasureString($infoText,$font)
+$x         = $image.Width  - $size.Width  - 10
+$y         = $image.Height - $size.Height - 10
+$graphics.DrawString($infoText,$font,$brush,$x,$y)
 
 # Save the temporary bitmap (wallpaper must be BMP format)
 $tempBmp   = Join-Path $env:TEMP 'wallpaper-with-stats.bmp'
