@@ -18,7 +18,15 @@ PowerShell post-installation script to minimize and customize Windows operating 
 In the current version, the script fulfills its purpose and leaves behind a tidy minimal Windows installation. The individual actions can certainly be optimized, especially with regard to error handling. Who feels addressed here is gladly invited to add meaningful new additions as action module or to adapt the existing ones. 
 
 ## SOURCE REFERENCES
-The idea to use a separate script for each customization action as well as some actions were taken from the windows-trimity project. Thanks! (https://github.com/toolarium/windows-trimify/blob/master/LICENSE)
+The idea to use a separate script for each customization action as well as some actions were taken from the windows-trimify project. Thanks! (https://github.com/toolarium/windows-trimify/blob/master/LICENSE)
 
 ## LICENSE
 customize-windows-client and all individual scripts are under the BSD 3-Clause license unless explicitly noted otherwise. Please refer to the LICENSE.
+
+## RUNNING TESTS
+This repository uses [Pester](https://github.com/pester/Pester) for basic testing.
+To execute the tests, run the following command from the repository root:
+
+```powershell
+pwsh -NoProfile -Command "Invoke-Pester"
+```

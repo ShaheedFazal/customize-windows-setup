@@ -1,8 +1,25 @@
 # Ensure winget is available
-# This block checks if the 'winget' command-line tool is installed. If not, it exits with an error message.
+# If the 'winget' command-line tool is missing, attempt to install it
+# automatically using the official App Installer package. If installation fails
+# the script simply returns so that the parent process can decide how to
+# continue.
 if (-not (Get-Command "winget" -ErrorAction SilentlyContinue)) {
-    Write-Host "❌ 'winget' is not available. Please install App Installer from the Microsoft Store." -ForegroundColor Red
-    exit 1
+    Write-Host "⚠️ 'winget' is not available. Attempting to install App Installer..." -ForegroundColor Yellow
+    try {
+        $wingetUrl = "https://github.com/microsoft/winget-cli/releases/latest/download/Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle"
+        $wingetPath = Join-Path $env:TEMP "AppInstaller.msixbundle"
+        Invoke-WebRequest -Uri $wingetUrl -OutFile $wingetPath -UseBasicParsing
+        Add-AppxPackage -Path $wingetPath -ForceApplicationShutdown
+        Remove-Item $wingetPath -ErrorAction SilentlyContinue
+        Write-Host "✅ winget installed successfully." -ForegroundColor Green
+    } catch {
+        Write-Host "❌ Failed to install winget automatically: $_" -ForegroundColor Red
+        return
+    }
+    if (-not (Get-Command "winget" -ErrorAction SilentlyContinue)) {
+        Write-Host "❌ winget is still unavailable after installation attempt." -ForegroundColor Red
+        return
+    }
 }
 
 # Ensure C:\Scripts exists
