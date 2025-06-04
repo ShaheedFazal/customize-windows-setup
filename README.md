@@ -14,6 +14,15 @@ The project started as a fork of [filipnet/customize-windows-client](https://git
    ```powershell
    powershell -NoProfile -ExecutionPolicy Bypass -Command "iwr -useb https://raw.githubusercontent.com/ShaheedFazal/customize-windows-setup/main/download-repo.ps1 | iex"
    ```
+
+   To download the repository **and** run `customize-windows-client.ps1` in one
+   step, use:
+
+   ```powershell
+   powershell -NoProfile -ExecutionPolicy Bypass -Command "iwr -useb https://raw.githubusercontent.com/ShaheedFazal/customize-windows-setup/main/download-repo.ps1 | iex; & \"$env:USERPROFILE\Downloads\customize-windows-setup\customize-windows-setup-main\customize-windows-client.ps1\""
+   ```
+
+   **Caution:** Review the downloaded script before executing it.
    
 2. Adjust variables near the top of `customize-windows-client.ps1` to suit your environment.
 3. Review the scripts in the `includes` folder. Delete or move any file to `includes/disabled` to skip that action.
