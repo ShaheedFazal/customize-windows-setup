@@ -4,20 +4,20 @@
 # the script simply returns so that the parent process can decide how to
 # continue.
 if (-not (Get-Command "winget" -ErrorAction SilentlyContinue)) {
-    Write-Host "⚠️ 'winget' is not available. Attempting to install App Installer..." -ForegroundColor Yellow
+    Write-Host "[WARN] 'winget' is not available. Attempting to install App Installer..." -ForegroundColor Yellow
     try {
         $wingetUrl = "https://github.com/microsoft/winget-cli/releases/latest/download/Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle"
         $wingetPath = Join-Path $env:TEMP "AppInstaller.msixbundle"
         Invoke-WebRequest -Uri $wingetUrl -OutFile $wingetPath -UseBasicParsing
         Add-AppxPackage -Path $wingetPath -ForceApplicationShutdown
         Remove-Item $wingetPath -ErrorAction SilentlyContinue
-        Write-Host "✅ winget installed successfully." -ForegroundColor Green
+        Write-Host "[OK] winget installed successfully." -ForegroundColor Green
     } catch {
-        Write-Host "❌ Failed to install winget automatically: $_" -ForegroundColor Red
+        Write-Host "[ERROR] Failed to install winget automatically: $_" -ForegroundColor Red
         return
     }
     if (-not (Get-Command "winget" -ErrorAction SilentlyContinue)) {
-        Write-Host "❌ winget is still unavailable after installation attempt." -ForegroundColor Red
+        Write-Host "[ERROR] winget is still unavailable after installation attempt." -ForegroundColor Red
         return
     }
 }
@@ -29,7 +29,7 @@ if (-not (Test-Path $scriptFolder)) {
     New-Item -ItemType Directory -Path $scriptFolder | Out-Null
 }
 
-# 1️⃣ Install Apps
+# Install Apps
 # Defines a list of essential and commonly used applications grouped by category
 $apps = @(
     # Runtimes & Dependencies (required by many desktop applications)
@@ -67,16 +67,16 @@ $apps = @(
 
 # Loop through each app and install via winget
 foreach ($app in $apps) {
-    Write-Host "🔄 Installing $($app.Name)..." -ForegroundColor Cyan
+    Write-Host "[INFO] Installing $($app.Name)..." -ForegroundColor Cyan
     try {
         winget install --id=$($app.Id) --accept-source-agreements --accept-package-agreements -e -h
-        Write-Host "✅ Installed $($app.Name)" -ForegroundColor Green
+        Write-Host "[OK] Installed $($app.Name)" -ForegroundColor Green
     } catch {
-        Write-Host "❌ Failed to install $($app.Name): $_" -ForegroundColor Red
+        Write-Host "[ERROR] Failed to install $($app.Name): $_" -ForegroundColor Red
     }
 }
 
-# 2️⃣ Write Update Script
+# Write Update Script
 # This creates a PowerShell script to update all winget apps silently
 $updateScriptPath = Join-Path $scriptFolder "Update-WingetApps.ps1"
 $updateScriptContent = @'
@@ -85,7 +85,7 @@ winget upgrade --all --accept-source-agreements --accept-package-agreements
 '@
 Set-Content -Path $updateScriptPath -Value $updateScriptContent -Encoding UTF8
 
-# 3️⃣ Schedule Task
+# Schedule Task
 # This schedules the update script to run every Sunday at 8 AM as SYSTEM
 $taskName = "Weekly Winget App Update"
 $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$updateScriptPath`""
@@ -93,12 +93,12 @@ $trigger = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Sunday -At 8:00am
 
 try {
     Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Description "Weekly winget updates" -RunLevel Highest -User "SYSTEM"
-    Write-Host "✅ Scheduled weekly update task as 'SYSTEM'" -ForegroundColor Green
+    Write-Host "[OK] Scheduled weekly update task as 'SYSTEM'" -ForegroundColor Green
 } catch {
-    Write-Host "⚠️ Failed to register scheduled task: $_" -ForegroundColor Red
+    Write-Host "[ERROR] Failed to register scheduled task: $_" -ForegroundColor Red
 }
 
-# 4️⃣ Download SetUserFTA for file association scripts
+# Download SetUserFTA for file association scripts
 $setUserFtaUrl  = 'https://github.com/clechasseur/setuserfta/releases/download/v1.7.1/SetUserFTA.exe'
 $setUserFtaPath = Join-Path $scriptFolder 'SetUserFTA.exe'
 
@@ -106,8 +106,8 @@ if (-not (Test-Path $setUserFtaPath)) {
     try {
         Write-Host "Downloading SetUserFTA..." -ForegroundColor Cyan
         Invoke-WebRequest -Uri $setUserFtaUrl -OutFile $setUserFtaPath -UseBasicParsing
-        Write-Host "✅ SetUserFTA downloaded to $setUserFtaPath" -ForegroundColor Green
+        Write-Host "[OK] SetUserFTA downloaded to $setUserFtaPath" -ForegroundColor Green
     } catch {
-        Write-Host "❌ Failed to download SetUserFTA: $_" -ForegroundColor Red
+        Write-Host "[ERROR] Failed to download SetUserFTA: $_" -ForegroundColor Red
     }
 }
