@@ -52,6 +52,12 @@ if ($hasMicrosoftAccount) {
         Write-Host 'Microsoft account changes skipped.'
         return
     }
+} else {
+    $confirmation = Read-Host 'No Microsoft account detected. Disable Microsoft account features anyway? [y/N]'
+    if ($confirmation -ne 'y') {
+        Write-Host 'Microsoft account changes skipped.'
+        return
+    }
 }
 
 # Block Microsoft account sign-in prompts
