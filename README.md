@@ -1,32 +1,34 @@
-# customize-windows-client
-PowerShell post-installation script to minimize and customize Windows operating systems.
+# Customize Windows Client
 
-## REQUIREMENTS
-* PowerShell 5.1 or above 
-* Use of RunAsAdministrator
+This repository contains a collection of PowerShell scripts that streamline the setup of a Windows installation. The main script `customize-windows-client.ps1` orchestrates a set of modular actions found in the `includes` directory to disable unwanted features, tweak system defaults and install common tools.
 
-## INSTALL AND USAGE
-* Make sure that the requirements (see REQUIREMENTS) are fulfilled
-* Download a zip file and uncompress it
-* Adjust the settings and variables in section of the script to your environment and requirements. All scripts in the `includes` directory will be executed.
-  * To disable a customization action, move its script into `includes/disabled` or delete it.
-* Note: `Disable-Display-Sleep-Mode-Timeouts.ps1` and `Set-PowerManagement-HighPerformance.ps1` should not both be active because their settings may conflict.
-* The script locates the `includes` folder relative to its own path, so keep the directory structure intact.
-* Host renaming and joining a workgroup are handled by separate include scripts
-  (`Rename-Computer.ps1` and `Join-Workgroup.ps1`). Each script displays the
-  current value and asks if it should be changed. Add their filenames to
-  `$Excludes` if you want to skip either action.
-* `Set-WallpaperWithStats.ps1` sets a desktop wallpaper from the `wallpaper` folder and overlays basic PC information on the image. Add your own image to that folder and update the script's `$wallpaperImage` path to point to it.
-* `Set-OfficeSuiteDefaults.ps1` lets you choose between Google Workspace and LibreOffice for handling document file types. When Google Workspace is selected, the script also creates Start menu and desktop shortcuts for Docs, Sheets, Slides, and Drive.
-* Start the PowerShell script using ```.\customize-windows-client.ps1```
-* If ExecutionPolicy is restricted try to use: ```powershell -ExecutionPolicy Bypass .\customize-windows-client.ps1```
+The project started as a fork of [filipnet/customize-windows-client](https://github.com/filipnet/customize-windows-client) and retains the BSD 3-Clause license. Many customization ideas were inspired by the [windows-trimify](https://github.com/toolarium/windows-trimify) project.
 
-## CONTRIBUTION
-In the current version, the script fulfills its purpose and leaves behind a tidy minimal Windows installation. The individual actions can certainly be optimized, especially with regard to error handling. Who feels addressed here is gladly invited to add meaningful new additions as action module or to adapt the existing ones. 
+## Requirements
+- PowerShell 5.1 or newer
+- Run the script with administrative privileges
 
-## SOURCE REFERENCES
-The idea to use a separate script for each customization action as well as some actions were taken from the windows-trimify project. Thanks! (https://github.com/toolarium/windows-trimify/blob/master/LICENSE)
+## Usage
+1. Download or clone this repository.
+2. Adjust variables near the top of `customize-windows-client.ps1` to suit your environment.
+3. Review the scripts in the `includes` folder. Delete or move any file to `includes/disabled` to skip that action.
+4. Launch the script:
+   ```powershell
+   .\customize-windows-client.ps1
+   ```
+   If the execution policy is restricted, start it with:
+   ```powershell
+   powershell -ExecutionPolicy Bypass .\customize-windows-client.ps1
+   ```
 
-## LICENSE
-customize-windows-client and all individual scripts are under the BSD 3-Clause license unless explicitly noted otherwise. Please refer to the LICENSE.
+Each script in `includes` performs a single customization step—such as disabling Cortana, configuring Windows Update, or installing useful tools. `Set-WallpaperWithStats.ps1` can also set a wallpaper and overlay basic system information.
 
+## Contributing
+Contributions are welcome! New customization modules or improvements to existing scripts help keep this project useful for different environments.
+
+## Credits
+- **Benedikt Filip** ([@filipnet](https://github.com/filipnet)) created the original project that formed the basis of this repository.
+- Several ideas and snippets were adopted from [toolarium/windows-trimify](https://github.com/toolarium/windows-trimify) – see its [license](https://github.com/toolarium/windows-trimify/blob/master/LICENSE).
+
+## License
+This repository and all scripts are distributed under the BSD 3-Clause license. See [LICENSE](LICENSE) for the full text.
