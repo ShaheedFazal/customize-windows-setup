@@ -31,4 +31,4 @@ Get-NetAdapter | Where-Object {
     }
 }
 
-Write-Host "📄 Wake on LAN configuration complete."
+Write-Host "Wake on LAN configuration complete."

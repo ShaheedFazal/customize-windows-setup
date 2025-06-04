@@ -9,4 +9,4 @@ try {
     Write-Host "❌ Failed to disable Fast Startup: $_"
 }
 
-Write-Host "📄 Fast Startup configuration complete."
+Write-Host "Fast Startup configuration complete."
