@@ -1,9 +1,11 @@
 # Configure pinned Start menu apps
+
 # Clears existing pins (except File Explorer) and pins Chrome, Telegram, WhatsApp Web and Gemini.
 
 Write-Host "\xF0\x9F\x94\x8F Configuring Start menu pins..." -ForegroundColor Cyan
 
 # Locate Chrome executable for the web shortcuts (WhatsApp Web and Gemini)
+
 $chromeExe = Get-Command "chrome.exe" -ErrorAction SilentlyContinue
 if (-not $chromeExe) {
     $paths = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe','C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'
@@ -16,6 +18,7 @@ if (-not $chromeExe) {
 
 $programs = [Environment]::GetFolderPath('Programs')
 # Create WhatsApp Web shortcut in the Start Menu if it doesn't exist
+
 $whatsAppLnk = Join-Path $programs 'WhatsApp Web.lnk'
 if (-not (Test-Path $whatsAppLnk)) {
     $shell = New-Object -ComObject WScript.Shell
@@ -36,6 +39,7 @@ if (-not (Test-Path $geminiLnk)) {
     $shortcut.IconLocation = "$chromeExe,0"
     $shortcut.Save()
 }
+
 
 # Define layout JSON with the desired pins
 $layoutJson = @"
