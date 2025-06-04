@@ -36,6 +36,11 @@ $BLANK = " "
 $TIME = Get-Date -UFormat "%A %d.%m.%Y %R"
 $FOREGROUNDCOLOR = "Yellow"
 
+# Determine script and includes directory. The script looks for the 'includes'
+# folder relative to its own location.
+$ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Definition
+$IncludesPath = Join-Path $ScriptRoot 'includes'
+
 # Define actions should be excluded
 $Excludes = @(
     "Disable-Administrator-Description.ps1";
@@ -85,7 +90,7 @@ Write-Host ($CR +"This system will customized and minimized") -foregroundcolor $
 $confirmation = Read-Host "Are you sure you want to proceed? [press: y]"
 if ($confirmation -eq 'y') {
     # Create array of actions out of include folder
-    $Actions = @((Get-ChildItem -Path 'includes').Name)
+    $Actions = Get-ChildItem -Path $IncludesPath | Select-Object -ExpandProperty Name
 
     # Delete excluded actions out of action-array
     $Actions = $Actions |Where-Object { $Excludes -notcontains $_ }
@@ -95,7 +100,7 @@ if ($confirmation -eq 'y') {
         Write-Host "Execute " -NoNewline
         Write-Host ("$Action") -foregroundcolor Yellow -NoNewline
         Write-Host " ..."
-        & "includes\$Action"
+        & (Join-Path $IncludesPath $Action)
     }
 }
 
