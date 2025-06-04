@@ -12,7 +12,13 @@ The project started as a fork of [filipnet/customize-windows-client](https://git
 1. Download or clone this repository.
 2. Adjust variables near the top of `customize-windows-client.ps1` to suit your environment.
 3. Review the scripts in the `includes` folder. Delete or move any file to `includes/disabled` to skip that action.
-4. Launch the script:
+4. If using `Disable-MicrosoftAccount.ps1`, ensure a local administrator account exists and that you can sign in with it. This module blocks Microsoft account sign-in. To revert later, run:
+   ```powershell
+   reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v NoConnectedUser /t REG_DWORD /d 0 /f
+   reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v BlockUserFromCreatingAccounts /t REG_DWORD /d 0 /f
+   reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement" /v ScoobeSystemSettingEnabled /t REG_DWORD /d 1 /f
+   ```
+5. Launch the script:
    ```powershell
    .\customize-windows-client.ps1
    ```
