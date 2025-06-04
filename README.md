@@ -9,7 +9,7 @@ The project started as a fork of [filipnet/customize-windows-client](https://git
 - Run the script with administrative privileges
 
 ## Usage
-1. Download or clone this repository.
+1. Download or clone this repository. You can also run `download-repo.ps1` to automatically fetch and extract it.
 2. Adjust variables near the top of `customize-windows-client.ps1` to suit your environment.
 3. Review the scripts in the `includes` folder. Delete or move any file to `includes/disabled` to skip that action.
 4. If using `Disable-MicrosoftAccount.ps1`, ensure a local administrator account exists and that you can sign in with it. This module blocks Microsoft account sign-in. To revert later, run:
