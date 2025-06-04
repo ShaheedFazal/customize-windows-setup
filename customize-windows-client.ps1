@@ -100,7 +100,7 @@ if ($confirmation -eq 'y') {
 }
 
 # Start renaming client
-Write-Host ($CR +"Hostname and workgoup will be cahnged") -foregroundcolor $FOREGROUNDCOLOR $CR
+Write-Host ($CR +"Hostname and workgroup will be changed") -foregroundcolor $FOREGROUNDCOLOR $CR
 $confirmation = Read-Host "Are you sure you want to change it? [press: y]"
 if ($confirmation -eq 'y') {
     # Set hostname and workgroup
