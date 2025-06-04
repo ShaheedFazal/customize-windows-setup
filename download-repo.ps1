@@ -33,16 +33,19 @@ if ($executionPolicy -eq 'Restricted') {
     Write-Warning "Run 'Set-ExecutionPolicy RemoteSigned -Scope CurrentUser' or invoke the script with -ExecutionPolicy Bypass."
 }
 
-# Ensure $PSScriptRoot has a sensible value when the script is invoked
-# via a download-and-execute one-liner (where it may be $null)
-if (-not $PSScriptRoot) {
-    $PSScriptRoot = Get-Location
+# Choose a sensible base path when the script is invoked via a one-liner.
+# A direct `iex` call often starts in the Windows system directory, so
+# default to the user's Downloads folder in that case.
+$basePath = if ($PSScriptRoot) { $PSScriptRoot } else { (Get-Location).Path }
+if ($basePath -like "$env:windir*") {
+    $basePath = Join-Path $env:USERPROFILE 'Downloads'
 }
+
 # Path to store the downloaded zip
-$zipPath = Join-Path $PSScriptRoot 'customize-windows-setup.zip'
+$zipPath = Join-Path $basePath 'customize-windows-setup.zip'
 
 # Folder where the contents will be extracted
-$extractPath = Join-Path $PSScriptRoot 'customize-windows-setup'
+$extractPath = Join-Path $basePath 'customize-windows-setup'
 
 try {
     Write-Host "Downloading repository..." -ForegroundColor Cyan
