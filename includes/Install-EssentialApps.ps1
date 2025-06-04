@@ -83,7 +83,9 @@ $apps = @(
     @{ Name = "LibreOffice"; Id = "TheDocumentFoundation.LibreOffice" },
 
     # Developer Tools (for scripting, coding, and terminal access)
-    @{ Name = "PowerShell 7"; Id = "Microsoft.Powershell" },
+    # Use the official PowerShell package identifier. The old value
+    # "Microsoft.Powershell" fails to resolve with winget.
+    @{ Name = "PowerShell 7"; Id = "Microsoft.PowerShell" },
     @{ Name = "Python"; Id = "Python.Python.3" },
     @{ Name = "Windows Terminal"; Id = "Microsoft.WindowsTerminal" }
 )
