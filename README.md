@@ -12,7 +12,7 @@ The project started as a fork of [filipnet/customize-windows-client](https://git
 1. Download or clone this repository. You can also run `download-repo.ps1` to automatically fetch and extract it. To download and run the helper script in one step (which places everything in your **Downloads** folder), use:
 
    ```powershell
-   powershell -NoProfile -ExecutionPolicy Bypass -Command "$d = Join-Path $env:USERPROFILE 'Downloads'; iwr -Uri 'https://raw.githubusercontent.com/ShaheedFazal/customize-windows-setup/main/download-repo.ps1' -OutFile (Join-Path $d 'download-repo.ps1'); & \`\"$d\\download-repo.ps1\`\""
+   Set-ExecutionPolicy Bypass -Scope Process -Force; $d = Join-Path $env:USERPROFILE 'Downloads'; iwr -Uri 'https://raw.githubusercontent.com/ShaheedFazal/customize-windows-setup/main/download-repo.ps1' -OutFile (Join-Path $d 'download-repo.ps1'); & "$d\download-repo.ps1"
    ```
 
    To download the repository **and** run `customize-windows-client.ps1` in one
