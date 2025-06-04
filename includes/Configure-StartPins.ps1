@@ -17,8 +17,8 @@ if (-not $chromeExe) {
 }
 
 $programs = [Environment]::GetFolderPath('Programs')
-# Create WhatsApp Web shortcut in the Start Menu if it doesn't exist
 
+# Create WhatsApp Web shortcut in the Start Menu if it doesn't exist
 $whatsAppLnk = Join-Path $programs 'WhatsApp Web.lnk'
 if (-not (Test-Path $whatsAppLnk)) {
     $shell = New-Object -ComObject WScript.Shell
@@ -40,7 +40,6 @@ if (-not (Test-Path $geminiLnk)) {
     $shortcut.Save()
 }
 
-
 # Define layout JSON with the desired pins
 $layoutJson = @"
 {
@@ -59,11 +58,9 @@ $tempJson = Join-Path $env:TEMP 'StartPins.json'
 Set-Content -Path $tempJson -Value $layoutJson -Encoding UTF8
 
 try {
-    # Apply layout for the running system and also set it as the default
-    # for any new accounts. Using -MountPath avoids interactive prompts on
-    # recent Windows builds where the parameter is required.
-    Import-StartLayout -LayoutPath $tempJson -MountPath "$env:SystemDrive\"
-    Write-Host "[OK] Start menu layout applied." -ForegroundColor Green
+    # Apply layout for the current user only
+    Import-StartLayout -LayoutPath $tempJson
+    Write-Host "[OK] Start menu layout applied for current user." -ForegroundColor Green
 } catch {
     Write-Host "[ERROR] Failed to apply Start menu layout: $_" -ForegroundColor Red
 }
