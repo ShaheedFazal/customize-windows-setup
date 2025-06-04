@@ -54,6 +54,21 @@ The project started as a fork of [filipnet/customize-windows-client](https://git
 
 Each script in `includes` performs a single customization step—such as disabling Cortana, blocking Microsoft account sign-in and Windows Hello for Business, configuring Windows Update, or installing useful tools. `Configure-StartPins.ps1` resets pinned items to File Explorer, Google Chrome, Telegram and WhatsApp Web. `Set-WallpaperWithStats.ps1` can set a wallpaper and overlay basic system information.
 
+## Troubleshooting
+
+### App removal errors
+
+Running `Uninstall-Default-Software-Packages.ps1` may produce messages like:
+
+```
+Remove-AppxPackage : Deployment failed with HRESULT: 0x80073CFA, Removal failed.
+Remove-AppxProvisionedPackage : The system cannot find the path specified.
+```
+
+The script checks whether each package is installed before attempting removal.
+If a package was partially removed or corrupted you may still see these
+messages. They generally mean the app is already gone and can be ignored.
+
 ## Contributing
 Contributions are welcome! New customization modules or improvements to existing scripts help keep this project useful for different environments.
 
