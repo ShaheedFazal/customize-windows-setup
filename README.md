@@ -12,6 +12,10 @@ PowerShell post-installation script to minimize and customize Windows operating 
   * unless you explicitly define it as excluded,
   * Alternatively, actions in the include directory that are not needed or desired can simply be deleted.
 * The script locates the `includes` folder relative to its own path, so keep the directory structure intact.
+* Host renaming and joining a workgroup are handled by separate include scripts
+  (`Rename-Computer.ps1` and `Join-Workgroup.ps1`). Each script displays the
+  current value and asks if it should be changed. Add their filenames to
+  `$Excludes` if you want to skip either action.
 * Start the PowerShell script using ```.\customize-windows-client.ps1```
 * If ExecutionPolicy is restricted try to use: ```powershell -ExecutionPolicy Bypass .\customize-windows-client.ps1```
 
