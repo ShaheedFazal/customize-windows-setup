@@ -1,8 +1,12 @@
 # Prompt for default office suite and configure file associations
 
 $setUserFtaPath = Join-Path $env:TEMP 'SetUserFTA.exe'
+# Fall back to the location used by Install-EssentialApps.ps1
 if (-not (Test-Path $setUserFtaPath)) {
-    Write-Host "SetUserFTA not found at $setUserFtaPath" -ForegroundColor Yellow
+    $setUserFtaPath = 'C:\Scripts\SetUserFTA.exe'
+}
+if (-not (Test-Path $setUserFtaPath)) {
+    Write-Host "SetUserFTA not found. Skipping office suite defaults." -ForegroundColor Yellow
     return
 }
 
