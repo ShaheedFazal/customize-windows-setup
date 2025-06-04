@@ -2,12 +2,12 @@
 # The alphabetical order of this file (after Install-EssentialApps.ps1)
 # ensures it runs once Chrome is installed.
 
-Write-Host "🔧 Setting Google Chrome defaults..."
+Write-Host "[INFO] Setting Google Chrome defaults..."
 
 $setUserFtaPath = 'C:\\Scripts\\SetUserFTA.exe'
 
 if (-not (Test-Path $setUserFtaPath)) {
-    Write-Host "⚠️ SetUserFTA not found at $setUserFtaPath. Skipping default browser configuration." -ForegroundColor Yellow
+    Write-Host "[WARN] SetUserFTA not found at $setUserFtaPath. Skipping default browser configuration." -ForegroundColor Yellow
     return
 }
 
@@ -22,7 +22,7 @@ foreach ($path in $chromePaths) {
 }
 
 if (-not $chromeInstalled) {
-    Write-Host "⚠️ Google Chrome not found. Skipping default browser configuration." -ForegroundColor Yellow
+    Write-Host "[WARN] Google Chrome not found. Skipping default browser configuration." -ForegroundColor Yellow
     return
 }
 
@@ -41,4 +41,4 @@ foreach ($type in $associations.Keys) {
     & $setUserFtaPath $type $associations[$type] | Out-Null
 }
 
-Write-Host "✅ Google Chrome set as default browser." -ForegroundColor Green
+Write-Host "[OK] Google Chrome set as default browser." -ForegroundColor Green
