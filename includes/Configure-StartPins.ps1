@@ -61,7 +61,7 @@ Set-Content -Path $tempJson -Value $layoutJson -Encoding UTF8
 try {
     # Apply layout for the current user and set it as the default for new accounts
     Import-StartLayout -LayoutPath $tempJson
-    Import-StartLayout -LayoutPath $tempJson -MountPath $env:SystemDrive\
+    Import-StartLayout -LayoutPath $tempJson -MountPath "$env:SystemDrive\"
     Write-Host "[OK] Start menu layout applied." -ForegroundColor Green
 } catch {
     Write-Host "[ERROR] Failed to apply Start menu layout: $_" -ForegroundColor Red
