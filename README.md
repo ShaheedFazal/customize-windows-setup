@@ -52,7 +52,7 @@ The project started as a fork of [filipnet/customize-windows-client](https://git
 
    The script asks for confirmation before customizing Windows and again before rebooting. Press `y` and **Enter** when prompted.
 
-Each script in `includes` performs a single customization step—such as disabling Cortana, blocking Microsoft account sign-in and Windows Hello for Business, configuring Windows Update, or installing useful tools. `Set-WallpaperWithStats.ps1` can also set a wallpaper and overlay basic system information.
+Each script in `includes` performs a single customization step—such as disabling Cortana, blocking Microsoft account sign-in and Windows Hello for Business, configuring Windows Update, or installing useful tools. `Configure-StartPins.ps1` resets pinned items to File Explorer, Google Chrome, Telegram, WhatsApp Web and Gemini. `Set-WallpaperWithStats.ps1` can set a wallpaper and overlay basic system information.
 
 ## Contributing
 Contributions are welcome! New customization modules or improvements to existing scripts help keep this project useful for different environments.
