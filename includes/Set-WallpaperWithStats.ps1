@@ -32,7 +32,10 @@ $size          = $graphics.MeasureString($infoText,$font)
 
 # leave extra space so the taskbar doesn't cover the overlay text
 $bottomMargin  = 60
-$x             = $image.Width  - $size.Width  - 10
+# leave a little padding on the right edge in case string measurement
+# isn't exact on high DPI displays
+$rightMargin   = 20
+$x             = $image.Width  - $size.Width  - $rightMargin
 $y             = $image.Height - $size.Height - $bottomMargin
 $graphics.DrawString($infoText,$font,$brush,$x,$y)
 

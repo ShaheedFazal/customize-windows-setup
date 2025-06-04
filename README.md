@@ -52,9 +52,8 @@ The project started as a fork of [filipnet/customize-windows-client](https://git
 
    The script asks whether to create a system restore point and backup the registry, then asks for confirmation before customizing Windows and again before rebooting. Press `y` and **Enter** when prompted.
 
+Each script in `includes` performs a single customization step—such as disabling Cortana, blocking Microsoft account sign-in and Windows Hello for Business, configuring Windows Update, or installing useful tools. `Configure-StartPins.ps1` resets pinned items to File Explorer, Google Chrome, Telegram and WhatsApp Web. `Set-WallpaperWithStats.ps1` sets the wallpaper and overlays system information—computer name, model, serial number and Windows version—in the bottom-right corner of the screen. If the text is hidden behind the taskbar or runs off the right edge, tweak the `$bottomMargin` or `$rightMargin` variables in that script.
    All console output is recorded to a log file in `C:\Temp` so you can review the results after the script finishes.
-
-Each script in `includes` performs a single customization step—such as disabling Cortana, blocking Microsoft account sign-in and Windows Hello for Business, configuring Windows Update, or installing useful tools. `Configure-StartPins.ps1` resets pinned items to File Explorer, Google Chrome, Telegram and WhatsApp Web. `Set-WallpaperWithStats.ps1` sets the wallpaper and overlays system information—computer name, model, serial number and Windows version—in the bottom-right corner of the screen.
 
 ## Troubleshooting
 
