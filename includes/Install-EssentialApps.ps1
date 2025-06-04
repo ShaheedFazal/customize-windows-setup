@@ -73,7 +73,7 @@ $apps = @(
     @{ Name = "Microsoft Teams"; Id = "Microsoft.Teams" },
 
     # Remote Access (remote desktop/support tool)
-    @{ Name = "AnyDesk"; Id = "AnyDeskSoftwareGmbH.AnyDesk" },
+    @{ Name = "AnyDesk"; Id = "AnyDesk.AnyDesk" },
 
     # Google Workspace Tools (for Chrome and Drive access)
     @{ Name = "Google Chrome"; Id = "Google.Chrome" },
