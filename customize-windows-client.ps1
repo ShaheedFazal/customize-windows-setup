@@ -39,17 +39,6 @@ $FOREGROUNDCOLOR = "Yellow"
 $ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $IncludesPath = Join-Path $ScriptRoot 'includes'
 
-# Define actions should be excluded
-$Excludes = @(
-    "Disable-Administrator-Description.ps1";
-    "Disable-Autoplay.ps1";
-    "Disable-Autorun.ps1";
-    "Disable-RDP-Printer-Mapping.ps1";
-    "Set-Driveletter-CDROM.ps1";
-    "Show-Known-File-Extensions.ps1";
-    "Set-PowerManagement-HighPerformance.ps1";
-)
-
 # ---------- DO NOT CHANGE THINGS BELOW THIS LINE -----------------------------
 
 # Check if the powershell is started as an administrator
@@ -88,10 +77,8 @@ Write-Host ($CR +"This system will customized and minimized") -foregroundcolor $
 $confirmation = Read-Host "Are you sure you want to proceed? [press: y]"
 if ($confirmation -eq 'y') {
     # Create array of actions out of include folder
-    $Actions = Get-ChildItem -Path $IncludesPath | Select-Object -ExpandProperty Name
+    $Actions = Get-ChildItem -Path $IncludesPath -File | Select-Object -ExpandProperty Name
 
-    # Delete excluded actions out of action-array
-    $Actions = $Actions |Where-Object { $Excludes -notcontains $_ }
 
     # Execute selected actions"
     foreach ($Action in $Actions) {	

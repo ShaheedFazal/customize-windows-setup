@@ -8,9 +8,8 @@ PowerShell post-installation script to minimize and customize Windows operating 
 ## INSTALL AND USAGE
 * Make sure that the requirements (see REQUIREMENTS) are fulfilled
 * Download a zip file and uncompress it
-* Adjust the settings and variables in section of the script to your environment and requirements. All existing scripts in the include directory will be executed,
-  * unless you explicitly define it as excluded,
-  * Alternatively, actions in the include directory that are not needed or desired can simply be deleted.
+* Adjust the settings and variables in section of the script to your environment and requirements. All scripts in the `includes` directory will be executed.
+  * To disable a customization action, move its script into `includes/disabled` or delete it.
 * The script locates the `includes` folder relative to its own path, so keep the directory structure intact.
 * Host renaming and joining a workgroup are handled by separate include scripts
   (`Rename-Computer.ps1` and `Join-Workgroup.ps1`). Each script displays the
