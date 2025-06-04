@@ -16,6 +16,7 @@ PowerShell post-installation script to minimize and customize Windows operating 
   (`Rename-Computer.ps1` and `Join-Workgroup.ps1`). Each script displays the
   current value and asks if it should be changed. Add their filenames to
   `$Excludes` if you want to skip either action.
+* `Set-WallpaperWithStats.ps1` sets a desktop wallpaper from the `wallpaper` folder and overlays basic PC information on the image. Add your own image to that folder and update the script's `$wallpaperImage` path to point to it.
 * Start the PowerShell script using ```.\customize-windows-client.ps1```
 * If ExecutionPolicy is restricted try to use: ```powershell -ExecutionPolicy Bypass .\customize-windows-client.ps1```
 
