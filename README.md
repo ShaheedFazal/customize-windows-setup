@@ -24,10 +24,3 @@ The idea to use a separate script for each customization action as well as some 
 ## LICENSE
 customize-windows-client and all individual scripts are under the BSD 3-Clause license unless explicitly noted otherwise. Please refer to the LICENSE.
 
-## RUNNING TESTS
-This repository uses [Pester](https://github.com/pester/Pester) for basic testing.
-To execute the tests, run the following command from the repository root:
-
-```powershell
-pwsh -NoProfile -Command "Invoke-Pester"
-```
