@@ -1,6 +1,6 @@
 # Debloat Microsoft Edge by disabling telemetry and other unwanted features
 
-Write-Host "🔧 Applying Edge Debloat settings..."
+Write-Host "[INFO] Applying Edge Debloat settings..."
 
 # Define registry settings to apply
 $registrySettings = @(
@@ -29,10 +29,10 @@ foreach ($setting in $registrySettings) {
     try {
         New-Item -Path $setting.Path -Force | Out-Null
         Set-ItemProperty -Path $setting.Path -Name $setting.Name -Value $setting.Value -Type DWord
-        Write-Host "✅ Set $($setting.Name) to $($setting.Value) in $($setting.Path)"
+        Write-Host "[OK] Set $($setting.Name) to $($setting.Value) in $($setting.Path)"
     } catch {
-        Write-Host "❌ Failed to set $($setting.Name) in $($setting.Path): $_"
+        Write-Host "[ERROR] Failed to set $($setting.Name) in $($setting.Path): $_"
     }
 }
 
-Write-Host "✅ Edge Debloat settings applied successfully."
+Write-Host "[DONE] Edge Debloat settings applied successfully."

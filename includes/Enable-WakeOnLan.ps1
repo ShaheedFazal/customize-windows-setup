@@ -1,6 +1,6 @@
 # Enable Wake on LAN (WoL) on the local machine
 
-Write-Host "🔧 Configuring Wake on LAN..."
+Write-Host "[INFO] Configuring Wake on LAN..."
 
 # Filter for physical, active Ethernet adapters only
 Get-NetAdapter | Where-Object {
@@ -14,9 +14,9 @@ Get-NetAdapter | Where-Object {
     # Enable "Wake on Magic Packet"
     try {
         Set-NetAdapterAdvancedProperty -Name $adapterName -DisplayName "Wake on Magic Packet" -DisplayValue "Enabled" -NoRestart -ErrorAction Stop
-        Write-Host "✅ Enabled Wake on Magic Packet on $adapterName"
+        Write-Host "[OK] Enabled Wake on Magic Packet on $adapterName"
     } catch {
-        Write-Host "⚠️ Could not set Wake on Magic Packet on $adapterName. $_"
+        Write-Host "[WARN] Could not set Wake on Magic Packet on $adapterName. $_"
     }
 
     # Set power management options
@@ -25,10 +25,10 @@ Get-NetAdapter | Where-Object {
             powercfg -devicedisablewake $_
             powercfg -deviceenablewake $_
         }
-        Write-Host "✅ Enabled wake permissions in power management for $adapterName"
+        Write-Host "[OK] Enabled wake permissions in power management for $adapterName"
     } catch {
-        Write-Host "⚠️ Could not configure power settings for $adapterName. $_"
+        Write-Host "[WARN] Could not configure power settings for $adapterName. $_"
     }
 }
 
-Write-Host "📄 Wake on LAN configuration complete."
+Write-Host "[DONE] Wake on LAN configuration complete."

@@ -2,7 +2,7 @@
 $bitlockerStatus = Get-BitLockerVolume -MountPoint "C:"
 
 if ($bitlockerStatus.ProtectionStatus -eq 'Off') {
-    Write-Host "🔐 Enabling BitLocker on C: drive..."
+    Write-Host "[INFO] Enabling BitLocker on C: drive..."
 
     # Enable BitLocker using TPM and create a recovery password
     Enable-BitLocker -MountPoint "C:" -EncryptionMethod XtsAes256 -TpmProtector -RecoveryPasswordProtector -UsedSpaceOnly
@@ -21,7 +21,7 @@ if ($bitlockerStatus.ProtectionStatus -eq 'Off') {
     )
     $info | Out-File -FilePath $keyPath -Encoding UTF8
 
-    Write-Host "✅ BitLocker enabled. Recovery info saved to $keyPath"
+    Write-Host "[OK] BitLocker enabled. Recovery info saved to $keyPath"
 } else {
-    Write-Host "🔒 BitLocker is already enabled on the system drive."
+    Write-Host "[INFO] BitLocker is already enabled on the system drive."
 }
