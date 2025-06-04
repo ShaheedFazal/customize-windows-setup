@@ -55,6 +55,14 @@ if(-not (Test-Administrator)) {
     exit 1;
 }
 
+## Create System Restore Point
+Write-Host ($CR + "Create system restore point" + $BLANK + $TIME) -foregroundcolor $FOREGROUNDCOLOR $CR
+try {
+    Checkpoint-Computer -Description "Before customizations" -RestorePointType MODIFY_SETTINGS | Out-Null
+} catch {
+    Write-Warning "Failed to create restore point: $_"
+}
+
 # Create C:\Temp and C:\Install folders if not exists
 Write-Host ($CR +"Create $TEMPFOLDER and $INSTALLFOLDER folders") -foregroundcolor $FOREGROUNDCOLOR
 If(!(test-path $TEMPFOLDER)) {
