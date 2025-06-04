@@ -38,7 +38,6 @@ if ($executionPolicy -eq 'Restricted') {
 if (-not $PSScriptRoot) {
     $PSScriptRoot = Get-Location
 }
-
 # Path to store the downloaded zip
 $zipPath = Join-Path $PSScriptRoot 'customize-windows-setup.zip'
 
