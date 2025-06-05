@@ -4,10 +4,12 @@
 
 Write-Host "Setting Google Chrome defaults..."
 
-$setUserFtaPath = 'C:\\Scripts\\SetUserFTA.exe'
-
+$setUserFtaPath = Join-Path $env:TEMP 'SetUserFTA.exe'
 if (-not (Test-Path $setUserFtaPath)) {
-    Write-Host "SetUserFTA not found at $setUserFtaPath. Skipping default browser configuration." -ForegroundColor Yellow
+    $setUserFtaPath = 'C:\\Scripts\\SetUserFTA.exe'
+}
+if (-not (Test-Path $setUserFtaPath)) {
+    Write-Warning "SetUserFTA.exe not found. Ensure Install-EssentialApps.ps1 was executed."
     return
 }
 
