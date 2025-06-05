@@ -17,7 +17,14 @@ function Uninstall-PackageIfPresent {
 
     $prov = Get-AppxProvisionedPackage -Online | Where-Object DisplayName -like $Identifier
     if ($null -ne $prov) {
-        $prov | Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue
+        try {
+            $prov | Remove-AppxProvisionedPackage -Online -ErrorAction Stop
+        }
+        catch [System.Runtime.InteropServices.COMException] {
+            if ($_.Exception.HResult -ne -2147024893) {
+                throw
+            }
+        }
     }
 }
 
