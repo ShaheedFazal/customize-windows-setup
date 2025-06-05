@@ -134,7 +134,8 @@ try {
 }
 
 # Download SetUserFTA for file association scripts
-$setUserFtaUrl  = 'https://github.com/clechasseur/setuserfta/releases/download/v1.7.1/SetUserFTA.exe'
+# Fetch a known working copy from qis/windows
+$setUserFtaUrl  = 'https://github.com/qis/windows/blob/master/setup/SetUserFTA/SetUserFTA.exe'
 $setUserFtaPath = Join-Path $scriptFolder 'SetUserFTA.exe'
 
 if (-not (Test-Path $setUserFtaPath)) {
@@ -143,6 +144,6 @@ if (-not (Test-Path $setUserFtaPath)) {
         Download-File -Url $setUserFtaUrl -Path $setUserFtaPath
         Write-Host "[OK] SetUserFTA downloaded to $setUserFtaPath" -ForegroundColor Green
     } catch {
-        Write-Host "[ERROR] Failed to download SetUserFTA: $_" -ForegroundColor Red
+        Write-Warning "SetUserFTA download failed: $($_.Exception.Message)"
     }
 }
