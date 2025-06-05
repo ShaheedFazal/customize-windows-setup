@@ -116,6 +116,16 @@ $taskName = "Weekly Winget App Update"
 $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$updateScriptPath`""
 $trigger = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Sunday -At 8:00am
 
+$existingTask = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+if ($null -ne $existingTask) {
+    try {
+        Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction Stop
+        Write-Host "[INFO] Removed existing task '$taskName'." -ForegroundColor Yellow
+    } catch {
+        Write-Host "[WARN] Failed to remove existing task '$taskName': $_" -ForegroundColor Yellow
+    }
+}
+
 try {
     Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Description "Weekly winget updates" -RunLevel Highest -User "SYSTEM"
     Write-Host "[OK] Scheduled weekly update task as 'SYSTEM'" -ForegroundColor Green
