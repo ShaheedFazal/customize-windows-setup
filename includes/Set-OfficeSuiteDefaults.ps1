@@ -6,7 +6,7 @@ if (-not (Test-Path $setUserFtaPath)) {
     $setUserFtaPath = 'C:\Scripts\SetUserFTA.exe'
 }
 if (-not (Test-Path $setUserFtaPath)) {
-    Write-Host "SetUserFTA not found. Skipping office suite defaults." -ForegroundColor Yellow
+    Write-Warning "SetUserFTA.exe not found. Ensure Install-EssentialApps.ps1 was executed."
     return
 }
 
