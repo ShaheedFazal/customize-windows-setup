@@ -27,9 +27,7 @@ Set-Content -Path $scriptPath -Value $scriptContent -Encoding UTF8 -Force
 Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
 
 # Create trigger: start at 9:00 PM, repeat every 15 mins, for 6 hours
-$trigger = New-ScheduledTaskTrigger -Once -At 21:00
-$trigger.RepetitionInterval = "PT15M"   # 15 minutes
-$trigger.RepetitionDuration = "PT6H"    # 6 hours (until 3 AM)
+$trigger = New-ScheduledTaskTrigger -Daily -At 21:00 -RepetitionInterval (New-TimeSpan -Minutes 15) -RepetitionDuration (New-TimeSpan -Hours 6)
 
 # Define action
 $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`""
