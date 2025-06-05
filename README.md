@@ -38,7 +38,9 @@ The project started as a fork of [filipnet/customize-windows-client](https://git
    reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v BlockUserFromCreatingAccounts /t REG_DWORD /d 0 /f
    reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement" /v ScoobeSystemSettingEnabled /t REG_DWORD /d 1 /f
    ```
-7. **Run the script from the same console** so you can respond to prompts:
+7. Run `Create-Standard-User.ps1` to create a local account without administrator rights. You
+   will be prompted for a user name and to confirm the password.
+8. **Run the script from the same console** so you can respond to prompts:
 
    ```powershell
    .\customize-windows-client.ps1
