@@ -1,3 +1,2 @@
-Place your wallpaper.jpg image in this directory and update the filename in `Set-WallpaperWithStats.ps1`.
-The script overlays the computer name, model, serial number and Windows version in the bottom-right corner of the wallpaper.
-
+Place your wallpaper.png image in this directory.
+`Set-WallpaperWithStats.ps1` overlays computer information on the image and expects this filename by default.
