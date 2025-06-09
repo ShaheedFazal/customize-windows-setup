@@ -117,18 +117,22 @@ reg export HKCR C:\Install\registry-backup-hkcr.reg /y | Out-Null
 # Start customization
 Write-Host ($CR +"This system will customized and minimized") -foregroundcolor $FOREGROUNDCOLOR $CR
 $confirmation = Read-Host "Are you sure you want to proceed? [press: y]"
-if ($confirmation -eq 'y') {
-    # Create list of all actions in the includes folder
-    $AllActions = Get-ChildItem -Path $IncludesPath -File | Sort-Object -Property Name
+if ($confirmation -ne 'y') {
+    Write-Host "Customization canceled" -ForegroundColor Yellow
+    Stop-Transcript | Out-Null
+    return
+}
 
-    # Files prefixed with ZZZ should run after default profile templating
-    $PreTemplateActions = $AllActions | Where-Object { $_.Name -notlike 'ZZZ-*' }
-    foreach ($Action in $PreTemplateActions) {
-        Write-Host "Execute " -NoNewline
-        Write-Host ($Action.Name) -ForegroundColor Yellow -NoNewline
-        Write-Host " ..."
-        & $Action.FullName
-    }
+# Create list of all actions in the includes folder
+$AllActions = Get-ChildItem -Path $IncludesPath -File | Sort-Object -Property Name
+
+# Files prefixed with ZZZ should run after default profile templating
+$PreTemplateActions = $AllActions | Where-Object { $_.Name -notlike 'ZZZ-*' }
+foreach ($Action in $PreTemplateActions) {
+    Write-Host "Execute " -NoNewline
+    Write-Host ($Action.Name) -ForegroundColor Yellow -NoNewline
+    Write-Host " ..."
+    & $Action.FullName
 }
 Write-Host ($CR +"All customizations completed for current user") -foregroundcolor $FOREGROUNDCOLOR
 $templateChoice = Read-Host "Apply customizations to default user profile for future users? [y/N]"
