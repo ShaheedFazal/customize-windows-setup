@@ -1,26 +1,28 @@
 # ============================================================================
-# WINDOWS CUSTOMIZATION TOOLKIT - DEFAULT PROFILE FUNCTIONS
+# WINDOWS CUSTOMIZATION TOOLKIT - DEFAULT PROFILE FUNCTIONS (FIXED)
 # ============================================================================
 
 function Mount-DefaultUserHive {
     [CmdletBinding()]
     param()
     try {
-        $defaultProfilePath = "C:\\Users\\Default\\NTUSER.DAT"
-        $mountPoint = "HKEY_USERS\\DEFAULT_TEMPLATE"
+        $defaultProfilePath = "C:\Users\Default\NTUSER.DAT"
+        $mountPoint = "HKU\DEFAULT_TEMPLATE"
 
         if (!(Test-Path $defaultProfilePath)) {
             throw "Default user profile not found: $defaultProfilePath"
         }
 
-        # Use variables for mount point and profile path to avoid quoting issues
-        $result = & reg.exe load "$mountPoint" "$defaultProfilePath" 2>&1
+        # Check if already mounted
+        if (Get-ChildItem Registry::HKEY_USERS | Where-Object { $_.PSChildName -eq 'DEFAULT_TEMPLATE' }) {
+            Write-Host "[TEMPLATE] Default user hive already mounted" -ForegroundColor Yellow
+            return $true
+        }
+
+        # Use proper command execution with error handling
+        $result = cmd.exe /c "reg.exe load `"$mountPoint`" `"$defaultProfilePath`"" 2>&1
         if ($LASTEXITCODE -ne 0) {
-            if (Get-ChildItem Registry::HKEY_USERS | Where-Object { $_.PSChildName -eq 'DEFAULT_TEMPLATE' }) {
-                Write-Host "[TEMPLATE] Default user hive already mounted" -ForegroundColor Yellow
-                return $true
-            }
-            throw "Failed to mount default user hive: $result"
+            throw "Failed to mount default user hive. Exit code: $LASTEXITCODE. Output: $result"
         }
 
         Write-Host "[TEMPLATE] Mounted default user hive at $mountPoint" -ForegroundColor Green
@@ -36,13 +38,22 @@ function Dismount-DefaultUserHive {
     [CmdletBinding()]
     param()
     try {
-        $mountPoint = "HKEY_USERS\\DEFAULT_TEMPLATE"
-        if (Get-ChildItem Registry::HKEY_USERS | Where-Object { $_.Name -like '*DEFAULT_TEMPLATE' }) {
-            $result = & reg.exe unload "$mountPoint" 2>&1
+        $mountPoint = "HKU\DEFAULT_TEMPLATE"
+        
+        # Check if mounted before attempting to unload
+        if (Get-ChildItem Registry::HKEY_USERS | Where-Object { $_.PSChildName -eq 'DEFAULT_TEMPLATE' }) {
+            $result = cmd.exe /c "reg.exe unload `"$mountPoint`"" 2>&1
             if ($LASTEXITCODE -ne 0) {
-                throw "Failed to dismount default user hive: $result"
+                # Sometimes unload fails if registry is busy, try again after brief pause
+                Start-Sleep -Seconds 2
+                $result = cmd.exe /c "reg.exe unload `"$mountPoint`"" 2>&1
+                if ($LASTEXITCODE -ne 0) {
+                    throw "Failed to dismount default user hive. Exit code: $LASTEXITCODE. Output: $result"
+                }
             }
             Write-Host "[TEMPLATE] Dismounted default user hive" -ForegroundColor Green
+        } else {
+            Write-Host "[TEMPLATE] Default user hive not mounted" -ForegroundColor Gray
         }
         return $true
     }
@@ -63,12 +74,14 @@ function Copy-RegistrySection {
             Write-Host "[TEMPLATE] Source path not found: $SourcePath" -ForegroundColor Yellow
             return $false
         }
-        $result = reg copy $SourcePath $DestinationPath /s /f 2>&1
+        
+        # Use cmd.exe for more reliable registry operations
+        $result = cmd.exe /c "reg.exe copy `"$SourcePath`" `"$DestinationPath`" /s /f" 2>&1
         if ($LASTEXITCODE -eq 0) {
             Write-Host "[TEMPLATE] Copied $SourcePath" -ForegroundColor Green
             return $true
         } else {
-            throw $result
+            throw "Registry copy failed. Exit code: $LASTEXITCODE. Output: $result"
         }
     }
     catch {
@@ -83,11 +96,13 @@ function Remove-PersonalPaths {
     try {
         if (Test-Path $KeyPath) {
             $userPath = [regex]::Escape($env:USERPROFILE)
-            $props = Get-ItemProperty -Path $KeyPath
-            foreach ($prop in $props.PSObject.Properties) {
-                if ($prop.Value -is [string] -and $prop.Value -match $userPath) {
-                    Remove-ItemProperty -Path $KeyPath -Name $prop.Name -ErrorAction SilentlyContinue
-                    Write-Host "[TEMPLATE] Removed personal path from $KeyPath\\$($prop.Name)" -ForegroundColor Yellow
+            $props = Get-ItemProperty -Path $KeyPath -ErrorAction SilentlyContinue
+            if ($props) {
+                foreach ($prop in $props.PSObject.Properties) {
+                    if ($prop.Value -is [string] -and $prop.Value -match $userPath) {
+                        Remove-ItemProperty -Path $KeyPath -Name $prop.Name -ErrorAction SilentlyContinue
+                        Write-Host "[TEMPLATE] Removed personal path from $KeyPath\$($prop.Name)" -ForegroundColor Yellow
+                    }
                 }
             }
         }
@@ -109,13 +124,23 @@ function Test-TemplatingRequirements {
     [CmdletBinding()]
     param()
 
+    # Check administrator privileges
     if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltinRole] "Administrator")) {
         Write-Host "[TEMPLATE] Administrator privileges required" -ForegroundColor Red
         return $false
     }
 
-    if (-not (Test-Path "C:\\Users\\Default\\NTUSER.DAT")) {
+    # Check default user profile exists
+    if (-not (Test-Path "C:\Users\Default\NTUSER.DAT")) {
         Write-Host "[TEMPLATE] Default user profile not found" -ForegroundColor Red
+        return $false
+    }
+
+    # Check if reg.exe is available
+    try {
+        $null = Get-Command "reg.exe" -ErrorAction Stop
+    } catch {
+        Write-Host "[TEMPLATE] reg.exe command not found" -ForegroundColor Red
         return $false
     }
 
@@ -127,16 +152,28 @@ function Backup-DefaultProfile {
     [CmdletBinding()]
     param()
     try {
-        $source = 'C:\\Users\\Default'
-        $backup = 'C:\\Users\\Default.backup'
+        $source = 'C:\Users\Default'
+        $backup = 'C:\Users\Default.backup'
 
-        if (Test-Path $backup) { Remove-Item $backup -Recurse -Force }
+        if (Test-Path $backup) { 
+            Remove-Item $backup -Recurse -Force -ErrorAction Stop
+        }
         New-Item -ItemType Directory -Path $backup -Force | Out-Null
 
-        $exclude = @('Application Data', 'History')
-        robocopy $source $backup /MIR /XJ /XD $exclude | Out-Null
-        if ($LASTEXITCODE -ge 8) {
-            throw "Robocopy failed with exit code $LASTEXITCODE"
+        # Use robocopy for reliable folder copying
+        $exclude = @('Application Data', 'History', 'Temporary Internet Files')
+        $robocopyArgs = @($source, $backup, '/MIR', '/XJ', '/R:1', '/W:1')
+        foreach ($exclusion in $exclude) {
+            $robocopyArgs += '/XD'
+            $robocopyArgs += $exclusion
+        }
+        
+        $robocopyResult = & robocopy @robocopyArgs
+        $robocopyExitCode = $LASTEXITCODE
+        
+        # Robocopy exit codes 0-7 are success, 8+ indicate errors
+        if ($robocopyExitCode -ge 8) {
+            throw "Robocopy failed with exit code $robocopyExitCode"
         }
 
         Write-Host "[TEMPLATE] Backup created at $backup" -ForegroundColor Green
@@ -152,22 +189,38 @@ function Restore-DefaultProfile {
     [CmdletBinding()]
     param()
     try {
-        $backup = 'C:\\Users\\Default.backup'
-        $dest   = 'C:\\Users\\Default'
+        $backup = 'C:\Users\Default.backup'
+        $dest   = 'C:\Users\Default'
+        
         if (Test-Path $backup) {
+            if (Test-Path $dest) {
+                Remove-Item $dest -Recurse -Force -ErrorAction Stop
+            }
             New-Item -ItemType Directory -Path $dest -Force | Out-Null
 
-            $exclude = @('Application Data', 'History')
-            robocopy $backup $dest /MIR /XJ /XD $exclude | Out-Null
-            if ($LASTEXITCODE -ge 8) {
-                throw "Robocopy failed with exit code $LASTEXITCODE"
+            $exclude = @('Application Data', 'History', 'Temporary Internet Files')
+            $robocopyArgs = @($backup, $dest, '/MIR', '/XJ', '/R:1', '/W:1')
+            foreach ($exclusion in $exclude) {
+                $robocopyArgs += '/XD'
+                $robocopyArgs += $exclusion
+            }
+            
+            $robocopyResult = & robocopy @robocopyArgs
+            $robocopyExitCode = $LASTEXITCODE
+            
+            if ($robocopyExitCode -ge 8) {
+                throw "Robocopy failed with exit code $robocopyExitCode"
             }
 
             Write-Host "[TEMPLATE] Restored default profile from backup" -ForegroundColor Yellow
+        } else {
+            Write-Host "[TEMPLATE] No backup found to restore" -ForegroundColor Yellow
         }
+        return $true
     }
     catch {
         Write-Host "[TEMPLATE ERROR] Failed to restore default profile: $_" -ForegroundColor Red
+        return $false
     }
 }
 
@@ -185,7 +238,8 @@ function Remove-PersonalDataFromSection {
         'LastVisited*',
         'MostRecentApplication',
         'TypedPaths',
-        'TypedURLs'
+        'TypedURLs',
+        'UserAssist'
     )
 
     Write-Host "    Filtering personal data..." -ForegroundColor Gray
@@ -194,12 +248,15 @@ function Remove-PersonalDataFromSection {
         try {
             if ($valueName.Contains('*')) {
                 $pattern = $valueName.Replace('*', '')
-                $allValues = Get-Item -Path $RegistryPath -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Property
-                $matchingValues = $allValues | Where-Object { $_ -like "*$pattern*" }
+                $allValues = Get-Item -Path $RegistryPath -ErrorAction SilentlyContinue | 
+                             Select-Object -ExpandProperty Property -ErrorAction SilentlyContinue
+                if ($allValues) {
+                    $matchingValues = $allValues | Where-Object { $_ -like "*$pattern*" }
 
-                foreach ($matchingValue in $matchingValues) {
-                    Remove-ItemProperty -Path $RegistryPath -Name $matchingValue -Force -ErrorAction SilentlyContinue
-                    Write-Host "      Removed: $matchingValue" -ForegroundColor Gray
+                    foreach ($matchingValue in $matchingValues) {
+                        Remove-ItemProperty -Path $RegistryPath -Name $matchingValue -Force -ErrorAction SilentlyContinue
+                        Write-Host "      Removed: $matchingValue" -ForegroundColor Gray
+                    }
                 }
             } else {
                 if (Get-ItemProperty -Path $RegistryPath -Name $valueName -ErrorAction SilentlyContinue) {
@@ -209,6 +266,7 @@ function Remove-PersonalDataFromSection {
             }
         }
         catch {
+            # Silent continue for missing values
         }
     }
 }
@@ -222,14 +280,19 @@ function Copy-SpecificRegistryValues {
 
     try {
         if (!(Test-Path $Section.Destination)) {
-            New-Item -Path $Section.Destination -Force | Out-Null
+            # Use cmd for registry key creation for consistency
+            $keyPath = $Section.Destination.Replace('Registry::', '').Replace('\', '\')
+            $result = cmd.exe /c "reg.exe add `"$keyPath`" /f" 2>&1
+            if ($LASTEXITCODE -ne 0) {
+                throw "Failed to create registry key: $result"
+            }
         }
 
         foreach ($valueName in $Section.CopySpecificValues) {
             try {
-                $value = Get-ItemProperty -Path $Section.Source -Name $valueName -ErrorAction SilentlyContinue
-                if ($value) {
-                    $valueData = $value.$valueName
+                $sourceItem = Get-ItemProperty -Path $Section.Source -Name $valueName -ErrorAction SilentlyContinue
+                if ($sourceItem) {
+                    $valueData = $sourceItem.$valueName
                     $valueType = (Get-Item -Path $Section.Source).GetValueKind($valueName)
 
                     Set-ItemProperty -Path $Section.Destination -Name $valueName -Value $valueData -Type $valueType -Force
@@ -241,11 +304,11 @@ function Copy-SpecificRegistryValues {
             }
         }
 
-        Write-Host "  \u2713 Completed: $($Section.Description)" -ForegroundColor Green
+        Write-Host "  ✓ Completed: $($Section.Description)" -ForegroundColor Green
         return $true
     }
     catch {
-        Write-Host "  \u2717 Failed: $($Section.Description) - $_" -ForegroundColor Red
+        Write-Host "  ✗ Failed: $($Section.Description) - $_" -ForegroundColor Red
         return $false
     }
 }
@@ -268,7 +331,11 @@ function Copy-RegistryToDefault {
             return $false
         }
 
-        $result = reg copy "$SourcePath" "$DestinationPath" /s /f 2>&1
+        # Convert PowerShell registry paths to reg.exe format
+        $regSourcePath = $SourcePath.Replace('HKCU:\', 'HKEY_CURRENT_USER\').Replace('HKU:\', 'HKEY_USERS\')
+        $regDestPath = $DestinationPath.Replace('HKU:\', 'HKEY_USERS\')
+
+        $result = cmd.exe /c "reg.exe copy `"$regSourcePath`" `"$regDestPath`" /s /f" 2>&1
 
         if ($LASTEXITCODE -eq 0) {
             Write-Host "    Copied registry section" -ForegroundColor Gray
@@ -300,12 +367,43 @@ function Get-SafeTemplateSections {
     #>
 
     return @(
-        @{ Source = "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced"; Destination = "HKU:\\DEFAULT_TEMPLATE\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced"; Description = "Explorer Advanced Settings (taskbar, file extensions, etc.)"; FilterPersonalData = $false },
-        @{ Source = "HKCU:\\Control Panel\\Desktop"; Destination = "HKU:\\DEFAULT_TEMPLATE\\Control Panel\\Desktop"; Description = "Desktop and screensaver settings"; FilterPersonalData = $true },
-        @{ Source = "HKCU:\\Control Panel\\Keyboard"; Destination = "HKU:\\DEFAULT_TEMPLATE\\Control Panel\\Keyboard"; Description = "Keyboard settings (NumLock, etc.)"; FilterPersonalData = $false },
-        @{ Source = "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Search"; Destination = "HKU:\\DEFAULT_TEMPLATE\\Software\\Microsoft\\Windows\\CurrentVersion\\Search"; Description = "Windows Search preferences"; FilterPersonalData = $true },
-        @{ Source = "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager"; Destination = "HKU:\\DEFAULT_TEMPLATE\\Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager"; Description = "Content delivery and privacy settings"; FilterPersonalData = $true },
-        @{ Source = "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer"; Destination = "HKU:\\DEFAULT_TEMPLATE\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer"; Description = "Explorer recent items settings"; FilterPersonalData = $true; CopySpecificValues = @('ShowRecent','ShowFrequent') }
+        @{ 
+            Source = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
+            Destination = "Registry::HKEY_USERS\DEFAULT_TEMPLATE\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
+            Description = "Explorer Advanced Settings (taskbar, file extensions, etc.)"
+            FilterPersonalData = $false 
+        },
+        @{ 
+            Source = "HKCU:\Control Panel\Desktop"
+            Destination = "Registry::HKEY_USERS\DEFAULT_TEMPLATE\Control Panel\Desktop"
+            Description = "Desktop and screensaver settings"
+            FilterPersonalData = $true 
+        },
+        @{ 
+            Source = "HKCU:\Control Panel\Keyboard"
+            Destination = "Registry::HKEY_USERS\DEFAULT_TEMPLATE\Control Panel\Keyboard"
+            Description = "Keyboard settings (NumLock, etc.)"
+            FilterPersonalData = $false 
+        },
+        @{ 
+            Source = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search"
+            Destination = "Registry::HKEY_USERS\DEFAULT_TEMPLATE\Software\Microsoft\Windows\CurrentVersion\Search"
+            Description = "Windows Search preferences"
+            FilterPersonalData = $true 
+        },
+        @{ 
+            Source = "HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"
+            Destination = "Registry::HKEY_USERS\DEFAULT_TEMPLATE\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"
+            Description = "Content delivery and privacy settings"
+            FilterPersonalData = $true 
+        },
+        @{ 
+            Source = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer"
+            Destination = "Registry::HKEY_USERS\DEFAULT_TEMPLATE\Software\Microsoft\Windows\CurrentVersion\Explorer"
+            Description = "Explorer recent items settings"
+            FilterPersonalData = $true
+            CopySpecificValues = @('ShowRecent','ShowFrequent') 
+        }
     )
 }
 
@@ -351,12 +449,14 @@ function Invoke-ProfileTemplating {
     }
 
     if ($Backup) {
+        Write-Host "[TEMPLATE] Creating backup of default profile..." -ForegroundColor Cyan
         if (-not (Backup-DefaultProfile)) {
             Write-Host "[TEMPLATE] Failed to backup default profile - aborting" -ForegroundColor Red
             return $false
         }
     }
 
+    Write-Host "[TEMPLATE] Mounting default user registry hive..." -ForegroundColor Cyan
     if (-not (Mount-DefaultUserHive)) {
         Write-Host "[TEMPLATE] Failed to mount default user hive - aborting" -ForegroundColor Red
         return $false
@@ -367,16 +467,16 @@ function Invoke-ProfileTemplating {
 
         if ($success) {
             Write-Host "[TEMPLATE] Profile templating completed successfully!" -ForegroundColor Green
+            Write-Host "[TEMPLATE] New user accounts will inherit current customisations" -ForegroundColor Green
             return $true
         } else {
             Write-Host "[TEMPLATE] Profile templating completed with some errors" -ForegroundColor Yellow
+            Write-Host "[TEMPLATE] Some customisations may not apply to new users" -ForegroundColor Yellow
             return $false
         }
     }
     finally {
+        Write-Host "[TEMPLATE] Dismounting registry hive..." -ForegroundColor Cyan
         Dismount-DefaultUserHive
     }
 }
-
-
-
