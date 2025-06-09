@@ -1,2 +1,5 @@
+# Load shared functions
+. "$PSScriptRoot\Registry-Functions.ps1"
+
 # Hide Taskbar Search icon / box
-Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Search" -Name "SearchboxTaskbarMode" -Type DWord -Value 0
+Set-RegistryValue -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Search" -Name "SearchboxTaskbarMode" -Value 0 -Type "DWord" -Force
