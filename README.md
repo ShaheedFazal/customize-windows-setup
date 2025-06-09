@@ -170,7 +170,7 @@ To use: Place your image as `wallpaper/wallpaper.png` in the toolkit directory.
 
 ### Scheduled Maintenance
 - **Daily shutdown check:** Automatically shuts down inactive systems after 9 PM
-- **Weekly app updates:** Updates all winget-managed applications every Sunday
+- **Weekly app updates:** Updates all winget-managed applications every Sunday at 8 AM or on next boot if missed
 - **Smart shutdown logic:** Only triggers when no users are actively logged in
 
 ### Network Configuration
