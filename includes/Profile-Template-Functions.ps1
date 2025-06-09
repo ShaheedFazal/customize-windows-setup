@@ -10,4 +10,3 @@ function Invoke-ProfileTemplate {
     return $true
 }
 
-Export-ModuleMember -Function Invoke-ProfileTemplate
