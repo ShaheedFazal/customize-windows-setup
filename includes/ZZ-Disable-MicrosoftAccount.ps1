@@ -13,13 +13,11 @@ $domainIsMicrosoft = $currentUser -and $currentUser.Domain -eq 'MicrosoftAccount
 $hasMicrosoftAccount = $identityFound -or $domainIsMicrosoft
 
 # Detect if any enabled local accounts exist besides the built-ins
-$localAccounts = Get-CimInstance Win32_UserAccount -Filter "LocalAccount=true AND Disabled=false" -ErrorAction SilentlyContinue
-$filteredAccounts = $localAccounts | Where-Object {
-    $_.Name -notin @('Administrator','DefaultAccount','Guest','WDAGUtilityAccount')
-}
+$acctInfo = Get-LocalAccountCount
+$filteredAccounts = $acctInfo.Accounts
 
 # Determine whether any extra local accounts exist
-$hasLocalAccount = ($filteredAccounts | Measure-Object).Count -gt 0
+$hasLocalAccount = $acctInfo.Count -gt 0
 
 if ($hasMicrosoftAccount) {
     Write-Warning 'A Microsoft account is detected. Disabling it may lock you out.'
@@ -32,17 +30,8 @@ if ($hasMicrosoftAccount) {
         Write-Warning 'No additional local accounts were found.'
         $create = Read-Host 'Would you like to create a local account now? [y/N]'
         if ($create -eq 'y') {
-            $username = Read-Host 'Enter a user name for the new account'
-            do {
-                $pw1 = Read-Host 'Enter password' -AsSecureString
-                $pw2 = Read-Host 'Confirm password' -AsSecureString
-                if ([System.Net.NetworkCredential]::new('', $pw1).Password -ne [System.Net.NetworkCredential]::new('', $pw2).Password) {
-                    Write-Warning 'Passwords do not match. Please try again.'
-                }
-            } until ([System.Net.NetworkCredential]::new('', $pw1).Password -eq [System.Net.NetworkCredential]::new('', $pw2).Password)
-
-            New-LocalUserAccount -Username $username -Password $pw1 -Groups @('Administrators')
-            $hasLocalAccount = $true
+            $username = New-LocalUserAccount -AccountType 'Administrator'
+            if ($null -ne $username) { $hasLocalAccount = $true }
         }
     }
 
