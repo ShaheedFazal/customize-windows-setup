@@ -7,14 +7,18 @@ function Mount-DefaultUserHive {
     param()
     try {
         $defaultProfilePath = "C:\\Users\\Default\\NTUSER.DAT"
-        $mountPoint = "HKEY_USERS\\DEFAULT_TEMPLATE"
+        $mountPoint = "HKU\\DEFAULT_TEMPLATE"
 
         if (!(Test-Path $defaultProfilePath)) {
             throw "Default user profile not found: $defaultProfilePath"
         }
 
-        $result = reg load $mountPoint $defaultProfilePath 2>&1
+        $result = & reg.exe load $mountPoint $defaultProfilePath 2>&1
         if ($LASTEXITCODE -ne 0) {
+            if (Get-ChildItem Registry::HKEY_USERS | Where-Object { $_.PSChildName -eq 'DEFAULT_TEMPLATE' }) {
+                Write-Host "[TEMPLATE] Default user hive already mounted" -ForegroundColor Yellow
+                return $true
+            }
             throw "Failed to mount default user hive: $result"
         }
 
@@ -31,9 +35,9 @@ function Dismount-DefaultUserHive {
     [CmdletBinding()]
     param()
     try {
-        $mountPoint = "HKEY_USERS\\DEFAULT_TEMPLATE"
+        $mountPoint = "HKU\\DEFAULT_TEMPLATE"
         if (Get-ChildItem Registry::HKEY_USERS | Where-Object { $_.Name -like '*DEFAULT_TEMPLATE' }) {
-            $result = reg unload $mountPoint 2>&1
+            $result = & reg.exe unload $mountPoint 2>&1
             if ($LASTEXITCODE -ne 0) {
                 throw "Failed to dismount default user hive: $result"
             }
