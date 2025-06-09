@@ -151,67 +151,212 @@ function Restore-DefaultProfile {
     }
 }
 
-function Copy-RegistryToDefault {
+function Remove-PersonalDataFromSection {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory)][string]$SourcePath,
-        [Parameter(Mandatory)][string]$DestinationPath,
-        [switch]$FilterPersonalData
+        [Parameter(Mandatory)]
+        [string]$RegistryPath
     )
-    try {
-        if (!(Test-Path $SourcePath)) {
-            Write-Host "[TEMPLATE] Source path not found: $SourcePath" -ForegroundColor Yellow
-            return $false
-        }
-        $result = reg copy $SourcePath $DestinationPath /s /f 2>&1
-        if ($LASTEXITCODE -eq 0) {
-            Write-Host "[TEMPLATE] Copied $SourcePath to default profile" -ForegroundColor Green
-            if ($FilterPersonalData) {
-                Filter-RegistrySection -KeyPath $DestinationPath | Out-Null
-                Write-Host "[TEMPLATE] Applied personal data filtering" -ForegroundColor Green
+
+    $personalDataValues = @(
+        'Wallpaper',
+        'RecentDocs',
+        'RunMRU',
+        'LastVisited*',
+        'MostRecentApplication',
+        'TypedPaths',
+        'TypedURLs'
+    )
+
+    Write-Host "    Filtering personal data..." -ForegroundColor Gray
+
+    foreach ($valueName in $personalDataValues) {
+        try {
+            if ($valueName.Contains('*')) {
+                $pattern = $valueName.Replace('*', '')
+                $allValues = Get-Item -Path $RegistryPath -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Property
+                $matchingValues = $allValues | Where-Object { $_ -like "*$pattern*" }
+
+                foreach ($matchingValue in $matchingValues) {
+                    Remove-ItemProperty -Path $RegistryPath -Name $matchingValue -Force -ErrorAction SilentlyContinue
+                    Write-Host "      Removed: $matchingValue" -ForegroundColor Gray
+                }
+            } else {
+                if (Get-ItemProperty -Path $RegistryPath -Name $valueName -ErrorAction SilentlyContinue) {
+                    Remove-ItemProperty -Path $RegistryPath -Name $valueName -Force -ErrorAction SilentlyContinue
+                    Write-Host "      Removed: $valueName" -ForegroundColor Gray
+                }
             }
-            return $true
-        } else {
-            throw $result
+        }
+        catch {
         }
     }
+}
+
+function Copy-SpecificRegistryValues {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [hashtable]$Section
+    )
+
+    try {
+        if (!(Test-Path $Section.Destination)) {
+            New-Item -Path $Section.Destination -Force | Out-Null
+        }
+
+        foreach ($valueName in $Section.CopySpecificValues) {
+            try {
+                $value = Get-ItemProperty -Path $Section.Source -Name $valueName -ErrorAction SilentlyContinue
+                if ($value) {
+                    $valueData = $value.$valueName
+                    $valueType = (Get-Item -Path $Section.Source).GetValueKind($valueName)
+
+                    Set-ItemProperty -Path $Section.Destination -Name $valueName -Value $valueData -Type $valueType -Force
+                    Write-Host "    Copied value: $valueName" -ForegroundColor Gray
+                }
+            }
+            catch {
+                Write-Host "    Failed to copy value: $valueName - $_" -ForegroundColor Yellow
+            }
+        }
+
+        Write-Host "  \u2713 Completed: $($Section.Description)" -ForegroundColor Green
+        return $true
+    }
     catch {
-        Write-Host "[TEMPLATE ERROR] Failed to copy $SourcePath : $_" -ForegroundColor Red
+        Write-Host "  \u2717 Failed: $($Section.Description) - $_" -ForegroundColor Red
         return $false
     }
 }
 
-function Test-SafeForTemplating {
+function Copy-RegistryToDefault {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$SourcePath,
+
+        [Parameter(Mandatory)]
+        [string]$DestinationPath,
+
+        [switch]$FilterPersonalData
+    )
+
+    try {
+        if (!(Test-Path $SourcePath)) {
+            Write-Host "    Source path not found: $SourcePath" -ForegroundColor Yellow
+            return $false
+        }
+
+        $result = reg copy "$SourcePath" "$DestinationPath" /s /f 2>&1
+
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "    Copied registry section" -ForegroundColor Gray
+
+            if ($FilterPersonalData) {
+                Remove-PersonalDataFromSection -RegistryPath $DestinationPath
+            }
+
+            return $true
+        } else {
+            Write-Host "    Failed to copy registry section: $result" -ForegroundColor Yellow
+            return $false
+        }
+    }
+    catch {
+        Write-Host "    Exception during copy: $_" -ForegroundColor Red
+        return $false
+    }
+}
+
+function Get-SafeTemplateSections {
+    <#
+    .SYNOPSIS
+    Returns array of registry sections that are safe to copy from current user to default profile
+
+    .DESCRIPTION
+    These sections contain UI preferences and settings that enhance user experience
+    without containing personal data or risky configurations.
+    #>
+
+    return @(
+        @{ Source = "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced"; Destination = "HKU:\\DEFAULT_TEMPLATE\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced"; Description = "Explorer Advanced Settings (taskbar, file extensions, etc.)"; FilterPersonalData = $false },
+        @{ Source = "HKCU:\\Control Panel\\Desktop"; Destination = "HKU:\\DEFAULT_TEMPLATE\\Control Panel\\Desktop"; Description = "Desktop and screensaver settings"; FilterPersonalData = $true },
+        @{ Source = "HKCU:\\Control Panel\\Keyboard"; Destination = "HKU:\\DEFAULT_TEMPLATE\\Control Panel\\Keyboard"; Description = "Keyboard settings (NumLock, etc.)"; FilterPersonalData = $false },
+        @{ Source = "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Search"; Destination = "HKU:\\DEFAULT_TEMPLATE\\Software\\Microsoft\\Windows\\CurrentVersion\\Search"; Description = "Windows Search preferences"; FilterPersonalData = $true },
+        @{ Source = "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager"; Destination = "HKU:\\DEFAULT_TEMPLATE\\Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager"; Description = "Content delivery and privacy settings"; FilterPersonalData = $true },
+        @{ Source = "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer"; Destination = "HKU:\\DEFAULT_TEMPLATE\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer"; Description = "Explorer recent items settings"; FilterPersonalData = $true; CopySpecificValues = @('ShowRecent','ShowFrequent') }
+    )
+}
+
+function Copy-SafeRegistrySections {
     [CmdletBinding()]
     param()
-    return (Test-TemplatingRequirements)
+
+    $sections = Get-SafeTemplateSections
+    $successCount = 0
+    $totalCount = $sections.Count
+
+    Write-Host "[TEMPLATE] Processing $totalCount registry sections..." -ForegroundColor Cyan
+
+    foreach ($section in $sections) {
+        Write-Host "  Processing: $($section.Description)" -ForegroundColor Gray
+
+        if ($section.CopySpecificValues) {
+            $sectionSuccess = Copy-SpecificRegistryValues -Section $section
+        } else {
+            $sectionSuccess = Copy-RegistryToDefault -SourcePath $section.Source -DestinationPath $section.Destination -FilterPersonalData:$section.FilterPersonalData
+        }
+
+        if ($sectionSuccess) {
+            $successCount++
+        }
+    }
+
+    Write-Host "[TEMPLATE] Successfully templated $successCount of $totalCount sections" -ForegroundColor Cyan
+    return ($successCount -eq $totalCount)
 }
 
 function Invoke-ProfileTemplating {
     [CmdletBinding()]
-    param()
+    param(
+        [switch]$Backup = $true
+    )
 
-    if (-not (Test-SafeForTemplating)) { return }
+    Write-Host "`n[TEMPLATE] Starting profile templating process..." -ForegroundColor Cyan
 
-    if (-not (Backup-DefaultProfile)) { return }
+    if (-not (Test-TemplatingRequirements)) {
+        Write-Host "[TEMPLATE] Templating cancelled - technical requirements not met" -ForegroundColor Red
+        return $false
+    }
 
-    if (-not (Mount-DefaultUserHive)) { return }
+    if ($Backup) {
+        if (-not (Backup-DefaultProfile)) {
+            Write-Host "[TEMPLATE] Failed to backup default profile - aborting" -ForegroundColor Red
+            return $false
+        }
+    }
+
+    if (-not (Mount-DefaultUserHive)) {
+        Write-Host "[TEMPLATE] Failed to mount default user hive - aborting" -ForegroundColor Red
+        return $false
+    }
+
     try {
-        $destHive = 'HKEY_USERS\\DEFAULT_TEMPLATE'
-        $sections = @(
-            @{ Source = 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced'; Destination = "$destHive\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced"; Filter = $true },
-            @{ Source = 'HKCU:\\Control Panel\\Desktop'; Destination = "$destHive\\Control Panel\\Desktop"; Filter = $true },
-            @{ Source = 'HKCU:\\Control Panel\\Keyboard'; Destination = "$destHive\\Control Panel\\Keyboard"; Filter = $false },
-            @{ Source = 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Search'; Destination = "$destHive\\Software\\Microsoft\\Windows\\CurrentVersion\\Search"; Filter = $true },
-            @{ Source = 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\AutoplayHandlers'; Destination = "$destHive\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\AutoplayHandlers"; Filter = $false },
-            @{ Source = 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager'; Destination = "$destHive\\Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager"; Filter = $false }
-        )
-        foreach ($section in $sections) {
-            Copy-RegistryToDefault -SourcePath $section.Source -DestinationPath $section.Destination -FilterPersonalData:$section.Filter | Out-Null
+        $success = Copy-SafeRegistrySections
+
+        if ($success) {
+            Write-Host "[TEMPLATE] Profile templating completed successfully!" -ForegroundColor Green
+            return $true
+        } else {
+            Write-Host "[TEMPLATE] Profile templating completed with some errors" -ForegroundColor Yellow
+            return $false
         }
     }
     finally {
-        Dismount-DefaultUserHive | Out-Null
+        Dismount-DefaultUserHive
     }
 }
+
+
 
