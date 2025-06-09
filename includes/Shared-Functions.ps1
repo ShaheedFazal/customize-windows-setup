@@ -122,3 +122,34 @@ function Set-ServiceStartupTypeSafely {
         return $false
     }
 }
+
+function New-LocalUserAccount {
+    param(
+        [Parameter(Mandatory)][string]$Username,
+        [Parameter(Mandatory)][System.Security.SecureString]$Password,
+        [string[]]$Groups = @('Users')
+    )
+
+    $plainPassword = [System.Net.NetworkCredential]::new('', $Password).Password
+    try {
+        net user $Username $plainPassword /add | Out-Null
+        foreach ($g in $Groups) { net localgroup $g $Username /add | Out-Null }
+        Write-Host "Created local account '$Username'" -ForegroundColor Green
+        return $true
+    } catch {
+        Write-Host "[ACCOUNT ERROR] Failed to create $Username : $_" -ForegroundColor Red
+        return $false
+    }
+}
+
+function Test-LocalAccountExists {
+    param([Parameter(Mandatory)][string]$Username)
+    $acct = Get-CimInstance Win32_UserAccount -Filter "Name='$Username' AND LocalAccount=true" -ErrorAction SilentlyContinue
+    return $null -ne $acct
+}
+
+function Get-LocalAccountCount {
+    $accts = Get-CimInstance Win32_UserAccount -Filter "LocalAccount=true AND Disabled=false" -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -notin @('Administrator','DefaultAccount','Guest','WDAGUtilityAccount') }
+    return ($accts | Measure-Object).Count
+}

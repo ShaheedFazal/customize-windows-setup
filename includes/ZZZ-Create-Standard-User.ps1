@@ -1,27 +1,20 @@
 ## Create standard user account
 
-function ConvertTo-PlainText {
-    param([System.Security.SecureString]$SecureString)
-    $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($SecureString)
-    try {
-        [Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr)
-    }
-    finally {
-        [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
-    }
+$confirm = Read-Host 'Create a new standard user account? [y/N]'
+if ($confirm -ne 'y') {
+    Write-Host 'User creation cancelled.'
+    return
 }
 
 $username = Read-Host 'Enter a user name for the standard account'
 do {
     $pw1 = Read-Host 'Enter password' -AsSecureString
     $pw2 = Read-Host 'Confirm password' -AsSecureString
-    if ((ConvertTo-PlainText $pw1) -ne (ConvertTo-PlainText $pw2)) {
+    if ([System.Net.NetworkCredential]::new('', $pw1).Password -ne [System.Net.NetworkCredential]::new('', $pw2).Password) {
         Write-Warning 'Passwords do not match. Please try again.'
     }
-} until ((ConvertTo-PlainText $pw1) -eq (ConvertTo-PlainText $pw2))
+} until ([System.Net.NetworkCredential]::new('', $pw1).Password -eq [System.Net.NetworkCredential]::new('', $pw2).Password)
 
-$plainPassword = ConvertTo-PlainText $pw1
-net user $username $plainPassword /add
-net localgroup Users $username /add
+New-LocalUserAccount -Username $username -Password $pw1 -Groups @('Users')
 
 Write-Host "Created standard user account '$username'."
