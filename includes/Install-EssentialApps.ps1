@@ -22,12 +22,21 @@ function Download-File {
 function Add-DesktopShortcut {
     param([string]$AppName)
 
-    $startDir   = [Environment]::GetFolderPath('CommonPrograms')
     $desktopDir = [Environment]::GetFolderPath('CommonDesktopDirectory')
+    $startDirs  = @(
+        [Environment]::GetFolderPath('CommonPrograms'),
+        [Environment]::GetFolderPath('Programs')
+    )
 
-    $shortcut = Get-ChildItem -Path $startDir -Include *.lnk,*.url,*.appref-ms -Recurse |
-                Where-Object { $_.BaseName -like "*$AppName*" } |
-                Select-Object -First 1
+    $shortcut = $null
+    foreach ($dir in $startDirs) {
+        if (Test-Path $dir) {
+            $shortcut = Get-ChildItem -Path $dir -Include *.lnk,*.url,*.appref-ms -Recurse |
+                        Where-Object { $_.BaseName -like "*$AppName*" } |
+                        Select-Object -First 1
+            if ($null -ne $shortcut) { break }
+        }
+    }
 
     if ($null -ne $shortcut) {
         $destination = Join-Path $desktopDir $shortcut.Name
