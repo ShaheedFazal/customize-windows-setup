@@ -427,37 +427,7 @@ This project is distributed under the **BSD 3-Clause License**. See [LICENSE](LI
 
 ### Disclaimer
 
-This toolkit modifies system settings and removes software. While extensively tested, use at your own risk. The developers are not responsible for any system issues, data loss, or conflicts that may arise. Always backup your system before use.
-
-## 📞 Support & Community
-
-**Getting Help:**
-- 🐛 **Bug Reports:** [GitHub Issues](https://github.com/ShaheedFazal/customize-windows-setup/issues)
-- 💬 **Discussions:** [GitHub Discussions](https://github.com/ShaheedFazal/customize-windows-setup/discussions)
-- 🔒 **Security Issues:** Report privately via GitHub Security tab
-
-**Before Reporting Issues:**
-1. Check the troubleshooting section above
-2. Review the log file at `C:\Temp\customize-windows-client-*.log`
-3. Search existing issues for similar problems
-4. Include system information (Windows edition, build number)
-
-## 🗺️ Development Roadmap
-
-**Upcoming Features:**
-- [ ] GUI interface for easier customisation and feature selection
-- [ ] Windows 11-specific optimisations and new feature handling
-- [ ] Enhanced application management with category filtering
-- [ ] Configuration profiles for different use cases (Home, Business, Gaming)
-- [ ] Automated testing framework for quality assurance
-- [ ] PowerShell Gallery module distribution
-- [ ] Group Policy template generation for enterprise deployment
-
-**Long-term Goals:**
-- [ ] Web-based configuration generator
-- [ ] Integration with Microsoft Deployment Toolkit (MDT)
-- [ ] Compliance scanning and reporting features
-- [ ] Custom ISO generation with pre-applied configurations
+This toolkit modifies system settings and removes software. Use at your own risk. The developers are not responsible for any system issues, data loss, or conflicts that may arise. Always backup your system before use.
 
 ---
 
