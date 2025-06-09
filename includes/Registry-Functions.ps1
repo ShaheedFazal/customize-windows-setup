@@ -32,6 +32,30 @@ function Set-RegistryValue {
     }
 }
 
+function Remove-RegistryValue {
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)][string]$Name
+    )
+
+    try {
+        if (Test-Path $Path -PathType Container) {
+            if (Get-ItemProperty -Path $Path -Name $Name -ErrorAction SilentlyContinue) {
+                Remove-ItemProperty -Path $Path -Name $Name -Force
+                Write-Host "[REGISTRY] Removed value: $Path\$Name" -ForegroundColor Yellow
+            } else {
+                Write-Host "[REGISTRY] Value not found (already removed): $Path\$Name" -ForegroundColor Gray
+            }
+        } else {
+            Write-Host "[REGISTRY] Key not found for value: $Path\$Name" -ForegroundColor Gray
+        }
+        return $true
+    } catch {
+        Write-Host "[REGISTRY ERROR] Failed to remove value $Path\$Name : $_" -ForegroundColor Red
+        return $false
+    }
+}
+
 function Remove-RegistryKey {
     param([Parameter(Mandatory)][string]$Path)
     
