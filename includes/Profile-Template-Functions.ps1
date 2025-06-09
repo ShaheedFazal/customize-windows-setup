@@ -1,5 +1,5 @@
 # ============================================================================
-# WINDOWS CUSTOMIZATION TOOLKIT - DEFAULT PROFILE FUNCTIONS (v2 - Corrected)
+# WINDOWS CUSTOMIZATION TOOLKIT - DEFAULT PROFILE FUNCTIONS (v3 - Simplified)
 # ============================================================================
 
 # ============================================================================
@@ -73,21 +73,20 @@ function Copy-SpecificRegistryValues {
     )
 
     try {
+        if (!(Test-Path $Section.Destination)) {
+            New-Item -Path $Section.Destination -Force | Out-Null
+        }
+
         foreach ($valueName in $Section.CopySpecificValues) {
+            # This inner try/catch handles errors for individual values
             try {
-                if (!(Test-Path $Section.Source)) {
+                if (!(Get-Item -Path $Section.Source -ErrorAction SilentlyContinue)) {
                     Write-Host "    Skipped: Source path $($Section.Source) not found for value '$valueName'." -ForegroundColor Yellow
                     continue
                 }
-
                 $valueData = (Get-ItemProperty -Path $Section.Source -Name $valueName -ErrorAction Stop).$valueName
                 $valueType = (Get-Item -Path $Section.Source).GetValueKind($valueName)
-                
-                if (!(Test-Path $Section.Destination)) {
-                    New-Item -Path $Section.Destination -Force | Out-Null
-                }
-
-                New-ItemProperty -Path $Section.Destination -Name $valueName -Value $valueData -PropertyType $valueType -Force | Out-Null
+                New-ItemProperty -Path $Section.Destination -Name $valueName -Value $valueData -PropertyType $valueType -Force -ErrorAction Stop | Out-Null
                 Write-Host "    Copied value: $valueName" -ForegroundColor Gray
             }
             catch {
@@ -111,35 +110,30 @@ function Copy-RegistryKeyContents {
         [Parameter(Mandatory = $false)] [switch]$FilterPersonalData
     )
 
+    # This entire function is now wrapped in a single, simple try/catch block.
     try {
         if (!(Test-Path $SourcePath)) {
             Write-Host "  ✓ Skipped: Source path '$SourcePath' not found." -ForegroundColor Gray
             return $true
         }
 
-        $sourceProperties = Get-ItemProperty -Path $SourcePath
-        if ($null -eq $sourceProperties) { return $true }
-
         if (!(Test-Path $DestinationPath)) {
             New-Item -Path $DestinationPath -Force | Out-Null
         }
         
+        $sourceProperties = Get-ItemProperty -Path $SourcePath
         $propNames = $sourceProperties.PSObject.Properties | Where-Object { $_.MemberType -eq 'NoteProperty' } | Select-Object -ExpandProperty Name
         $personalProperties = @("Email", "UserName", "DesktopWallpaper", "EncodedPassword")
 
         foreach ($propName in $propNames) {
             if ($FilterPersonalData.IsPresent -and $personalProperties -contains $propName) {
                 Write-Host "    Skipped personal property: $propName" -ForegroundColor Yellow
-                continue
+                continue # Skip to the next property
             }
             
-            try {
-                $valueData = $sourceProperties.$propName
-                $valueType = (Get-Item -Path $SourcePath).GetValueKind($propName)
-                Set-ItemProperty -Path $DestinationPath -Name $propName -Value $valueData -Type $valueType -Force -ErrorAction Stop | Out-Null
-            } catch {
-                 Write-Host "    Failed to copy property '$propName' in key '$SourcePath' - $_" -ForegroundColor Yellow
-            }
+            $valueData = $sourceProperties.$propName
+            $valueType = (Get-Item -Path $SourcePath).GetValueKind($propName)
+            Set-ItemProperty -Path $DestinationPath -Name $propName -Value $valueData -Type $valueType -Force | Out-Null
         }
 
         Write-Host "  ✓ Completed copying section for: $($DestinationPath)" -ForegroundColor Green
