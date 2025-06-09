@@ -86,12 +86,20 @@ $apps = @(
     @{ Name = "Windows Terminal"; Id = "Microsoft.WindowsTerminal" }
 )
 
+# Apps that should not have shortcuts copied to the public desktop
+$skipShortcutApps = @('PowerShell 7','Python')
+
 foreach ($app in $apps) {
     Write-Host "[INFO] Installing $($app.Name)..." -ForegroundColor Cyan
     try {
         winget install --id=$($app.Id) --accept-source-agreements --accept-package-agreements -e -h --disable-interactivity --scope machine
         Write-Host "[OK] Installed $($app.Name)" -ForegroundColor Green
-        Add-DesktopShortcut -AppName $app.Name
+
+        if ($skipShortcutApps -notcontains $app.Name) {
+            Add-DesktopShortcut -AppName $app.Name
+        } else {
+            Write-Host "[INFO] Skipping desktop shortcut for $($app.Name)" -ForegroundColor Gray
+        }
     } catch {
         Write-Host "[ERROR] Failed to install $($app.Name): $_" -ForegroundColor Red
     }
