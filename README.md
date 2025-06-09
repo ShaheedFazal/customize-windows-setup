@@ -64,6 +64,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "Set-ExecutionPolicy Bypa
 
 ### ⚙️ System Optimisation
 - **Installs essential applications** via Windows Package Manager (winget)
+- **Adds desktop shortcuts** for installed apps by scanning all Start Menu folders
 - **Configures Windows Update** with intelligent scheduling and deferral
 - **Sets up automatic app updates** via scheduled task
 - **Optimises power management** settings
