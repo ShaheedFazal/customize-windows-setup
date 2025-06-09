@@ -258,38 +258,30 @@ if (Test-Path $defaultUserPath) {
     }
 }
 
-# 4. Create simple startup script for future updates
-Write-Host "`n4. Creating startup script for wallpaper updates..." -ForegroundColor Cyan
-$startupDir = "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp"
-$startupScript = Join-Path $startupDir "UpdateWallpaper.bat"
+# 4. Configure wallpaper persistence at startup
+Write-Host "`n4. Creating startup entries for wallpaper persistence..." -ForegroundColor Cyan
 
-$batchContent = @"
+# Create a more reliable registry-based startup entry
+$registryPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run"
+$scriptCommand = 'powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command "Set-ItemProperty -Path \"HKCU:\Control Panel\Desktop\" -Name \"WallPaper\" -Value \"C:\Wallpaper\system-wallpaper.png\"; rundll32.exe user32.dll,UpdatePerUserSystemParameters ,1 ,True"'
+Set-ItemProperty -Path $registryPath -Name "SystemWallpaper" -Value $scriptCommand
+Write-Host "✓ Added registry startup entry for wallpaper persistence" -ForegroundColor Green
+
+# Also ensure the folder startup script is correct
+$startupScript = @'
 @echo off
-REM Update wallpaper with current system info on startup
-powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command "& {
-    try {
-        `$wallpaperScript = '$($MyInvocation.MyCommand.Path)'
-        if (Test-Path `$wallpaperScript) {
-            & `$wallpaperScript
-        }
-    } catch {
-        # Silent fail - don't show errors to users
-    }
-}"
-"@
-
-try {
-    Set-Content -Path $startupScript -Value $batchContent -Encoding ASCII
-    Write-Host "[WALLPAPER] Created startup script: $startupScript" -ForegroundColor Green
-} catch {
-    Write-Host "[WALLPAPER] Could not create startup script (not critical): $_" -ForegroundColor Yellow
-}
+timeout /t 5 /nobreak >nul
+powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command "Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name 'WallPaper' -Value 'C:\Wallpaper\system-wallpaper.png'; rundll32.exe user32.dll,UpdatePerUserSystemParameters ,1 ,True"
+'@
+$startupPath = "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp\UpdateWallpaper.bat"
+Set-Content -Path $startupPath -Value $startupScript -Encoding ASCII
+Write-Host "✓ Updated startup folder script" -ForegroundColor Green
 
 Write-Host "`n=== WALLPAPER CONFIGURATION COMPLETE ===" -ForegroundColor Yellow
 Write-Host "✓ Current user wallpaper applied immediately" -ForegroundColor Green
 Write-Host "✓ All existing user profiles configured" -ForegroundColor Green  
 Write-Host "✓ Default user profile configured for new users" -ForegroundColor Green
-Write-Host "✓ Startup script created for updates" -ForegroundColor Green
+Write-Host "✓ Startup persistence configured" -ForegroundColor Green
 Write-Host "`nSingle wallpaper file: $systemWallpaperPath" -ForegroundColor Cyan
 Write-Host "All users will use the same wallpaper with system information" -ForegroundColor Cyan
 Write-Host "The wallpaper will persist after restarts and show current system info" -ForegroundColor Cyan
