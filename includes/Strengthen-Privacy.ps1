@@ -1,10 +1,12 @@
-# Strengthen Privacy: Disable telemetry, advertising ID, and content suggestions
+# Load shared functions
+. "$PSScriptRoot\Registry-Functions.ps1"
 
 Write-Host "Disabling Windows telemetry..."
-# Set the most restrictive telemetry level (0 = Security/Enterprise Only)
-Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection" -Name "AllowTelemetry" -Type DWord -Value 0
-Set-ItemProperty -Path "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Policies\DataCollection" -Name "AllowTelemetry" -Type DWord -Value 0
-Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" -Name "AllowTelemetry" -Type DWord -Value 0
+
+# Set the most restrictive telemetry level
+Set-RegistryValue -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection" -Name "AllowTelemetry" -Value 0 -Type "DWord" -Force
+Set-RegistryValue -Path "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Policies\DataCollection" -Name "AllowTelemetry" -Value 0 -Type "DWord" -Force
+Set-RegistryValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" -Name "AllowTelemetry" -Value 0 -Type "DWord" -Force
 
 # Disable scheduled telemetry-related tasks
 $tasksToDisable = @(
@@ -17,19 +19,25 @@ $tasksToDisable = @(
 )
 
 foreach ($task in $tasksToDisable) {
-    Disable-ScheduledTask -TaskName $task -ErrorAction SilentlyContinue | Out-Null
+    try {
+        Disable-ScheduledTask -TaskName $task -ErrorAction Stop | Out-Null
+        Write-Host "[TASK] Disabled: $task" -ForegroundColor Green
+    } catch {
+        Write-Host "[TASK] Could not disable $task (may not exist)" -ForegroundColor Yellow
+    }
 }
 
 Write-Host "Disabling advertising ID and content suggestions..."
+
 # Disable advertising ID
-Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\AdvertisingInfo" -Name "Enabled" -Type DWord -Value 0
+Set-RegistryValue -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\AdvertisingInfo" -Name "Enabled" -Value 0 -Type "DWord" -Force
 
 # Disable suggested content and tips in Windows UI
 $cdmPath = "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"
-Set-ItemProperty -Path $cdmPath -Name "SubscribedContent-338388Enabled" -Type DWord -Value 0 -ErrorAction SilentlyContinue
-Set-ItemProperty -Path $cdmPath -Name "SoftLandingEnabled" -Type DWord -Value 0 -ErrorAction SilentlyContinue
-Set-ItemProperty -Path $cdmPath -Name "SubscribedContent-310093Enabled" -Type DWord -Value 0 -ErrorAction SilentlyContinue
-Set-ItemProperty -Path $cdmPath -Name "SubscribedContent-338389Enabled" -Type DWord -Value 0 -ErrorAction SilentlyContinue
-Set-ItemProperty -Path $cdmPath -Name "SystemPaneSuggestionsEnabled" -Type DWord -Value 0 -ErrorAction SilentlyContinue
+Set-RegistryValue -Path $cdmPath -Name "SubscribedContent-338388Enabled" -Value 0 -Type "DWord" -Force
+Set-RegistryValue -Path $cdmPath -Name "SoftLandingEnabled" -Value 0 -Type "DWord" -Force
+Set-RegistryValue -Path $cdmPath -Name "SubscribedContent-310093Enabled" -Value 0 -Type "DWord" -Force
+Set-RegistryValue -Path $cdmPath -Name "SubscribedContent-338389Enabled" -Value 0 -Type "DWord" -Force
+Set-RegistryValue -Path $cdmPath -Name "SystemPaneSuggestionsEnabled" -Value 0 -Type "DWord" -Force
 
 Write-Host "[OK] Privacy settings strengthened."
