@@ -86,10 +86,13 @@ $apps = @(
     @{ Name = "Windows Terminal"; Id = "Microsoft.WindowsTerminal" }
 )
 
+# Detect system architecture for reliable winget installs
+$architecture = if ([Environment]::Is64BitOperatingSystem) { 'x64' } else { 'x86' }
+
 foreach ($app in $apps) {
     Write-Host "[INFO] Installing $($app.Name)..." -ForegroundColor Cyan
     try {
-        winget install --id=$($app.Id) --accept-source-agreements --accept-package-agreements -e -h --disable-interactivity --scope machine
+        winget install --id=$($app.Id) --accept-source-agreements --accept-package-agreements -e -h --disable-interactivity --scope machine --architecture $architecture
         Write-Host "[OK] Installed $($app.Name)" -ForegroundColor Green
         Add-DesktopShortcut -AppName $app.Name
     } catch {
