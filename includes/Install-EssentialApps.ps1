@@ -35,6 +35,26 @@ function Find-AppShortcut {
     return $null
 }
 
+# Locate an executable when no shortcut exists
+function Find-AppExecutable {
+    param([string]$AppName)
+
+    $searchDirs = @(
+        Join-Path $env:LOCALAPPDATA 'Programs'
+        $env:LOCALAPPDATA
+        $env:APPDATA
+        $env:ProgramFiles
+        [Environment]::GetEnvironmentVariable('ProgramFiles(x86)')
+    ) | Where-Object { $_ -and (Test-Path $_) }
+
+    foreach ($dir in $searchDirs) {
+        $exe = Get-ChildItem -Path $dir -Filter "*$AppName*.exe" -Recurse -ErrorAction SilentlyContinue |
+               Select-Object -First 1
+        if ($exe) { return $exe.FullName }
+    }
+    return $null
+}
+
 # Copy a located shortcut to the public desktop
 function Add-DesktopShortcut {
     param([string]$AppName)
@@ -52,7 +72,18 @@ function Add-DesktopShortcut {
             Write-Host "[OK] Desktop shortcut added for $AppName" -ForegroundColor Green
         }
     } else {
-        Write-Host "[WARN] No shortcut found for $AppName" -ForegroundColor Yellow
+        $exePath = Find-AppExecutable -AppName $AppName
+        if ($exePath) {
+            $destination = Join-Path $desktopDir ("$AppName.lnk")
+            $shell  = New-Object -ComObject WScript.Shell
+            $link   = $shell.CreateShortcut($destination)
+            $link.TargetPath  = $exePath
+            $link.IconLocation = $exePath
+            $link.Save()
+            Write-Host "[OK] Desktop shortcut created for $AppName" -ForegroundColor Green
+        } else {
+            Write-Host "[WARN] No shortcut found for $AppName" -ForegroundColor Yellow
+        }
     }
 }
 
