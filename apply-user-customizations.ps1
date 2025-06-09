@@ -12,8 +12,8 @@ analysis. Scripts requiring administrator rights are excluded.
 $ScriptRoot   = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $IncludesPath = Join-Path $ScriptRoot 'includes'
 
-# Load shared registry helper functions if present
-$regPath = Join-Path $IncludesPath 'Registry-Functions.ps1'
+# Load shared helper functions if present
+$regPath = Join-Path $IncludesPath 'Shared-Functions.ps1'
 if (Test-Path $regPath) {
     . $regPath
 }
