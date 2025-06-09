@@ -52,6 +52,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "Set-ExecutionPolicy Bypa
 - **Blocks Microsoft account sign-in prompts** (with safety checks)
 - **Enables BitLocker encryption** with automatic key backup
 - **Configures Windows Defender** with optimal settings
+- **Enables SmartScreen (App & Browser Control)** for safer downloads
 - **Enables UAC** and sets appropriate security policies
 - **Disables unnecessary services** that could pose security risks
 
