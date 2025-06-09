@@ -35,7 +35,7 @@ $userScripts = @(
     @{ Script = 'Show-All-Tray-Icons.ps1';           Description = 'Show all system tray icons' },
     @{ Script = 'Show-Small-Icons-in-Taskbar.ps1';   Description = 'Use small taskbar icons' },
     @{ Script = 'Set-Control-Panel-View-to-Small-Icons.ps1'; Description = 'Set Control Panel to small icons' },
-    @{ Script = 'Set-WallpaperWithStats.ps1';        Description = 'Set wallpaper with system info overlay' }
+    @{ Script = 'ZZZ-Set-WallpaperWithStats.ps1';    Description = 'Set wallpaper with system info overlay' }
 )
 
 function Invoke-UserScript {
