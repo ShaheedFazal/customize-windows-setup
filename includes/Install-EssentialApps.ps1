@@ -160,7 +160,8 @@ Set-Content -Path $updateScriptPath -Value $updateScriptContent -Encoding UTF8
 # Schedule Task
 $taskName = "Weekly Winget App Update"
 $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$updateScriptPath`""
-$trigger = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Sunday -At 8:00am
+$trigger  = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Sunday -At 8:00am
+$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable
 
 $existingTask = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
 if ($null -ne $existingTask) {
@@ -168,7 +169,7 @@ if ($null -ne $existingTask) {
 }
 
 try {
-    Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Description "Weekly winget updates" -RunLevel Highest -User "SYSTEM"
+    Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Settings $settings -Description "Weekly winget updates" -RunLevel Highest -User "SYSTEM"
     Write-Host "[OK] Scheduled weekly update task" -ForegroundColor Green
 } catch {
     Write-Host "[ERROR] Failed to register scheduled task: $_" -ForegroundColor Red
