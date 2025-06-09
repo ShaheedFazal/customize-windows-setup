@@ -13,7 +13,8 @@ function Mount-DefaultUserHive {
             throw "Default user profile not found: $defaultProfilePath"
         }
 
-        $result = & reg.exe load "HKU\\DEFAULT_TEMPLATE" "C:\\Users\\Default\\NTUSER.DAT" 2>&1
+        # Use variables for mount point and profile path to avoid quoting issues
+        $result = & reg.exe load $mountPoint $defaultProfilePath 2>&1
         if ($LASTEXITCODE -ne 0) {
             if (Get-ChildItem Registry::HKEY_USERS | Where-Object { $_.PSChildName -eq 'DEFAULT_TEMPLATE' }) {
                 Write-Host "[TEMPLATE] Default user hive already mounted" -ForegroundColor Yellow
