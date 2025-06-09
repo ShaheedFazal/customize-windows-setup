@@ -125,31 +125,101 @@ function Set-ServiceStartupTypeSafely {
 
 function New-LocalUserAccount {
     param(
-        [Parameter(Mandatory)][string]$Username,
-        [Parameter(Mandatory)][System.Security.SecureString]$Password,
-        [string[]]$Groups = @('Users')
+        [Parameter(Mandatory)][string]$AccountType,  # "Standard" or "Administrator"
+        [string]$PromptText = "Enter a user name for the new account"
     )
 
-    $plainPassword = [System.Net.NetworkCredential]::new('', $Password).Password
     try {
-        net user $Username $plainPassword /add | Out-Null
-        foreach ($g in $Groups) { net localgroup $g $Username /add | Out-Null }
-        Write-Host "Created local account '$Username'" -ForegroundColor Green
-        return $true
+        $username = Read-Host $PromptText
+
+        # Password collection with validation
+        do {
+            $pw1 = Read-Host 'Enter password' -AsSecureString
+            $pw2 = Read-Host 'Confirm password' -AsSecureString
+
+            # Convert to plain text for comparison
+            $plain1 = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($pw1))
+            $plain2 = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($pw2))
+
+            if ($plain1 -ne $plain2) {
+                Write-Host "[ACCOUNT] Passwords do not match. Please try again." -ForegroundColor Yellow
+            }
+        } until ($plain1 -eq $plain2)
+
+        # Create the user account
+        net user $username $plain1 /add | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            throw "Failed to create user account"
+        }
+
+        # Add to appropriate group
+        if ($AccountType -eq "Administrator") {
+            net localgroup Administrators $username /add | Out-Null
+            if ($LASTEXITCODE -ne 0) {
+                throw "Failed to add user to Administrators group"
+            }
+            Write-Host "[ACCOUNT] Created local administrator account: $username" -ForegroundColor Green
+        } else {
+            net localgroup Users $username /add | Out-Null
+            if ($LASTEXITCODE -ne 0) {
+                throw "Failed to add user to Users group"
+            }
+            Write-Host "[ACCOUNT] Created standard user account: $username" -ForegroundColor Green
+        }
+
+        # Clear password variables
+        $plain1 = $null
+        $plain2 = $null
+
+        return $username
+
     } catch {
-        Write-Host "[ACCOUNT ERROR] Failed to create $Username : $_" -ForegroundColor Red
-        return $false
+        Write-Host "[ACCOUNT ERROR] Failed to create $AccountType account: $_" -ForegroundColor Red
+        return $null
     }
 }
 
 function Test-LocalAccountExists {
-    param([Parameter(Mandatory)][string]$Username)
-    $acct = Get-CimInstance Win32_UserAccount -Filter "Name='$Username' AND LocalAccount=true" -ErrorAction SilentlyContinue
-    return $null -ne $acct
+    param(
+        [Parameter(Mandatory)][string]$Username
+    )
+
+    try {
+        $account = Get-CimInstance Win32_UserAccount -Filter "Name='$Username' AND LocalAccount=true" -ErrorAction SilentlyContinue
+        if ($account) {
+            Write-Host "[ACCOUNT] Local account exists: $Username" -ForegroundColor Gray
+            return $true
+        } else {
+            Write-Host "[ACCOUNT] Local account not found: $Username" -ForegroundColor Gray
+            return $false
+        }
+    } catch {
+        Write-Host "[ACCOUNT ERROR] Failed to check account existence: $_" -ForegroundColor Red
+        return $false
+    }
 }
 
 function Get-LocalAccountCount {
-    $accts = Get-CimInstance Win32_UserAccount -Filter "LocalAccount=true AND Disabled=false" -ErrorAction SilentlyContinue |
-        Where-Object { $_.Name -notin @('Administrator','DefaultAccount','Guest','WDAGUtilityAccount') }
-    return ($accts | Measure-Object).Count
+    param(
+        [string[]]$ExcludeBuiltIns = @('Administrator','DefaultAccount','Guest','WDAGUtilityAccount')
+    )
+
+    try {
+        $localAccounts = Get-CimInstance Win32_UserAccount -Filter "LocalAccount=true AND Disabled=false" -ErrorAction SilentlyContinue
+        $filteredAccounts = $localAccounts | Where-Object {
+            $_.Name -notin $ExcludeBuiltIns
+        }
+
+        $count = ($filteredAccounts | Measure-Object).Count
+        Write-Host "[ACCOUNT] Found $count non-built-in local accounts" -ForegroundColor Gray
+
+        return @{
+            Count = $count
+            Accounts = $filteredAccounts
+        }
+
+    } catch {
+        Write-Host "[ACCOUNT ERROR] Failed to enumerate local accounts: $_" -ForegroundColor Red
+        return @{ Count = 0; Accounts = @() }
+    }
 }
