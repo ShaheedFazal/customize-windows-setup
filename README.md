@@ -63,13 +63,15 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "Set-ExecutionPolicy Bypa
 - Prevents Microsoft 365 promotional notifications
 - Offers guided local account creation for safety
 
-**System Security Enhancements:**
-- **BitLocker encryption** with TPM protection and automatic recovery key backup
-- **Windows Defender** optimisation with cloud protection and automatic sample submission
-- **Account lockout policies** (5 attempts, 30-minute lockout window)
-- **Password policies** (8 character minimum, complexity requirements, unlimited age)
-- **Firewall configuration** across all profiles with ICMP ping allowance
-- **UAC preservation** with appropriate consent prompt levels
+### 🛡️ Privacy & Security Enhancements
+- **Disables telemetry and data collection** across Windows components
+- **Removes advertising ID** and content suggestions
+- **Blocks Microsoft account sign-in prompts** (with safety checks)
+- **Enables BitLocker encryption** with automatic key backup
+- **Configures Windows Defender** with optimal settings
+- **Enables SmartScreen (App & Browser Control)** for safer downloads
+- **Enables UAC** and sets appropriate security policies
+- **Disables unnecessary services** that could pose security risks
 
 ### 🧹 Advanced System Debloating
 
