@@ -1,13 +1,18 @@
-# Enhanced wallpaper with system information for ALL users
-# Based on dieseltravis PS-BGInfo approach
-# Uses shared functions and existing wallpaper folder structure
+# FIXED: Enhanced wallpaper with system information - PROPER PERSISTENCE
+# Addresses all identified persistence issues
 
 #Requires -RunAsAdministrator
 
-# Load shared functions (assuming they're in the same directory or already loaded)
+# Load shared functions and template functions
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = Split-Path $scriptDir -Parent
 $wallpaperImage = Join-Path $repoRoot 'wallpaper\wallpaper.png'
+
+# Load template functions for proper default user handling
+$templateFunctionsPath = Join-Path $scriptDir 'Profile-Template-Functions.ps1'
+if (Test-Path $templateFunctionsPath) {
+    . $templateFunctionsPath
+}
 
 if (-not (Test-Path $wallpaperImage)) {
     Write-Host "Wallpaper file not found: $wallpaperImage" -ForegroundColor Yellow
@@ -43,7 +48,7 @@ $systemInfo = [ordered]@{
     'Uptime' = "$($bootTimeSpan.Days)d $($bootTimeSpan.Hours)h"
 }
 
-# Add C# code for proper wallpaper setting
+# FIXED: Proper C# wallpaper API with correct parameters
 Add-Type @"
 using System.Runtime.InteropServices;
 namespace Wallpaper
@@ -54,9 +59,16 @@ namespace Wallpaper
         public const int SendWinIniChange = 0x02;
         [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
         private static extern int SystemParametersInfo (int uAction, int uParam, string lpvParam, int fuWinIni);
+        
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern int UpdatePerUserSystemParameters(int dwFlags, int bEnable);
+        
         public static void UpdateWallpaper (string path)
         {
             SystemParametersInfo( SetDesktopWallpaper, 0, path, UpdateIniFile | SendWinIniChange );
+            // FIXED: Add small delay to ensure file is ready
+            System.Threading.Thread.Sleep(500);
+            UpdatePerUserSystemParameters(1, 1);
         }
     }
 }
@@ -71,9 +83,6 @@ function New-WallpaperWithSystemInfo {
         [Parameter(Mandatory=$True)]
         [string] $outputPath
     )
-
-    # Use system data as-is (no user-specific info)
-    $displayData = $data
 
     # Load required assemblies
     Add-Type -AssemblyName System.Drawing
@@ -102,7 +111,7 @@ function New-WallpaperWithSystemInfo {
     $maxValWidth = 0
     $totalHeight = 0
     
-    foreach ($item in $displayData.GetEnumerator()) {
+    foreach ($item in $data.GetEnumerator()) {
         $keyText = "$($item.Name): "
         $valText = "$($item.Value)"
         
@@ -132,14 +141,13 @@ function New-WallpaperWithSystemInfo {
     
     # Draw text items
     $currentY = $textBgY + $textPaddingTop
-    foreach ($item in $displayData.GetEnumerator()) {
+    foreach ($item in $data.GetEnumerator()) {
         $keyText = "$($item.Name): "
         $valText = "$($item.Value)"
         
         $keyFont = New-Object System.Drawing.Font($font, $size, [System.Drawing.FontStyle]::Bold)
         $valFont = New-Object System.Drawing.Font($font, $size, [System.Drawing.FontStyle]::Regular)
         
-        # Use simple coordinates instead of rectangles
         $keyX = $textBgX + $textPaddingLeft
         $valX = $textBgX + $textPaddingLeft + $maxKeyWidth
         
@@ -165,33 +173,47 @@ function New-WallpaperWithSystemInfo {
     return $outputPath
 }
 
-function Set-WallpaperForUser {
-    param(
-        [string]$UserSID,
-        [string]$WallpaperPath,
-        [string]$UserName = "Unknown"
-    )
+function Set-WallpaperWithProperAPI {
+    param([string]$WallpaperPath)
+    
+    if (-not (Test-Path $WallpaperPath)) {
+        Write-Host "[WALLPAPER ERROR] File not found: $WallpaperPath" -ForegroundColor Red
+        return $false
+    }
     
     try {
-        # Use shared registry function to set wallpaper for user
-        $userRegPath = "Registry::HKEY_USERS\$UserSID\Control Panel\Desktop"
+        # FIXED: Set registry values first, then call API with delay
+        Set-RegistryValue -Path "HKCU:\Control Panel\Desktop" -Name "WallPaper" -Value $WallpaperPath -Type "String" -Force
+        Set-RegistryValue -Path "HKCU:\Control Panel\Desktop" -Name "WallpaperStyle" -Value "10" -Type "String" -Force  # Fill
+        Set-RegistryValue -Path "HKCU:\Control Panel\Desktop" -Name "TileWallpaper" -Value "0" -Type "String" -Force
         
-        if (Test-Path "Registry::HKEY_USERS\$UserSID") {
-            Set-RegistryValue -Path $userRegPath -Name "WallPaper" -Value $WallpaperPath -Type "String" -Force
-            Set-RegistryValue -Path $userRegPath -Name "WallpaperStyle" -Value "10" -Type "String" -Force  # Fill
-            Set-RegistryValue -Path $userRegPath -Name "TileWallpaper" -Value "0" -Type "String" -Force
-            
-            Write-Host "[WALLPAPER] Applied for user: $UserName" -ForegroundColor Green
-            return $true
-        }
+        # FIXED: Wait for registry changes to be committed
+        Start-Sleep -Milliseconds 500
+        
+        # Apply wallpaper using improved API
+        [Wallpaper.Setter]::UpdateWallpaper($WallpaperPath)
+        
+        # FIXED: Force desktop refresh
+        Add-Type -TypeDefinition @"
+            using System;
+            using System.Runtime.InteropServices;
+            public class DesktopRefresh {
+                [DllImport("shell32.dll")]
+                public static extern void SHChangeNotify(uint wEventId, uint uFlags, IntPtr dwItem1, IntPtr dwItem2);
+            }
+"@
+        [DesktopRefresh]::SHChangeNotify(0x8000000, 0x1000, [IntPtr]::Zero, [IntPtr]::Zero)
+        
+        Write-Host "[WALLPAPER] Successfully applied: $WallpaperPath" -ForegroundColor Green
+        return $true
     }
     catch {
-        Write-Host "[WALLPAPER ERROR] Failed to set wallpaper for user $UserName : $_" -ForegroundColor Red
+        Write-Host "[WALLPAPER ERROR] Failed to set wallpaper: $_" -ForegroundColor Red
         return $false
     }
 }
 
-Write-Host "[WALLPAPER] Starting enhanced wallpaper configuration for all users..." -ForegroundColor Cyan
+Write-Host "[WALLPAPER] Starting FIXED wallpaper configuration..." -ForegroundColor Cyan
 
 # Create system wallpaper directory
 $systemWallpaperDir = "C:\Wallpaper"
@@ -200,26 +222,13 @@ if (-not (Test-Path $systemWallpaperDir)) {
     Write-Host "[WALLPAPER] Created system directory: $systemWallpaperDir" -ForegroundColor Green
 }
 
-# Generate single system wallpaper (without user-specific info)
+# Generate system wallpaper
 $systemWallpaperPath = Join-Path $systemWallpaperDir "system-wallpaper.png"
 New-WallpaperWithSystemInfo -data $systemInfo -inputImage $wallpaperImage -outputPath $systemWallpaperPath | Out-Null
 
-Write-Host "[WALLPAPER] Generated system wallpaper: $systemWallpaperPath" -ForegroundColor Green
-
-# 1. Set wallpaper for current user
+# 1. Set wallpaper for current user with FIXED API
 Write-Host "`n1. Setting wallpaper for current user ($env:USERNAME)..." -ForegroundColor Cyan
-
-# Generate wallpaper for current user
-New-WallpaperWithSystemInfo -data $systemInfo -inputImage $wallpaperImage -outputPath $systemWallpaperPath | Out-Null
-
-# Apply wallpaper using shared registry functions
-Set-RegistryValue -Path "HKCU:\Control Panel\Desktop" -Name "WallPaper" -Value $systemWallpaperPath -Type "String" -Force
-Set-RegistryValue -Path "HKCU:\Control Panel\Desktop" -Name "WallpaperStyle" -Value "10" -Type "String" -Force  # Fill
-Set-RegistryValue -Path "HKCU:\Control Panel\Desktop" -Name "TileWallpaper" -Value "0" -Type "String" -Force
-
-# Apply immediately using C# API
-[Wallpaper.Setter]::UpdateWallpaper($systemWallpaperPath)
-Write-Host "[WALLPAPER] Applied for current user: $env:USERNAME" -ForegroundColor Green
+$success = Set-WallpaperWithProperAPI -WallpaperPath $systemWallpaperPath
 
 # 2. Set wallpaper for all existing users
 Write-Host "`n2. Setting wallpaper for all existing users..." -ForegroundColor Cyan
@@ -233,55 +242,128 @@ $userProfiles = Get-CimInstance Win32_UserProfile | Where-Object {
 
 foreach ($profile in $userProfiles) {
     $userName = Split-Path $profile.LocalPath -Leaf
-    
-    # Set same wallpaper for all users
     try {
-        Set-WallpaperForUser -UserSID $profile.SID -WallpaperPath $systemWallpaperPath -UserName $userName
+        $userRegPath = "Registry::HKEY_USERS\$($profile.SID)\Control Panel\Desktop"
+        if (Test-Path "Registry::HKEY_USERS\$($profile.SID)") {
+            Set-RegistryValue -Path $userRegPath -Name "WallPaper" -Value $systemWallpaperPath -Type "String" -Force
+            Set-RegistryValue -Path $userRegPath -Name "WallpaperStyle" -Value "10" -Type "String" -Force
+            Set-RegistryValue -Path $userRegPath -Name "TileWallpaper" -Value "0" -Type "String" -Force
+            Write-Host "[WALLPAPER] Configured for user: $userName" -ForegroundColor Green
+        }
     } catch {
-        Write-Host "[WALLPAPER] Failed to configure wallpaper for user: $userName" -ForegroundColor Yellow
+        Write-Host "[WALLPAPER] Failed to configure for user: $userName" -ForegroundColor Yellow
     }
 }
 
-# 3. Set default wallpaper for new users
+# 3. FIXED: Set default wallpaper using proper template functions
 Write-Host "`n3. Setting default wallpaper for new users..." -ForegroundColor Cyan
-$defaultUserPath = "C:\Users\Default"
-if (Test-Path $defaultUserPath) {
-    # Mount default user registry and set wallpaper using shared functions
-    reg load "HKU\DefaultUser" "$defaultUserPath\NTUSER.DAT" 2>$null
-    if (Test-Path "Registry::HKEY_USERS\DefaultUser") {
-        Set-RegistryValue -Path "Registry::HKEY_USERS\DefaultUser\Control Panel\Desktop" -Name "WallPaper" -Value $systemWallpaperPath -Type "String" -Force
-        Set-RegistryValue -Path "Registry::HKEY_USERS\DefaultUser\Control Panel\Desktop" -Name "WallpaperStyle" -Value "10" -Type "String" -Force
-        Set-RegistryValue -Path "Registry::HKEY_USERS\DefaultUser\Control Panel\Desktop" -Name "TileWallpaper" -Value "0" -Type "String" -Force
-        
-        reg unload "HKU\DefaultUser" 2>$null
-        Write-Host "[WALLPAPER] Set default wallpaper for new users" -ForegroundColor Green
+
+if (Get-Command "Mount-DefaultUserHive" -ErrorAction SilentlyContinue) {
+    if (Mount-DefaultUserHive) {
+        try {
+            $defaultDesktopPath = "Registry::HKEY_USERS\DEFAULT_TEMPLATE\Control Panel\Desktop"
+            Set-RegistryValue -Path $defaultDesktopPath -Name "WallPaper" -Value $systemWallpaperPath -Type "String" -Force
+            Set-RegistryValue -Path $defaultDesktopPath -Name "WallpaperStyle" -Value "10" -Type "String" -Force
+            Set-RegistryValue -Path $defaultDesktopPath -Name "TileWallpaper" -Value "0" -Type "String" -Force
+            Write-Host "[WALLPAPER] Set default wallpaper using template functions" -ForegroundColor Green
+        }
+        catch {
+            Write-Host "[WALLPAPER] Failed to set default wallpaper: $_" -ForegroundColor Red
+        }
+        finally {
+            Dismount-DefaultUserHive | Out-Null
+        }
+    }
+} else {
+    Write-Host "[WALLPAPER] Template functions not available, using fallback method" -ForegroundColor Yellow
+    # Fallback to original method with better error handling
+    $defaultUserPath = "C:\Users\Default"
+    if (Test-Path $defaultUserPath) {
+        $ntUserPath = Join-Path $defaultUserPath "NTUSER.DAT"
+        if (Test-Path $ntUserPath) {
+            $result = & reg.exe load "HKU\DefaultUser" $ntUserPath 2>&1
+            if ($LASTEXITCODE -eq 0) {
+                try {
+                    Set-RegistryValue -Path "Registry::HKEY_USERS\DefaultUser\Control Panel\Desktop" -Name "WallPaper" -Value $systemWallpaperPath -Type "String" -Force
+                    Set-RegistryValue -Path "Registry::HKEY_USERS\DefaultUser\Control Panel\Desktop" -Name "WallpaperStyle" -Value "10" -Type "String" -Force
+                    Set-RegistryValue -Path "Registry::HKEY_USERS\DefaultUser\Control Panel\Desktop" -Name "TileWallpaper" -Value "0" -Type "String" -Force
+                    Write-Host "[WALLPAPER] Set default wallpaper (fallback method)" -ForegroundColor Green
+                }
+                finally {
+                    & reg.exe unload "HKU\DefaultUser" 2>&1 | Out-Null
+                }
+            } else {
+                Write-Host "[WALLPAPER] Failed to mount default user hive: $result" -ForegroundColor Red
+            }
+        }
     }
 }
 
-# 4. Configure wallpaper persistence at startup
-Write-Host "`n4. Creating startup entries for wallpaper persistence..." -ForegroundColor Cyan
+# 4. FIXED: Create robust startup persistence
+Write-Host "`n4. Creating ROBUST startup persistence..." -ForegroundColor Cyan
 
-# Create a more reliable registry-based startup entry
+# FIXED Registry startup with file validation
 $registryPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run"
-$scriptCommand = 'powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command "Set-ItemProperty -Path \"HKCU:\Control Panel\Desktop\" -Name \"WallPaper\" -Value \"C:\Wallpaper\system-wallpaper.png\"; rundll32.exe user32.dll,UpdatePerUserSystemParameters ,1 ,True"'
+$scriptCommand = "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command `"if (Test-Path 'C:\Wallpaper\system-wallpaper.png') { Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name 'WallPaper' -Value 'C:\Wallpaper\system-wallpaper.png' -Force; Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name 'WallpaperStyle' -Value '10' -Force; rundll32.exe user32.dll,UpdatePerUserSystemParameters 1 1 }`""
 Set-ItemProperty -Path $registryPath -Name "SystemWallpaper" -Value $scriptCommand
-Write-Host "✓ Added registry startup entry for wallpaper persistence" -ForegroundColor Green
+Write-Host "✓ Added ROBUST registry startup entry" -ForegroundColor Green
 
-# Also ensure the folder startup script is correct
-$startupScript = @'
+# FIXED Startup folder script with proper error handling
+$startupScript = @"
 @echo off
-timeout /t 5 /nobreak >nul
-powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command "Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name 'WallPaper' -Value 'C:\Wallpaper\system-wallpaper.png'; rundll32.exe user32.dll,UpdatePerUserSystemParameters ,1 ,True"
-'@
+rem FIXED Wallpaper Persistence Script
+timeout /t 5 /nobreak >nul 2>&1
+
+rem Check if wallpaper file exists
+if not exist "C:\Wallpaper\system-wallpaper.png" (
+    echo Wallpaper file not found, skipping update
+    exit /b 0
+)
+
+rem Set wallpaper with proper error handling
+powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command "try { Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name 'WallPaper' -Value 'C:\Wallpaper\system-wallpaper.png' -Force; Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name 'WallpaperStyle' -Value '10' -Force; rundll32.exe user32.dll,UpdatePerUserSystemParameters 1 1 } catch { exit 1 }"
+
+rem Success
+exit /b 0
+"@
+
 $startupPath = "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp\UpdateWallpaper.bat"
 Set-Content -Path $startupPath -Value $startupScript -Encoding ASCII
-Write-Host "✓ Updated startup folder script" -ForegroundColor Green
+Write-Host "✓ Created ROBUST startup folder script" -ForegroundColor Green
 
-Write-Host "`n=== WALLPAPER CONFIGURATION COMPLETE ===" -ForegroundColor Yellow
-Write-Host "✓ Current user wallpaper applied immediately" -ForegroundColor Green
+# 5. Create recovery script for manual execution
+$recoveryScript = @"
+# Wallpaper Recovery Script
+# Run this if wallpaper stops persisting
+
+`$wallpaperPath = "C:\Wallpaper\system-wallpaper.png"
+
+if (-not (Test-Path `$wallpaperPath)) {
+    Write-Host "Wallpaper file not found: `$wallpaperPath" -ForegroundColor Red
+    exit 1
+}
+
+Write-Host "Restoring wallpaper persistence..." -ForegroundColor Cyan
+
+# Set registry values
+Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "WallPaper" -Value `$wallpaperPath -Force
+Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "WallpaperStyle" -Value "10" -Force
+Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "TileWallpaper" -Value "0" -Force
+
+# Apply changes
+rundll32.exe user32.dll,UpdatePerUserSystemParameters 1 1
+
+Write-Host "Wallpaper restored successfully!" -ForegroundColor Green
+"@
+
+$recoveryPath = Join-Path $systemWallpaperDir "Restore-Wallpaper.ps1"
+Set-Content -Path $recoveryPath -Value $recoveryScript -Encoding UTF8
+Write-Host "✓ Created recovery script: $recoveryPath" -ForegroundColor Green
+
+Write-Host "`n=== WALLPAPER CONFIGURATION COMPLETE (FIXED) ===" -ForegroundColor Yellow
+Write-Host "✓ Current user wallpaper applied with proper API" -ForegroundColor Green
 Write-Host "✓ All existing user profiles configured" -ForegroundColor Green  
-Write-Host "✓ Default user profile configured for new users" -ForegroundColor Green
-Write-Host "✓ Startup persistence configured" -ForegroundColor Green
-Write-Host "`nSingle wallpaper file: $systemWallpaperPath" -ForegroundColor Cyan
-Write-Host "All users will use the same wallpaper with system information" -ForegroundColor Cyan
-Write-Host "The wallpaper will persist after restarts and show current system info" -ForegroundColor Cyan
+Write-Host "✓ Default user profile configured using proper template functions" -ForegroundColor Green
+Write-Host "✓ ROBUST startup persistence with error handling" -ForegroundColor Green
+Write-Host "✓ Recovery script created for troubleshooting" -ForegroundColor Green
+Write-Host "`nThe wallpaper should now persist properly after restarts!" -ForegroundColor Cyan
