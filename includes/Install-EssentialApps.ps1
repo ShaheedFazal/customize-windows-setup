@@ -118,6 +118,12 @@ foreach ($app in $apps) {
     Write-Host "[INFO] Installing $($app.Name)..." -ForegroundColor Cyan
     try {
         winget install --id=$($app.Id) --accept-source-agreements --accept-package-agreements -e -h --disable-interactivity --scope machine --architecture $architecture
+        # capture exit code to detect failures
+        $exitCode = $LASTEXITCODE
+        if ($exitCode -ne 0) {
+            Write-Host "[ERROR] Failed to install $($app.Name) (Exit code: $exitCode)" -ForegroundColor Red
+            continue
+        }
         Write-Host "[OK] Installed $($app.Name)" -ForegroundColor Green
 
         if ($skipShortcutApps -notcontains $app.Name) {
