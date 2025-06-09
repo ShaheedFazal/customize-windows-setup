@@ -82,8 +82,8 @@ $apps = @(
     @{ Name = ".NET Desktop Runtime 6"; Id = "Microsoft.DotNet.DesktopRuntime.6" },
     @{ Name = ".NET Desktop Runtime 7"; Id = "Microsoft.DotNet.DesktopRuntime.7" },
     @{ Name = ".NET Desktop Runtime 8"; Id = "Microsoft.DotNet.DesktopRuntime.8" },
-    @{ Name = "Microsoft Visual C++ 2015-2022 Redistributable (x64)"; Id = "Microsoft.VC++2015-2022Redist-x64" },
-    @{ Name = "Microsoft Visual C++ 2015-2022 Redistributable (x86)"; Id = "Microsoft.VC++2015-2022Redist-x86" },
+    @{ Name = "Microsoft Visual C++ 2015-2022 Redistributable (x64)"; Id = "Microsoft.VCRedist.2015+.x64" },
+    @{ Name = "Microsoft Visual C++ 2015-2022 Redistributable (x86)"; Id = "Microsoft.VCRedist.2015+.x86" },
     @{ Name = "7-Zip"; Id = "7zip.7zip" },
     @{ Name = "Notepad++"; Id = "Notepad++.Notepad++" },
     @{ Name = "VLC Media Player"; Id = "VideoLAN.VLC" },
@@ -116,23 +116,32 @@ $architecture = if ([Environment]::Is64BitOperatingSystem) { 'x64' } else { 'x86
 
 foreach ($app in $apps) {
     Write-Host "[INFO] Installing $($app.Name)..." -ForegroundColor Cyan
-    try {
-        winget install --id=$($app.Id) --accept-source-agreements --accept-package-agreements -e -h --disable-interactivity --scope machine --architecture $architecture
-        # capture exit code to detect failures
-        $exitCode = $LASTEXITCODE
-        if ($exitCode -ne 0) {
-            Write-Host "[ERROR] Failed to install $($app.Name) (Exit code: $exitCode)" -ForegroundColor Red
-            continue
-        }
-        Write-Host "[OK] Installed $($app.Name)" -ForegroundColor Green
 
-        if ($skipShortcutApps -notcontains $app.Name) {
-            Add-DesktopShortcut -AppName $app.Name
-        } else {
-            Write-Host "[INFO] Skipping desktop shortcut for $($app.Name)" -ForegroundColor Gray
+    winget install --id=$($app.Id) --accept-source-agreements --accept-package-agreements -e -h
+    $exitCode = $LASTEXITCODE
+
+    switch ($exitCode) {
+        0 {
+            Write-Host "[OK] Successfully installed $($app.Name)" -ForegroundColor Green
         }
-    } catch {
-        Write-Host "[ERROR] Failed to install $($app.Name): $_" -ForegroundColor Red
+        -1978335189 {
+            Write-Host "[OK] $($app.Name) is already installed and up-to-date" -ForegroundColor Green
+        }
+        -1978335216 {
+            Write-Host "[SKIP] $($app.Name) - No compatible installer available for this system" -ForegroundColor Yellow
+        }
+        -1978335212 {
+            Write-Host "[WARN] $($app.Name) - Package ID not found, may need updating" -ForegroundColor Yellow
+        }
+        default {
+            Write-Host "[ERROR] Failed to install $($app.Name) (Exit code: $exitCode)" -ForegroundColor Red
+        }
+    }
+
+    if (($exitCode -eq 0 -or $exitCode -eq -1978335189) -and ($skipShortcutApps -notcontains $app.Name)) {
+        Add-DesktopShortcut -AppName $app.Name
+    } elseif ($skipShortcutApps -contains $app.Name) {
+        Write-Host "[INFO] Skipping desktop shortcut for $($app.Name)" -ForegroundColor Gray
     }
 }
 
