@@ -133,7 +133,11 @@ if ($confirmation -eq 'y') {
 Write-Host ($CR +"All customizations completed for current user") -foregroundcolor $FOREGROUNDCOLOR
 $templateChoice = Read-Host "Apply customizations to default user profile for future users? [y/N]"
 if ($templateChoice -eq 'y') {
-    Invoke-ProfileTemplating
+    if (Get-Command "Invoke-ProfileTemplating" -ErrorAction SilentlyContinue) {
+        Invoke-ProfileTemplating
+    } else {
+        Write-Host "[WARNING] Profile templating functions not available" -ForegroundColor Yellow
+    }
 }
 # Restart to apply all changes
 Write-Host ($CR +"This system will restart to apply all changes") -foregroundcolor $FOREGROUNDCOLOR $CR
