@@ -38,7 +38,7 @@ The project started as a fork of [filipnet/customize-windows-client](https://git
    reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v BlockUserFromCreatingAccounts /t REG_DWORD /d 0 /f
    reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement" /v ScoobeSystemSettingEnabled /t REG_DWORD /d 1 /f
    ```
-7. Run `Create-Standard-User.ps1` to create a local account without administrator rights. You
+7. Run `ZZZ-Create-Standard-User.ps1` to create a local account without administrator rights. You
    will be prompted for a user name and to enter the password twice. The password input
    is hidden and therefore not written to the transcript log.
 8. **Run the script from the same console** so you can respond to prompts:
@@ -55,7 +55,7 @@ The project started as a fork of [filipnet/customize-windows-client](https://git
 
    The script asks whether to create a system restore point and backup the registry, then asks for confirmation before customizing Windows and again before rebooting. Press `y` and **Enter** when prompted.
 
-Each script in `includes` performs a single customization step—such as disabling Cortana, blocking Microsoft account sign-in and Windows Hello for Business, configuring Windows Update, or installing useful tools. `Configure-StartPins.ps1` resets pinned items to File Explorer, Google Chrome, Telegram and WhatsApp Web. `Install-EssentialApps.ps1` installs common productivity tools for all users using **winget** and copies their Start Menu shortcuts to the public desktop. `Set-WallpaperWithStats.ps1` sets the wallpaper and overlays system information—computer name, model, serial number and Windows version—in the bottom-right corner of the screen. If the text is hidden behind the taskbar or runs off the right edge, tweak the `$bottomMargin` or `$rightMargin` variables in that script.
+Each script in `includes` performs a single customization step—such as disabling Cortana, blocking Microsoft account sign-in and Windows Hello for Business, configuring Windows Update, or installing useful tools. `Configure-StartPins.ps1` resets pinned items to File Explorer, Google Chrome, Telegram and WhatsApp Web. `Install-EssentialApps.ps1` installs common productivity tools for all users using **winget** and copies their Start Menu shortcuts to the public desktop. `ZZZ-Set-WallpaperWithStats.ps1` sets the wallpaper and overlays system information—computer name, model, serial number and Windows version—in the bottom-right corner of the screen. If the text is hidden behind the taskbar or runs off the right edge, tweak the `$bottomMargin` or `$rightMargin` variables in that script.
    All console output is recorded to a log file in `C:\Temp` so you can review the results after the script finishes.
 
 ## Troubleshooting

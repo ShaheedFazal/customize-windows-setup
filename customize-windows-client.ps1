@@ -118,16 +118,16 @@ reg export HKCR C:\Install\registry-backup-hkcr.reg /y | Out-Null
 Write-Host ($CR +"This system will customized and minimized") -foregroundcolor $FOREGROUNDCOLOR $CR
 $confirmation = Read-Host "Are you sure you want to proceed? [press: y]"
 if ($confirmation -eq 'y') {
-    # Create array of actions out of include folder
-    $Actions = Get-ChildItem -Path $IncludesPath -File | Select-Object -ExpandProperty Name
+    # Create list of all actions in the includes folder
+    $AllActions = Get-ChildItem -Path $IncludesPath -File | Sort-Object -Property Name
 
-
-    # Execute selected actions"
-    foreach ($Action in $Actions) {	
+    # Files prefixed with ZZZ should run after default profile templating
+    $PreTemplateActions = $AllActions | Where-Object { $_.Name -notlike 'ZZZ-*' }
+    foreach ($Action in $PreTemplateActions) {
         Write-Host "Execute " -NoNewline
-        Write-Host ("$Action") -foregroundcolor Yellow -NoNewline
+        Write-Host ($Action.Name) -ForegroundColor Yellow -NoNewline
         Write-Host " ..."
-        & (Join-Path $IncludesPath $Action)
+        & $Action.FullName
     }
 }
 Write-Host ($CR +"All customizations completed for current user") -foregroundcolor $FOREGROUNDCOLOR
@@ -138,6 +138,15 @@ if ($templateChoice -eq 'y') {
     } else {
         Write-Host "[WARNING] Profile templating functions not available" -ForegroundColor Yellow
     }
+}
+
+# Execute actions that should run after default profile templating
+$PostTemplateActions = $AllActions | Where-Object { $_.Name -like 'ZZZ-*' }
+foreach ($Action in $PostTemplateActions) {
+    Write-Host "Execute " -NoNewline
+    Write-Host ($Action.Name) -ForegroundColor Yellow -NoNewline
+    Write-Host " ..."
+    & $Action.FullName
 }
 # Restart to apply all changes
 Write-Host ($CR +"This system will restart to apply all changes") -foregroundcolor $FOREGROUNDCOLOR $CR
