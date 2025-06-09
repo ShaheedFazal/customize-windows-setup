@@ -109,8 +109,8 @@ function New-WallpaperWithSystemInfo {
         $keyFont = New-Object System.Drawing.Font($font, $size, [System.Drawing.FontStyle]::Bold)
         $valFont = New-Object System.Drawing.Font($font, $size, [System.Drawing.FontStyle]::Regular)
         
-        $keySize = [System.Windows.Forms.TextRenderer]::MeasureText($keyText, $keyFont)
-        $valSize = [System.Windows.Forms.TextRenderer]::MeasureText($valText, $valFont)
+        $keySize = $graphics.MeasureString($keyText, $keyFont)
+        $valSize = $graphics.MeasureString($valText, $valFont)
         
         $maxKeyWidth = [math]::Max($maxKeyWidth, $keySize.Width)
         $maxValWidth = [math]::Max($maxValWidth, $valSize.Width)
@@ -139,11 +139,12 @@ function New-WallpaperWithSystemInfo {
         $keyFont = New-Object System.Drawing.Font($font, $size, [System.Drawing.FontStyle]::Bold)
         $valFont = New-Object System.Drawing.Font($font, $size, [System.Drawing.FontStyle]::Regular)
         
-        $keyRect = New-Object System.Drawing.RectangleF($textBgX + $textPaddingLeft, $currentY, $maxKeyWidth, $size + 4)
-        $valRect = New-Object System.Drawing.RectangleF($textBgX + $textPaddingLeft + $maxKeyWidth, $currentY, $maxValWidth, $size + 4)
+        # Use simple coordinates instead of rectangles
+        $keyX = $textBgX + $textPaddingLeft
+        $valX = $textBgX + $textPaddingLeft + $maxKeyWidth
         
-        $graphics.DrawString($keyText, $keyFont, $foreBrush, $keyRect)
-        $graphics.DrawString($valText, $valFont, $foreBrush, $valRect)
+        $graphics.DrawString($keyText, $keyFont, $foreBrush, $keyX, $currentY)
+        $graphics.DrawString($valText, $valFont, $foreBrush, $valX, $currentY)
         
         $currentY += $size + $textItemSpace + 4
         
