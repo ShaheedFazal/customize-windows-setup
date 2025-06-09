@@ -243,7 +243,7 @@ $DRIVELETTERCDROM = "z:"                   # CD-ROM drive letter assignment
 ### Advanced Customisation Options
 
 **Wallpaper Personalisation:**
-1. Add your image as `wallpaper/wallpaper.png`
+1. Add your image as `wallpaper/wallpaper.png` (the script copies this file to `C:\Wallpaper\wallpaper.png`)
 2. Adjust positioning variables in `Set-WallpaperWithStats.ps1`:
    ```powershell
    $bottomMargin = 60    # Space above taskbar

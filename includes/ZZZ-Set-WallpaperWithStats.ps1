@@ -8,6 +8,24 @@ param(
     [switch]$UseSystemDefault
 )
 
+# Determine script location and default wallpaper
+$ScriptRoot    = Split-Path -Parent $MyInvocation.MyCommand.Definition
+$RepoWallpaper = Join-Path $ScriptRoot '..\wallpaper\wallpaper.png'
+$SystemDir     = 'C:\\Wallpaper'
+$SystemWallpaper = Join-Path $SystemDir 'wallpaper.png'
+
+# If no path specified and not forcing system defaults, use repository wallpaper
+if ([string]::IsNullOrEmpty($WallpaperPath) -and -not $UseSystemDefault) {
+    if (Test-Path $RepoWallpaper) {
+        if (-not (Test-Path $SystemDir)) {
+            New-Item -Path $SystemDir -ItemType Directory -Force | Out-Null
+        }
+        Copy-Item -Path $RepoWallpaper -Destination $SystemWallpaper -Force
+        Write-Host "Copied custom wallpaper to $SystemWallpaper" -ForegroundColor Cyan
+        $WallpaperPath = $SystemWallpaper
+    }
+}
+
 Write-Host "=== WALLPAPER PERSISTENCE FIX ===" -ForegroundColor Cyan
 
 # Simple registry function (doesn't require shared functions)
