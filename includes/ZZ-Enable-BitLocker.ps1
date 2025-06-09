@@ -1,3 +1,16 @@
+$tpm = $null
+try {
+    $tpm = Get-Tpm
+} catch {
+    Write-Warning "Failed to query TPM status: $_"
+    return
+}
+
+if (-not $tpm.TpmPresent -or -not $tpm.TpmReady) {
+    Write-Warning "TPM not present or not ready. Skipping BitLocker configuration."
+    return
+}
+
 # Check if BitLocker is enabled
 $bitlockerStatus = Get-BitLockerVolume -MountPoint 'C:'
 
