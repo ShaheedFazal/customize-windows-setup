@@ -48,13 +48,21 @@ if (Test-Path $templateFunctionsPath) {
 # ---------- DO NOT CHANGE THINGS BELOW THIS LINE -----------------------------
 
 # Check if the powershell is started as an administrator
-function Test-Administrator {  
+function Test-Administrator {
     [OutputType([bool])]
     param()
     process {
         [Security.Principal.WindowsPrincipal]$user = [Security.Principal.WindowsIdentity]::GetCurrent();
         return $user.IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator);
     }
+}
+
+# Simple wrapper to highlight interactive prompts
+function Prompt-User {
+    param([string]$Message)
+    Write-Host ""  # ensure prompt appears on a new line
+    Write-Host "[PROMPT] $Message" -ForegroundColor Cyan
+    return Read-Host
 }
 
 # Ensure the temp folder exists so a transcript can be written
@@ -72,7 +80,7 @@ if(-not (Test-Administrator)) {
 $LogPath = Join-Path $TEMPFOLDER ("customize-windows-client-{0:yyyyMMdd-HHmmss}.log" -f (Get-Date))
 Start-Transcript -Path $LogPath | Out-Null
 # Ask whether to create a restore point and registry backup
-$restoreChoice = Read-Host "Create a system restore point and backup the registry? [press: y]"
+$restoreChoice = Prompt-User "Create a system restore point and backup the registry? [press: y]"
  
 if ($restoreChoice -eq 'y') {
 
@@ -117,7 +125,7 @@ reg export HKCR C:\Install\registry-backup-hkcr.reg /y | Out-Null
 }
 # Start customization
 Write-Host ($CR +"This system will customized and minimized") -foregroundcolor $FOREGROUNDCOLOR $CR
-$confirmation = Read-Host "Are you sure you want to proceed? [press: y]"
+$confirmation = Prompt-User "Are you sure you want to proceed? [press: y]"
 if ($confirmation -ne 'y') {
     Write-Host "Customization canceled" -ForegroundColor Yellow
     Stop-Transcript | Out-Null
@@ -136,7 +144,7 @@ foreach ($Action in $PreTemplateActions) {
     & $Action.FullName
 }
 Write-Host ($CR +"All customizations completed for current user") -foregroundcolor $FOREGROUNDCOLOR
-$templateChoice = Read-Host "Apply customizations to default user profile for future users? [y/N]"
+$templateChoice = Prompt-User "Apply customizations to default user profile for future users? [y/N]"
 if ($templateChoice -eq 'y') {
     if (Get-Command "Invoke-ProfileTemplating" -ErrorAction SilentlyContinue) {
         Invoke-ProfileTemplating
@@ -155,7 +163,7 @@ foreach ($Action in $PostTemplateActions) {
 }
 # Restart to apply all changes
 Write-Host ($CR +"This system will restart to apply all changes") -foregroundcolor $FOREGROUNDCOLOR $CR
-$confirmation = Read-Host "Are you sure you want to proceed restart? [press: y]"
+$confirmation = Prompt-User "Are you sure you want to proceed restart? [press: y]"
 if ($confirmation -eq 'y') {
     Stop-Transcript | Out-Null
     Restart-Computer -ComputerName localhost

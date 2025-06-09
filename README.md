@@ -46,6 +46,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "Set-ExecutionPolicy Bypa
    cd "$env:USERPROFILE\Downloads\customize-windows-setup\customize-windows-setup-main"
    .\customize-windows-client.ps1
    ```
+   The script runs **interactively** and will pause for user input at several steps.
+   If it appears to stop, look for a prompt at the bottom of the PowerShell window.
 
 ## 🎯 Comprehensive Feature Overview
 
