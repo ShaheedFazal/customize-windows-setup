@@ -1,5 +1,10 @@
 # Prompt for default office suite and configure file associations
 
+param(
+    [ValidateSet('Google', 'LibreOffice')]
+    [string]$Suite
+)
+
 $setUserFtaPath = Join-Path $env:TEMP 'SetUserFTA.exe'
 # Fall back to the location used by Install-EssentialApps.ps1
 if (-not (Test-Path $setUserFtaPath)) {
@@ -10,10 +15,16 @@ if (-not (Test-Path $setUserFtaPath)) {
     return
 }
 
-Write-Host "Choose default office suite:" -ForegroundColor Cyan
-Write-Host "[1] Google Workspace" -ForegroundColor Cyan
-Write-Host "[2] LibreOffice" -ForegroundColor Cyan
-$choice = Read-Host "Enter 1 or 2"
+if (-not $Suite) {
+    $Suite = $OFFICESUITE
+}
+
+if (-not $Suite) {
+    Write-Host "No office suite selection made. Skipping." -ForegroundColor Yellow
+    return
+}
+
+$choice = if ($Suite -eq 'Google') { '1' } else { '2' }
 
 # Map document types to ProgIDs for LibreOffice
 $libreOfficeMap = @{ 

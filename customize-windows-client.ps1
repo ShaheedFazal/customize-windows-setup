@@ -31,6 +31,7 @@ $CR = "`n"
 $BLANK = " "
 $TIME = Get-Date -UFormat "%A %d.%m.%Y %R"
 $FOREGROUNDCOLOR = "Yellow"
+$OFFICESUITE = "Google"  # Set to 'Google' or 'LibreOffice' to configure defaults
 
 # Determine script and includes directory. The script looks for the 'includes'
 # folder relative to its own location.
