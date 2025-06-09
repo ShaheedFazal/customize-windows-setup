@@ -124,8 +124,16 @@ function Backup-DefaultProfile {
     try {
         $source = 'C:\\Users\\Default'
         $backup = 'C:\\Users\\Default.backup'
+
         if (Test-Path $backup) { Remove-Item $backup -Recurse -Force }
-        Copy-Item $source $backup -Recurse -Force
+        New-Item -ItemType Directory -Path $backup -Force | Out-Null
+
+        $exclude = @('Application Data', 'History')
+        robocopy $source $backup /MIR /XJ /XD $exclude | Out-Null
+        if ($LASTEXITCODE -ge 8) {
+            throw "Robocopy failed with exit code $LASTEXITCODE"
+        }
+
         Write-Host "[TEMPLATE] Backup created at $backup" -ForegroundColor Green
         return $true
     }
@@ -140,9 +148,16 @@ function Restore-DefaultProfile {
     param()
     try {
         $backup = 'C:\\Users\\Default.backup'
-        $dest = 'C:\\Users\\Default'
+        $dest   = 'C:\\Users\\Default'
         if (Test-Path $backup) {
-            Copy-Item $backup $dest -Recurse -Force
+            New-Item -ItemType Directory -Path $dest -Force | Out-Null
+
+            $exclude = @('Application Data', 'History')
+            robocopy $backup $dest /MIR /XJ /XD $exclude | Out-Null
+            if ($LASTEXITCODE -ge 8) {
+                throw "Robocopy failed with exit code $LASTEXITCODE"
+            }
+
             Write-Host "[TEMPLATE] Restored default profile from backup" -ForegroundColor Yellow
         }
     }
