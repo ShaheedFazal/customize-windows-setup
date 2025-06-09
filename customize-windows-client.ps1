@@ -136,14 +136,7 @@ foreach ($Action in $PreTemplateActions) {
     & $Action.FullName
 }
 Write-Host ($CR +"All customizations completed for current user") -foregroundcolor $FOREGROUNDCOLOR
-$templateChoice = Read-Host "Apply customizations to default user profile for future users? [y/N]"
-if ($templateChoice -eq 'y') {
-    if (Get-Command "Invoke-ProfileTemplating" -ErrorAction SilentlyContinue) {
-        Invoke-ProfileTemplating
-    } else {
-        Write-Host "[WARNING] Profile templating functions not available" -ForegroundColor Yellow
-    }
-}
+# Skip profile templating as this functionality is currently disabled
 
 # Execute actions that should run after default profile templating
 $PostTemplateActions = $AllActions | Where-Object { $_.Name -like 'ZZZ-*' }
