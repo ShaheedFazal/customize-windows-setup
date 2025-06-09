@@ -85,6 +85,8 @@ are allowed on your drive in **System Properties**.
 ## Contributing
 Contributions are welcome! New customization modules or improvements to existing scripts help keep this project useful for different environments.
 
+Detailed information about the registry policy migration from HKCU to HKLM can be found in [HKCU-to-HKLM-Migration.md](HKCU-to-HKLM-Migration.md).
+
 ## Credits
 - **Benedikt Filip** ([@filipnet](https://github.com/filipnet)) created the original project that formed the basis of this repository.
 - Several ideas and snippets were adopted from [toolarium/windows-trimify](https://github.com/toolarium/windows-trimify) – see its [license](https://github.com/toolarium/windows-trimify/blob/master/LICENSE).
