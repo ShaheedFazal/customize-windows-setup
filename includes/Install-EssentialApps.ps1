@@ -18,6 +18,26 @@ function Download-File {
     return $false
 }
 
+# Copy a shortcut from the Start Menu to the public desktop
+function Add-DesktopShortcut {
+    param([string]$AppName)
+
+    $startDir   = [Environment]::GetFolderPath('CommonPrograms')
+    $desktopDir = [Environment]::GetFolderPath('CommonDesktopDirectory')
+
+    $shortcut = Get-ChildItem -Path $startDir -Include *.lnk,*.url,*.appref-ms -Recurse |
+                Where-Object { $_.BaseName -like "*$AppName*" } |
+                Select-Object -First 1
+
+    if ($null -ne $shortcut) {
+        $destination = Join-Path $desktopDir $shortcut.Name
+        Copy-Item $shortcut.FullName -Destination $destination -Force
+        Write-Host "[OK] Desktop shortcut added for $AppName" -ForegroundColor Green
+    } else {
+        Write-Host "[WARN] No shortcut found for $AppName" -ForegroundColor Yellow
+    }
+}
+
 # Ensure winget is available
 if (-not (Get-Command "winget" -ErrorAction SilentlyContinue)) {
     Write-Host "[WARN] 'winget' is not available. Attempting to install App Installer..." -ForegroundColor Yellow
@@ -69,8 +89,9 @@ $apps = @(
 foreach ($app in $apps) {
     Write-Host "[INFO] Installing $($app.Name)..." -ForegroundColor Cyan
     try {
-        winget install --id=$($app.Id) --accept-source-agreements --accept-package-agreements -e -h --disable-interactivity
+        winget install --id=$($app.Id) --accept-source-agreements --accept-package-agreements -e -h --disable-interactivity --scope machine
         Write-Host "[OK] Installed $($app.Name)" -ForegroundColor Green
+        Add-DesktopShortcut -AppName $app.Name
     } catch {
         Write-Host "[ERROR] Failed to install $($app.Name): $_" -ForegroundColor Red
     }
