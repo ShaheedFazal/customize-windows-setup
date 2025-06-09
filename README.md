@@ -1,50 +1,67 @@
 # Windows Customisation Toolkit
 
-A comprehensive PowerShell toolkit for post-installation Windows setup that removes bloatware, strengthens privacy, installs essential applications, and optimises system configuration for productivity and security.
+A comprehensive PowerShell-based toolkit for post-installation Windows setup that removes bloatware, strengthens privacy and security, installs essential applications, and optimises system configuration for maximum productivity.
 
 [![License: BSD-3](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](LICENSE)
 [![PowerShell](https://img.shields.io/badge/PowerShell-5.1%2B-blue.svg)](https://github.com/PowerShell/PowerShell)
-[![Windows](https://img.shields.io/badge/Windows-10%2F11-blue.svg)](https://www.microsoft.com/windows)
+[![Windows](https://img.shields.io/badge/Windows-10%2F11%2FServer-blue.svg)](https://www.microsoft.com/windows)
 
-## ⚠️ Important Safety Notice
+## ⚠️ Critical Safety Information
 
-**This toolkit makes significant system modifications.** Before proceeding:
+**This toolkit performs extensive system modifications.** Before proceeding:
 
-- ✅ **Create a full system backup** or VM snapshot
-- ✅ **Ensure you have a local administrator account** (particularly important if using a Microsoft account)
-- ✅ **Review the scripts** in the `includes` folder to understand what will be changed
+- ✅ **Create a complete system backup** or VM snapshot
+- ✅ **Ensure you have a local administrator account** (essential if currently using Microsoft account)
+- ✅ **Review all scripts** in the `includes` folder to understand changes
 - ✅ **Test on a non-production system first**
+- ✅ **Close all running applications** before execution
 
-The toolkit can optionally create a system restore point and registry backup, but these are not substitutes for proper backups.
+The toolkit includes automatic restore point creation and registry backup, but these are **not substitutes for proper system backups**.
 
-## 🚀 Quick Start
+## 🚀 Quick Start Guide
 
-### Option 1: One-Line Installation (Recommended)
+### Method 1: One-Command Installation
 
-Open **PowerShell as Administrator** and run:
+Open **PowerShell as Administrator** and execute:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -Command "Set-ExecutionPolicy Bypass -Scope Process -Force; iwr -useb https://raw.githubusercontent.com/ShaheedFazal/customize-windows-setup/main/download-repo.ps1 | iex; & `"$env:USERPROFILE\Downloads\customize-windows-setup\customize-windows-setup-main\customize-windows-client.ps1`""
 ```
 
-### Option 2: Manual Installation
+### Method 2: Manual Installation
 
 1. **Open PowerShell as Administrator**
-2. **Allow script execution:**
+2. **Set execution policy:**
    ```powershell
    Set-ExecutionPolicy Bypass -Scope Process -Force
    ```
-3. **Download the repository:**
+3. **Download repository:**
    ```powershell
-   $d = Join-Path $env:USERPROFILE 'Downloads'; iwr -Uri 'https://raw.githubusercontent.com/ShaheedFazal/customize-windows-setup/main/download-repo.ps1' -OutFile (Join-Path $d 'download-repo.ps1'); & "$d\download-repo.ps1"
+   $downloadPath = Join-Path $env:USERPROFILE 'Downloads'
+   iwr -Uri 'https://raw.githubusercontent.com/ShaheedFazal/customize-windows-setup/main/download-repo.ps1' -OutFile (Join-Path $downloadPath 'download-repo.ps1')
+   & "$downloadPath\download-repo.ps1"
    ```
-4. **Navigate to the downloaded folder and run:**
+4. **Execute the toolkit:**
    ```powershell
    cd "$env:USERPROFILE\Downloads\customize-windows-setup\customize-windows-setup-main"
    .\customize-windows-client.ps1
    ```
 
-## 🎯 What This Toolkit Does
+## 🎯 Comprehensive Feature Overview
+
+### 🛡️ Privacy & Security Hardening
+
+**Telemetry & Data Collection Removal:**
+- Disables Windows telemetry at the most restrictive level (Security/Enterprise only)
+- Removes advertising ID and targeted content suggestions
+- Disables diagnostic tracking service and related scheduled tasks
+- Blocks feedback collection and user experience improvement programmes
+
+**Microsoft Account & Authentication:**
+- Intelligently blocks Microsoft account sign-in prompts with safety checks
+- Disables Windows Hello for Business (with local account verification)
+- Prevents Microsoft 365 promotional notifications
+- Offers guided local account creation for safety
 
 ### 🛡️ Privacy & Security Enhancements
 - **Disables telemetry and data collection** across Windows components
@@ -56,217 +73,372 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "Set-ExecutionPolicy Bypa
 - **Enables UAC** and sets appropriate security policies
 - **Disables unnecessary services** that could pose security risks
 
-### 🧹 System Debloating
-- **Removes pre-installed bloatware** including games, promotional apps, and unwanted Microsoft apps
-- **Uninstalls OneDrive** (optional) with complete cleanup
-- **Disables Cortana** and Bing search integration
-- **Removes Xbox features** and Game DVR functionality
-- **Cleans up default Start Menu** pins and shortcuts
+### 🧹 Advanced System Debloating
 
-### ⚙️ System Optimisation
-- **Installs essential applications** via Windows Package Manager (winget)
-- **Adds desktop shortcuts** for installed apps by scanning all Start Menu folders
-- **Configures Windows Update** with intelligent scheduling and deferral
-- **Sets up automatic app updates** via scheduled task
-- **Optimises power management** settings
-- **Enables Wake-on-LAN** for compatible hardware
-- **Configures clipboard** settings for productivity
+**Microsoft App Removal:**
+- Removes 40+ pre-installed Microsoft apps including Solitaire, Xbox, Office Hub, 3D Builder
+- Cleans up Bing-integrated apps (News, Weather, Sports, Finance)
+- Removes Windows Media Player and legacy components
+- Uninstalls messaging, camera, and social apps
 
-### 🎨 Interface Improvements
-- **Customises taskbar** appearance and removes unnecessary icons
-- **Sets file associations** for common document types
-- **Applies custom wallpaper** with system information overlay
-- **Configures Control Panel** for easier navigation
-- **Shows file extensions** and optimises Explorer settings
+**Third-Party Bloatware:**
+- Removes 25+ sponsored applications (Candy Crush, Netflix, Spotify trials, etc.)
+- Cleans Disney, gaming, and promotional apps
+- Removes social media and entertainment trial software
+- Eliminates developer tool trials and promotional content
 
-## 📦 Included Applications
+**Microsoft Edge Debloating:**
+- Disables 18+ Edge features including telemetry, shopping assistant, collections
+- Removes Microsoft Rewards integration and promotional content
+- Disables crypto wallet and donation features
+- Blocks enhanced images and personalisation reporting
 
-The toolkit automatically installs these essential applications:
+**OneDrive Management:**
+- Complete OneDrive uninstallation with registry cleanup
+- Removes OneDrive from File Explorer integration
+- Cleans up leftover folders and shortcuts
+- Alternative: OneDrive disable-only option available
 
-**Core Runtimes:**
-- .NET Desktop Runtime (6, 7, 8)
-- Microsoft Visual C++ Redistributables
+### ⚙️ System Optimisation & Performance
 
-**Productivity Tools:**
-- Google Chrome + Google Drive
-- LibreOffice (full office suite)
-- Notepad++ (advanced text editor)
+**Essential Software Installation (via winget):**
+- **.NET Runtimes:** Desktop Runtime 6, 7, 8 + Visual C++ Redistributables
+- **Productivity:** LibreOffice suite, Notepad++, 7-Zip, VLC Media Player
+- **Communication:** Microsoft Teams, Telegram Desktop, Zoom
+- **Development:** PowerShell 7, Python 3, Windows Terminal
+- **Google Workspace:** Chrome browser, Google Drive desktop client
+- **Remote Access:** AnyDesk for technical support
 
-**System Utilities:**
-- 7-Zip (file archiver)
-- VLC Media Player
-- Windows Terminal
-- PowerShell 7
+**Windows Update Intelligence:**
+- Automatic download with scheduled installation
+- Prevents auto-reboot while users are logged on
+- Defers feature updates for 180 days, quality updates for 7 days
+- Sets active hours (8 AM - 7 PM) with reboot suppression
+- Enables driver updates and recommended updates
+- Disables delivery optimisation to prevent bandwidth sharing
 
-**Communication:**
-- Microsoft Teams
-- Telegram Desktop
-- Zoom
+**Power & Performance:**
+- Disables hibernation to reclaim disk space and prevent hybrid sleep issues
+- Disables Fast Startup for proper Wake-on-LAN functionality
+- Enables Wake-on-LAN on compatible Ethernet adapters
+- Configures smart auto-shutdown for inactive systems after 9 PM
 
-**Development:**
-- Python 3
-- Remote desktop tools (AnyDesk)
+### 🎨 Interface & User Experience
 
-All applications are kept up-to-date via a weekly scheduled task.
+**Taskbar & Start Menu Optimisation:**
+- Hides search box, Task View, and People icons
+- Shows small taskbar icons for space efficiency
+- Displays all system tray icons for better visibility
+- Removes recently and frequently used items from Explorer
 
-## 🔧 Customisation Options
+**File Explorer Enhancements:**
+- Shows known file extensions (optional, in disabled folder)
+- Hides user folder shortcut from desktop
+- Removes Pictures, Videos, Music, and 3D Objects from This PC view
+- Sets Control Panel to small icons (classic view)
 
-### Adding/Removing Features
+**Custom Wallpaper System:**
+- Applies custom wallpaper with system information overlay
+- Displays computer name, model, serial number, workgroup, and Windows version
+- Automatically positions text to avoid taskbar overlap
+- Supports custom images via `wallpaper/wallpaper.png`
 
-To **disable** any feature:
-1. Move the corresponding script from `includes/` to `includes/disabled/`
-2. The main script will skip any files in the `disabled` folder
+**Office Suite Integration:**
+- Interactive choice between Google Workspace (web-based) and LibreOffice
+- Automatic file association configuration for documents, spreadsheets, presentations
+- Google Workspace option includes desktop shortcuts and file associations
+- LibreOffice option provides full offline productivity suite
 
-To **add custom scripts:**
-1. Create a new `.ps1` file in the `includes/` folder
-2. Use the naming convention: `Verb-Feature.ps1`
-3. For scripts that must run last, use the `ZZ-` prefix
+### 🔧 Network & Connectivity
 
-### Configuring Variables
+**Network Security:**
+- Disables WiFi Sense hotspot sharing and auto-connect features
+- Enables Remote Desktop with Network Level Authentication
+- Configures Windows Firewall with ICMP ping allowance
+- Disables WAP Push Service for mobile carrier integration
 
-Edit the top of `customize-windows-client.ps1` to customise:
+**Remote Access:**
+- Enables Remote Desktop with secure authentication
+- Disables Remote Assistance to prevent unauthorised access
+- Configures Wake-on-LAN for remote power management
+- Sets up AnyDesk for professional remote support
+
+### 🔒 Advanced Security Features
+
+**BitLocker Implementation:**
+- Automatic TPM-based encryption for seamless boot experience
+- Recovery password generation and secure storage
+- Used-space-only encryption for faster initial setup
+- Recovery key backup to `Documents/BitLockerRecoveryKey-COMPUTERNAME.txt`
+
+**Windows Server Specific:**
+- Disables IE Enhanced Security Configuration (ESC) for administrators
+- Configures Automatic Virtual Machine Activation (AVMA) keys
+- Disables Windows Admin Center popup in Server Manager
+- Server 2016/2019 specific optimisations
+
+**System Hardening:**
+- Disables guest account and removes administrator description
+- Configures account lockout and password policies
+- Sets machine inactivity timeout (15 minutes)
+- Enables clipboard history while disabling cross-device sync
+
+## 📦 Application Management
+
+### Automated Installation & Updates
+
+The toolkit installs essential applications and sets up automated maintenance:
+
+**Weekly Update Schedule:**
+- Creates scheduled task running every Sunday at 8 AM
+- Updates all winget-managed applications automatically
+- Runs as SYSTEM account for reliable execution
+- Generates update script at `C:\Scripts\Update-WingetApps.ps1`
+
+**File Association Management:**
+- Downloads and configures SetUserFTA.exe for reliable file associations
+- Supports both Chrome-based (Google Workspace) and LibreOffice associations
+- Handles PDF, Office documents, and web protocols
+- Maintains consistency across user profiles
+
+### Smart Features
+
+**Intelligent Shutdown System:**
+- Monitors for active user sessions after 9 PM
+- Only shuts down when no users are actively logged in
+- Provides 60-second warning before shutdown
+- Checks every 15 minutes for 6 hours (9 PM - 3 AM)
+
+**Screensaver Configuration:**
+- Creates dedicated screensaver image folder at `C:\Screensaver`
+- Configures Photos screensaver with 10-minute timeout
+- Enables screensaver protection for security
+
+## 🔧 Customisation & Configuration
+
+### Feature Toggle System
+
+**Enable/Disable Features:**
+- Move scripts between `includes/` and `includes/disabled/` folders
+- Scripts in `disabled/` folder are completely skipped
+- No code modification required for feature toggling
+
+**Execution Order Control:**
+- Scripts execute alphabetically
+- Use `ZZ-` prefix for scripts requiring dependencies (e.g., `ZZ-Enable-BitLocker.ps1`)
+- Dependency-aware execution ensures proper setup sequence
+
+### Configuration Variables
+
+Modify variables in `customize-windows-client.ps1`:
 
 ```powershell
-$DRIVELABELSYS = "OS"                    # System drive label
-$TEMPFOLDER = "C:\Temp"                  # Temporary files location
-$POWERMANAGEMENT = "High performance"     # Power plan preference
+$DRIVELABELSYS = "OS"                      # System drive label
+$TEMPFOLDER = "C:\Temp"                    # Logging and temporary files
+$INSTALLFOLDER = "C:\Install"              # Installation files and backups
+$POWERMANAGEMENT = "High performance"       # Preferred power plan
+$DRIVELETTERCDROM = "z:"                   # CD-ROM drive letter assignment
 ```
 
-### Office Suite Selection
+### Advanced Customisation Options
 
-The toolkit prompts you to choose between:
-- **Google Workspace** (web-based, requires Chrome)
-- **LibreOffice** (offline, full-featured)
+**Wallpaper Personalisation:**
+1. Add your image as `wallpaper/wallpaper.png`
+2. Adjust positioning variables in `Set-WallpaperWithStats.ps1`:
+   ```powershell
+   $bottomMargin = 60    # Space above taskbar
+   $rightMargin = 20     # Right edge padding
+   ```
 
-File associations and shortcuts are configured automatically based on your choice.
+**Microsoft Edge Policies:**
+- 18 configurable policies in `Debloat-MicrosoftEdge.ps1`
+- Granular control over telemetry, features, and integrations
+- Enterprise-grade configuration options
 
-## 🔒 Security Features
+## 🔍 Troubleshooting & Support
 
-### BitLocker Configuration
-- Automatically enables BitLocker on the system drive
-- Uses TPM-only protection for seamless boot experience
-- Saves recovery key to `Documents/BitLockerRecoveryKey-COMPUTERNAME.txt`
-- **Important:** Back up this file to a secure location
+### Common Issues & Solutions
 
-### Microsoft Account Handling
-- Detects existing Microsoft accounts and warns about potential lockout
-- Offers to create local administrator account as backup
-- Provides clear instructions for reverting changes if needed
+**App Removal Errors (HRESULT: 0x80073CFA):**
+- Indicates apps already removed or partially uninstalled
+- Generally harmless and can be safely ignored
+- Script includes error handling for these scenarios
 
-### System Hardening
-- Configures account lockout policies (5 attempts, 30-minute lockout)
-- Sets password policies (8 character minimum, unlimited age)
-- Enables Windows Firewall across all profiles
-- Allows ICMP (ping) through firewall for network diagnostics
+**Script Execution Policy Restrictions:**
+```powershell
+# Temporary bypass for current session
+Set-ExecutionPolicy Bypass -Scope Process -Force
 
-## 📊 Advanced Features
+# Or run with bypass flag
+powershell -ExecutionPolicy Bypass .\customize-windows-client.ps1
+```
 
-### Custom Wallpaper with System Info
-Places a custom wallpaper with overlaid system information:
-- Computer name and workgroup
-- Hardware model and serial number
-- Windows version
+**Winget Installation Failures:**
+- Toolkit automatically installs winget if missing
+- Requires internet connection for Microsoft Store App Installer
+- Falls back gracefully if automatic installation fails
 
-To use: Place your image as `wallpaper/wallpaper.png` in the toolkit directory.
+**Microsoft Account Lockout Prevention:**
+- Toolkit detects existing Microsoft accounts
+- Prompts for local account creation before proceeding
+- Warns about potential lockout scenarios
 
-### Scheduled Maintenance
-- **Daily shutdown check:** Automatically shuts down inactive systems after 9 PM
-- **Weekly app updates:** Updates all winget-managed applications every Sunday at 8 AM or on next boot if missed
-- **Smart shutdown logic:** Only triggers when no users are actively logged in
+**File Association Issues:**
+- Ensure `SetUserFTA.exe` downloaded successfully to `C:\Scripts\`
+- Verify target applications installed correctly
+- Run file association scripts after application installation
 
-### Network Configuration
-- Enables Wake-on-LAN for compatible Ethernet adapters
-- Disables WiFi Sense and hotspot auto-connect
-- Configures Windows Update delivery optimisation
+### Recovery Procedures
 
-## 🔍 Troubleshooting
-
-### Common Issues and Solutions
-
-**App removal errors (HRESULT: 0x80073CFA):**
-- These indicate apps are already removed and can be safely ignored
-
-**"Script execution is disabled" error:**
-- Run: `Set-ExecutionPolicy Bypass -Scope Process -Force`
-
-**Winget not found:**
-- The toolkit automatically installs winget if missing
-- Requires internet connection during first run
-
-**File association changes don't apply:**
-- Ensure `SetUserFTA.zip` was downloaded and extracted successfully
-- Check that target applications are properly installed
-
-**Microsoft account lockout:**
-- Create a local admin account before running the toolkit
-- See README section on reverting Microsoft account blocks
-
-### Reverting Microsoft Account Changes
-
-If you're locked out after disabling Microsoft account features:
-
+**Restore Microsoft Account Access:**
 ```powershell
 reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v NoConnectedUser /t REG_DWORD /d 0 /f
 reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v BlockUserFromCreatingAccounts /t REG_DWORD /d 0 /f
 reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement" /v ScoobeSystemSettingEnabled /t REG_DWORD /d 1 /f
+reg add "HKLM\SOFTWARE\Policies\Microsoft\PassportForWork" /v Enabled /t REG_DWORD /d 1 /f
 ```
 
-### Log Files
+**System Restore Options:**
+- **System Restore Point:** Created automatically before modifications
+- **Registry Backups:** Saved to `C:\Install\registry-backup-*.reg`
+- **Log Files:** Complete execution log at `C:\Temp\customize-windows-client-*.log`
 
-All operations are logged to:
-- `C:\Temp\customize-windows-client-YYYYMMDD-HHMMSS.log`
+### Diagnostic Information
 
-Check this file for detailed information about any errors or warnings.
+**Log Analysis:**
+- All console output captured with timestamps
+- Error codes and warnings preserved for troubleshooting
+- Successful operations confirmed with [OK] status messages
 
-## 🏗️ Development & Contributing
+**Windows Edition Compatibility:**
+- Automatic detection of Windows build numbers
+- Server-specific features handled appropriately
+- Graceful degradation for missing features
+
+## 🏗️ Development & Architecture
 
 ### Project Structure
+
 ```
 customize-windows-setup/
-├── customize-windows-client.ps1      # Main orchestrator
-├── download-repo.ps1                 # Repository fetcher
-├── includes/                         # Modular customisation scripts
-│   ├── disabled/                     # Scripts to skip
-│   └── *.ps1                        # Individual feature scripts
-├── wallpaper/                        # Custom wallpaper directory
-└── README.md                         # This file
+├── customize-windows-client.ps1           # Main orchestrator script
+├── download-repo.ps1                      # Repository download utility
+├── Create-Standard-User.ps1               # Standalone user creation
+├── includes/                              # Modular feature scripts
+│   ├── Configure-*.ps1                    # System configuration
+│   ├── Disable-*.ps1                      # Feature disabling
+│   ├── Enable-*.ps1                       # Feature enabling
+│   ├── Hide-*.ps1                         # UI element hiding
+│   ├── Install-*.ps1                      # Software installation
+│   ├── Set-*.ps1                          # Setting configuration
+│   ├── Strengthen-Privacy.ps1             # Privacy hardening
+│   ├── Uninstall-*.ps1                    # Software removal
+│   ├── ZZ-*.ps1                          # Dependencies (run last)
+│   └── disabled/                          # Disabled features
+├── wallpaper/                             # Custom wallpaper assets
+│   └── README.md                          # Wallpaper instructions
+├── AGENTS.md                              # AI assistant guidelines
+└── README.md                              # This documentation
 ```
 
 ### Contributing Guidelines
-- Each script handles a single responsibility
-- Test on multiple Windows editions (Home, Pro, Enterprise)
-- Follow existing error handling patterns
-- Update documentation for new features
-- No breaking changes to the main orchestrator
 
-### Code Standards
+**Code Standards:**
 ```powershell
-# Registry modification pattern
+# Registry modification pattern with safety checks
 If (!(Test-Path "HKLM:\Path\To\Key")) {
     New-Item -Path "HKLM:\Path\To\Key" -Force | Out-Null
 }
 Set-ItemProperty -Path "HKLM:\Path\To\Key" -Name "ValueName" -Type DWord -Value 0
 
-# Error handling
-Get-Service "ServiceName" -ErrorAction SilentlyContinue
+# Service management with error handling
+Stop-Service "ServiceName" -WarningAction SilentlyContinue
+Set-Service "ServiceName" -StartupType Disabled
+
+# App removal with validation
+function Uninstall-PackageIfPresent {
+    param([string]$Identifier)
+    $package = Get-AppxPackage $Identifier -ErrorAction SilentlyContinue
+    if ($null -ne $package) {
+        $package | Remove-AppxPackage -ErrorAction SilentlyContinue
+    }
+}
 ```
+
+**Development Requirements:**
+- Test across Windows editions (Home, Pro, Enterprise, Server)
+- Maintain backwards compatibility where possible
+- Follow single-responsibility principle for scripts
+- Include comprehensive error handling
+- Document security implications of changes
+
+### Architecture Principles
+
+**Modular Design:**
+- Each script handles one specific customisation area
+- Alphabetical execution with dependency control via naming
+- Easy feature toggling via file system organisation
+
+**Safety First:**
+- Automatic backups before major changes
+- Extensive validation and warning systems
+- Graceful degradation for unsupported features
+
+**Enterprise Ready:**
+- Server edition compatibility
+- Domain environment considerations
+- Scalable deployment patterns
 
 ## 📋 System Requirements
 
-- **Windows 10/11** (Home, Pro, Enterprise, or Server editions)
-- **PowerShell 5.1 or newer**
-- **Administrator privileges** required
-- **Internet connection** for downloading applications
-- **4GB+ free space** recommended for application installations
+**Supported Platforms:**
+- Windows 10 (1909 or later) - Home, Pro, Enterprise, Education
+- Windows 11 (all editions)
+- Windows Server 2016/2019/2022
 
-## 📄 License & Credits
+**Prerequisites:**
+- **PowerShell 5.1** or newer (Windows PowerShell or PowerShell 7)
+- **Administrator privileges** (UAC elevation required)
+- **Internet connection** for application downloads and winget functionality
+- **4GB+ available storage** for application installations
+- **TPM 1.2/2.0** recommended for BitLocker functionality
 
-This project is licensed under the **BSD 3-Clause License** - see the [LICENSE](LICENSE) file for details.
+**Hardware Compatibility:**
+- **Ethernet adapter** for Wake-on-LAN features
+- **Compatible graphics** for wallpaper overlay functionality
+- **Standard x64 architecture** (ARM64 support limited)
 
-### Credits
-- **Original project:** [filipnet/customize-windows-client](https://github.com/filipnet/customize-windows-client) by Benedikt Filip
-- **Additional inspiration:** [toolarium/windows-trimify](https://github.com/toolarium/windows-trimify)
+## 📄 Legal & Licensing
+
+### License
+
+This project is distributed under the **BSD 3-Clause License**. See [LICENSE](LICENSE) for complete terms.
+
+### Credits & Attribution
+
+**Original Foundation:**
+- [filipnet/customize-windows-client](https://github.com/filipnet/customize-windows-client) by Benedikt Filip
+- Core architecture and initial script collection
+
+**Additional Inspiration:**
+- [toolarium/windows-trimify](https://github.com/toolarium/windows-trimify) - Various customisation techniques
+- Community contributions and feedback
+
+**Current Development:**
+- [ShaheedFazal](https://github.com/ShaheedFazal) - Enhanced features and maintenance
+
+### Disclaimer
+
+This toolkit modifies system settings and removes software. Use at your own risk. The developers are not responsible for any system issues, data loss, or conflicts that may arise. Always backup your system before use.
 
 ---
 
-**⭐ If this toolkit helped you, please consider starring the repository!**
+## 🌟 Recognition
+
+If this toolkit has improved your Windows experience, please consider:
+- ⭐ **Starring the repository** to show support
+- 🔄 **Sharing with others** who might benefit
+- 🐛 **Reporting issues** to help improve the project
+- 💡 **Contributing ideas** for new features
+
+**Your feedback drives continuous improvement!**
