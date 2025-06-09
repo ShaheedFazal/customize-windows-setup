@@ -26,13 +26,12 @@ Set-Content -Path $scriptPath -Value $scriptContent -Encoding UTF8 -Force
 # Remove old task
 Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
 
-# Create trigger: start at 9:00 PM and repeat daily
-$trigger = New-ScheduledTaskTrigger -Daily -At 21:00
-
-# Set repetition properties separately
-$trigger.Repetition.Interval = "PT15M"    # Every 15 minutes
-$trigger.Repetition.Duration = "PT6H"     # For 6 hours
-$trigger.Repetition.StopAtDurationEnd = $false
+# Create trigger: start at 9:00 PM and repeat every 15 minutes for 6 hours
+# Older PowerShell versions do not expose the Repetition property for manual
+# modification, so specify the repetition settings when creating the trigger.
+$trigger = New-ScheduledTaskTrigger -Daily -At 21:00 `
+    -RepetitionInterval (New-TimeSpan -Minutes 15) `
+    -RepetitionDuration (New-TimeSpan -Hours 6)
 
 # Define action
 $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`""
