@@ -18,29 +18,33 @@ function Download-File {
     return $false
 }
 
-# Copy a shortcut from the Start Menu to the public desktop
-function Add-DesktopShortcut {
+# Locate a shortcut file for an application
+function Find-AppShortcut {
     param([string]$AppName)
-
-    $desktopDir = [Environment]::GetFolderPath('CommonDesktopDirectory')
-    $startDirs  = @(
+    $locations = @(
+        "$env:PUBLIC\Desktop",
+        "$env:USERPROFILE\Desktop",
         [Environment]::GetFolderPath('CommonPrograms'),
         [Environment]::GetFolderPath('Programs')
     )
-
-    $shortcut = $null
-    foreach ($dir in $startDirs) {
-        if (Test-Path $dir) {
-            $shortcut = Get-ChildItem -Path $dir -Include *.lnk,*.url,*.appref-ms -Recurse |
-                        Where-Object { $_.BaseName -like "*$AppName*" } |
-                        Select-Object -First 1
-            if ($null -ne $shortcut) { break }
-        }
+    foreach ($loc in $locations) {
+        $s = Get-ChildItem -Path $loc -Filter "*$AppName*" -Include *.lnk -Recurse -ErrorAction SilentlyContinue |
+             Select-Object -First 1
+        if ($s) { return $s.FullName }
     }
+    return $null
+}
 
-    if ($null -ne $shortcut) {
-        $destination = Join-Path $desktopDir $shortcut.Name
-        Copy-Item $shortcut.FullName -Destination $destination -Force
+# Copy a located shortcut to the public desktop
+function Add-DesktopShortcut {
+    param([string]$AppName)
+
+    $desktopDir  = [Environment]::GetFolderPath('CommonDesktopDirectory')
+    $shortcutPath = Find-AppShortcut -AppName $AppName
+
+    if ($shortcutPath) {
+        $destination = Join-Path $desktopDir (Split-Path $shortcutPath -Leaf)
+        Copy-Item $shortcutPath -Destination $destination -Force
         Write-Host "[OK] Desktop shortcut added for $AppName" -ForegroundColor Green
     } else {
         Write-Host "[WARN] No shortcut found for $AppName" -ForegroundColor Yellow
