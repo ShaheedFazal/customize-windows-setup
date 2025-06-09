@@ -22,12 +22,21 @@ function Download-File {
 function Add-DesktopShortcut {
     param([string]$AppName)
 
-    $startDir   = [Environment]::GetFolderPath('CommonPrograms')
     $desktopDir = [Environment]::GetFolderPath('CommonDesktopDirectory')
+    $startDirs  = @(
+        [Environment]::GetFolderPath('CommonPrograms'),
+        [Environment]::GetFolderPath('Programs')
+    )
 
-    $shortcut = Get-ChildItem -Path $startDir -Include *.lnk,*.url,*.appref-ms -Recurse |
-                Where-Object { $_.BaseName -like "*$AppName*" } |
-                Select-Object -First 1
+    $shortcut = $null
+    foreach ($dir in $startDirs) {
+        if (Test-Path $dir) {
+            $shortcut = Get-ChildItem -Path $dir -Include *.lnk,*.url,*.appref-ms -Recurse |
+                        Where-Object { $_.BaseName -like "*$AppName*" } |
+                        Select-Object -First 1
+            if ($null -ne $shortcut) { break }
+        }
+    }
 
     if ($null -ne $shortcut) {
         $destination = Join-Path $desktopDir $shortcut.Name
@@ -98,10 +107,13 @@ $skipShortcutApps = @(
     'Windows Terminal'
 )
 
+# Detect system architecture for reliable winget installs
+$architecture = if ([Environment]::Is64BitOperatingSystem) { 'x64' } else { 'x86' }
+
 foreach ($app in $apps) {
     Write-Host "[INFO] Installing $($app.Name)..." -ForegroundColor Cyan
     try {
-        winget install --id=$($app.Id) --accept-source-agreements --accept-package-agreements -e -h --disable-interactivity --scope machine
+        winget install --id=$($app.Id) --accept-source-agreements --accept-package-agreements -e -h --disable-interactivity --scope machine --architecture $architecture
         Write-Host "[OK] Installed $($app.Name)" -ForegroundColor Green
 
         if ($skipShortcutApps -notcontains $app.Name) {
