@@ -39,7 +39,8 @@ The project started as a fork of [filipnet/customize-windows-client](https://git
    reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement" /v ScoobeSystemSettingEnabled /t REG_DWORD /d 1 /f
    ```
 7. Run `Create-Standard-User.ps1` to create a local account without administrator rights. You
-   will be prompted for a user name and to confirm the password.
+   will be prompted for a user name and to enter the password twice. The password input
+   is hidden and therefore not written to the transcript log.
 8. **Run the script from the same console** so you can respond to prompts:
 
    ```powershell
