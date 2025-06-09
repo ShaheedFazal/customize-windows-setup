@@ -26,15 +26,28 @@ foreach ($task in $tasksToDisable) {
 
 Write-Host "Disabling advertising ID and content suggestions..."
 
-# Disable advertising ID
-Set-RegistryValue -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\AdvertisingInfo" -Name "Enabled" -Value 0 -Type "DWord" -Force
+# Migrate user-specific settings to system-wide policies
+try {
+    $advPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo"
+    if (!(Test-Path $advPath)) {
+        New-Item -Path $advPath -Force | Out-Null
+    }
+    Set-ItemProperty -Path $advPath -Name "DisabledByGroupPolicy" -Type DWord -Value 1
+    Write-Host "[OK] Policy applied: Advertising ID disabled for all users"
+} catch {
+    Write-Host "[WARN] Could not apply advertising ID policy: $($_.Exception.Message)"
+}
 
-# Disable suggested content and tips in Windows UI
-$cdmPath = "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"
-Set-RegistryValue -Path $cdmPath -Name "SubscribedContent-338388Enabled" -Value 0 -Type "DWord" -Force
-Set-RegistryValue -Path $cdmPath -Name "SoftLandingEnabled" -Value 0 -Type "DWord" -Force
-Set-RegistryValue -Path $cdmPath -Name "SubscribedContent-310093Enabled" -Value 0 -Type "DWord" -Force
-Set-RegistryValue -Path $cdmPath -Name "SubscribedContent-338389Enabled" -Value 0 -Type "DWord" -Force
-Set-RegistryValue -Path $cdmPath -Name "SystemPaneSuggestionsEnabled" -Value 0 -Type "DWord" -Force
+try {
+    $cloudPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent"
+    if (!(Test-Path $cloudPath)) {
+        New-Item -Path $cloudPath -Force | Out-Null
+    }
+    Set-ItemProperty -Path $cloudPath -Name "DisableWindowsConsumerFeatures" -Type DWord -Value 1
+    Set-ItemProperty -Path $cloudPath -Name "DisableCloudOptimizedContent" -Type DWord -Value 1
+    Write-Host "[OK] Policy applied: Suggested content disabled system-wide"
+} catch {
+    Write-Host "[WARN] Could not apply content suggestion policy: $($_.Exception.Message)"
+}
 
 Write-Host "[OK] Privacy settings strengthened."
