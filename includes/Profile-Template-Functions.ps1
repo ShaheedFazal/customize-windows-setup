@@ -1,23 +1,17 @@
+$scriptContent = @'
 # ============================================================================
-# WINDOWS CUSTOMIZATION TOOLKIT - DEFAULT PROFILE FUNCTIONS (v3 - Simplified)
-# ============================================================================
-
-# ============================================================================
-# SECTION 1: HIVE MOUNTING FUNCTIONS
+# WINDOWS CUSTOMIZATION TOOLKIT - DEFAULT PROFILE FUNCTIONS (v4 - Recreated)
 # ============================================================================
 
 function Mount-DefaultUserHive {
     [CmdletBinding()]
     param()
-    
     try {
         $defaultProfilePath = "C:\Users\Default\NTUSER.DAT"
         $mountPoint = "HKEY_USERS\DEFAULT_TEMPLATE"
-
         if (!(Test-Path $defaultProfilePath)) {
             throw "Default user profile hive not found at $defaultProfilePath"
         }
-
         reg load "$mountPoint" $defaultProfilePath | Out-Null
         Write-Host "[TEMPLATE] Mounted default user hive" -ForegroundColor Green
         return $true
@@ -31,7 +25,6 @@ function Mount-DefaultUserHive {
 function Dismount-DefaultUserHive {
     [CmdletBinding()]
     param()
-
     try {
         $mountPoint = "HKEY_USERS\DEFAULT_TEMPLATE"
         reg unload "$mountPoint" | Out-Null
@@ -42,15 +35,9 @@ function Dismount-DefaultUserHive {
     }
 }
 
-
-# ============================================================================
-# SECTION 2: DATA DEFINITION
-# ============================================================================
-
 function Get-ProfileTemplateSections {
     [CmdletBinding()]
     param()
-
     return @(
         @{ Source = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"; Destination = "HKU:\DEFAULT_TEMPLATE\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"; Description = "Explorer Advanced Settings (taskbar, file extensions, etc.)"; FilterPersonalData = $false },
         @{ Source = "HKCU:\Control Panel\Desktop"; Destination = "HKU:\DEFAULT_TEMPLATE\Control Panel\Desktop"; Description = "Desktop and screensaver settings"; FilterPersonalData = $true },
@@ -60,25 +47,17 @@ function Get-ProfileTemplateSections {
     )
 }
 
-
-# ============================================================================
-# SECTION 3: REGISTRY COPYING FUNCTIONS
-# ============================================================================
-
 function Copy-SpecificRegistryValues {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
         [hashtable]$Section
     )
-
     try {
         if (!(Test-Path $Section.Destination)) {
             New-Item -Path $Section.Destination -Force | Out-Null
         }
-
         foreach ($valueName in $Section.CopySpecificValues) {
-            # This inner try/catch handles errors for individual values
             try {
                 if (!(Get-Item -Path $Section.Source -ErrorAction SilentlyContinue)) {
                     Write-Host "    Skipped: Source path $($Section.Source) not found for value '$valueName'." -ForegroundColor Yellow
@@ -109,33 +88,26 @@ function Copy-RegistryKeyContents {
         [Parameter(Mandatory = $true)] [string]$DestinationPath,
         [Parameter(Mandatory = $false)] [switch]$FilterPersonalData
     )
-
-    # This entire function is now wrapped in a single, simple try/catch block.
     try {
         if (!(Test-Path $SourcePath)) {
             Write-Host "  ✓ Skipped: Source path '$SourcePath' not found." -ForegroundColor Gray
             return $true
         }
-
         if (!(Test-Path $DestinationPath)) {
             New-Item -Path $DestinationPath -Force | Out-Null
         }
-        
         $sourceProperties = Get-ItemProperty -Path $SourcePath
         $propNames = $sourceProperties.PSObject.Properties | Where-Object { $_.MemberType -eq 'NoteProperty' } | Select-Object -ExpandProperty Name
         $personalProperties = @("Email", "UserName", "DesktopWallpaper", "EncodedPassword")
-
         foreach ($propName in $propNames) {
             if ($FilterPersonalData.IsPresent -and $personalProperties -contains $propName) {
                 Write-Host "    Skipped personal property: $propName" -ForegroundColor Yellow
-                continue # Skip to the next property
+                continue
             }
-            
             $valueData = $sourceProperties.$propName
             $valueType = (Get-Item -Path $SourcePath).GetValueKind($propName)
             Set-ItemProperty -Path $DestinationPath -Name $propName -Value $valueData -Type $valueType -Force | Out-Null
         }
-
         Write-Host "  ✓ Completed copying section for: $($DestinationPath)" -ForegroundColor Green
         return $true
     }
@@ -145,24 +117,15 @@ function Copy-RegistryKeyContents {
     }
 }
 
-
-# ============================================================================
-# SECTION 4: ORCHESTRATION AND EXECUTION
-# ============================================================================
-
 function Copy-SafeRegistrySections {
     [CmdletBinding()]
     param()
-
     $sections = Get-ProfileTemplateSections
     $successCount = 0
     $totalCount = $sections.Count
-
     Write-Host "[TEMPLATE] Processing $($totalCount) registry sections..." -ForegroundColor Cyan
-
     foreach ($section in $sections) {
         Write-Host "  Processing: $($section.Description)"
-        
         $sectionSuccess = $false
         if ($section.PSObject.Properties.Name -contains 'CopySpecificValues') {
             $sectionSuccess = Copy-SpecificRegistryValues -Section $section
@@ -170,25 +133,20 @@ function Copy-SafeRegistrySections {
         else {
             $sectionSuccess = Copy-RegistryKeyContents -SourcePath $section.Source -DestinationPath $section.Destination -FilterPersonalData:$section.FilterPersonalData
         }
-
         if ($sectionSuccess) { $successCount++ }
     }
-
     return ($successCount -eq $totalCount)
 }
 
 function Invoke-ProfileTemplate {
     [CmdletBinding()]
     param()
-
     if (-not (Mount-DefaultUserHive)) {
         Write-Host "[TEMPLATE] Failed to mount default user hive - aborting." -ForegroundColor Red
         return $false
     }
-
     try {
         $success = Copy-SafeRegistrySections
-
         if ($success) {
             Write-Host "[TEMPLATE] Profile templating completed successfully!" -ForegroundColor Green
             return $true
@@ -204,3 +162,6 @@ function Invoke-ProfileTemplate {
 }
 
 Export-ModuleMember -Function *
+'@
+
+$scriptContent | Out-File -FilePath "$env:USERPROFILE\Downloads\customize-windows-setup\customize-windows-setup-main\includes\Profile-Template-Functions.ps1" -Encoding utf8
