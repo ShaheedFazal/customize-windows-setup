@@ -139,13 +139,12 @@ try {
 
 Write-Host "`n3. Setting wallpaper for existing users..." -ForegroundColor Yellow
 
-# Set wallpaper for all loaded user profiles
+# Apply wallpaper to all currently loaded user profiles
 $userProfiles = Get-ChildItem "Registry::HKEY_USERS" | Where-Object { $_.Name -match "S-1-5-21-.*" }
-
 foreach ($profile in $userProfiles) {
     $userSID = Split-Path $profile.Name -Leaf
     $userRegPath = "Registry::HKEY_USERS\$userSID\Control Panel\Desktop"
-    
+
     if (Test-Path $userRegPath) {
         try {
             Set-RegistryValue -Path $userRegPath -Name "WallPaper" -Value $WallpaperPath -Type "String"
@@ -154,6 +153,31 @@ foreach ($profile in $userProfiles) {
             Write-Host "✓ Configured for user SID: $userSID" -ForegroundColor Green
         } catch {
             Write-Host "! Could not configure user SID: $userSID" -ForegroundColor Yellow
+        }
+    }
+}
+
+# Apply wallpaper to offline user profiles by loading their registry hives
+Write-Host "Checking offline user profiles..." -ForegroundColor Yellow
+$offlineProfiles = Get-ChildItem -Path 'C:\Users' -Directory |
+    Where-Object { $_.Name -notin @('Public','Default','Default User','All Users') }
+foreach ($profile in $offlineProfiles) {
+    $ntUser = Join-Path $profile.FullName 'NTUSER.DAT'
+    if (Test-Path $ntUser) {
+        $hiveName = "TempHive_$($profile.Name)"
+        $loadResult = & reg.exe load "HKU\$hiveName" $ntUser 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            try {
+                $hivePath = "Registry::HKEY_USERS\$hiveName\Control Panel\Desktop"
+                Set-RegistryValue -Path $hivePath -Name "WallPaper" -Value $WallpaperPath -Type "String"
+                Set-RegistryValue -Path $hivePath -Name "WallpaperStyle" -Value "10" -Type "String"
+                Set-RegistryValue -Path $hivePath -Name "TileWallpaper" -Value "0" -Type "String"
+                Write-Host "✓ Configured offline profile: $($profile.Name)" -ForegroundColor Green
+            } finally {
+                & reg.exe unload "HKU\$hiveName" 2>&1 | Out-Null
+            }
+        } else {
+            Write-Host "! Could not load hive for $($profile.Name): $loadResult" -ForegroundColor Yellow
         }
     }
 }
