@@ -9,11 +9,11 @@ function Disable-IEESC {
     $UserKey  = "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}" # User ESC
 
     if (Test-Path $AdminKey) {
-        Set-ItemProperty -Path $AdminKey -Name "IsInstalled" -Value 0
+        Set-RegistryValue -Path $AdminKey -Name "IsInstalled" -Value 0 -Type "DWord"
     }
 
     if (Test-Path $UserKey) {
-        Set-ItemProperty -Path $UserKey -Name "IsInstalled" -Value 0
+        Set-RegistryValue -Path $UserKey -Name "IsInstalled" -Value 0 -Type "DWord"
     }
 
     # WARNING: This closes all open File Explorer windows
@@ -24,3 +24,4 @@ function Disable-IEESC {
 }
 
 Disable-IEESC
+

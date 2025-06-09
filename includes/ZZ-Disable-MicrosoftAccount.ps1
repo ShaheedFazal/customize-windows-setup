@@ -74,14 +74,15 @@ if ($hasMicrosoftAccount) {
 
 # Block Microsoft account sign-in prompts
 Write-Host 'Blocking Microsoft account sign-in prompts...'
-reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v NoConnectedUser /t REG_DWORD /d 3 /f
+Set-RegistryValue -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" -Name "NoConnectedUser" -Value 3 -Type "DWord" -Force
 
 # Disable Microsoft account creation
-reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v BlockUserFromCreatingAccounts /t REG_DWORD /d 1 /f
+Set-RegistryValue -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" -Name "BlockUserFromCreatingAccounts" -Value 1 -Type "DWord" -Force
 
 # Disable Microsoft 365 promotional notifications
-reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement" /v ScoobeSystemSettingEnabled /t REG_DWORD /d 0 /f
+Set-RegistryValue -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement" -Name "ScoobeSystemSettingEnabled" -Value 0 -Type "DWord" -Force
 
 # Disable Windows Hello for Business sign-in
 Write-Host 'Disabling Windows Hello for Business...'
-reg add "HKLM\SOFTWARE\Policies\Microsoft\PassportForWork" /v Enabled /t REG_DWORD /d 0 /f
+Set-RegistryValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\PassportForWork" -Name "Enabled" -Value 0 -Type "DWord" -Force
+

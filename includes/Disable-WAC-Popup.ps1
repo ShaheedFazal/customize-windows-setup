@@ -2,5 +2,6 @@
 if ($WINDOWSBUILD -eq $WINDOWSSERVER2019) {
     # Registry path controlling the Server Manager welcome popup
     $regkeyServerManager = 'HKLM:\SOFTWARE\Microsoft\ServerManager'
-    New-ItemProperty -Path $regkeyServerManager -Name 'DoNotPopWACConsoleAtSMLaunch' -PropertyType 'DWord' -Value 1 -Force | Out-Null
+    Set-RegistryValue -Path $regkeyServerManager -Name 'DoNotPopWACConsoleAtSMLaunch' -Value 1 -Type 'DWord' -Force
 }
+

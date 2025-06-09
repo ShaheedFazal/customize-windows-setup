@@ -1,6 +1,3 @@
-# Load shared functions
-. "$PSScriptRoot\Registry-Functions.ps1"
-
 Write-Host "Disabling Windows telemetry..."
 
 # Set the most restrictive telemetry level

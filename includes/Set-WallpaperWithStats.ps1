@@ -50,5 +50,5 @@ $brush.Dispose()
 $font.Dispose()
 
 # Apply the new wallpaper
-Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name Wallpaper -Value $tempBmp
+Set-RegistryValue -Path 'HKCU:\Control Panel\Desktop' -Name 'Wallpaper' -Value $tempBmp -Type 'String'
 rundll32.exe user32.dll,UpdatePerUserSystemParameters
