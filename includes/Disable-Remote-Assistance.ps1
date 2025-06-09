@@ -1,2 +1,2 @@
 # Disable Remote Assistance - Not applicable to Server (unless Remote Assistance is explicitly installed)
-Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Remote Assistance" -Name "fAllowToGetHelp" -Type DWord -Value 0
+Set-RegistryValue -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Remote Assistance" -Name "fAllowToGetHelp" -Value 0 -Type "DWord"

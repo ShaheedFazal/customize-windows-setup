@@ -1,6 +1,5 @@
 # Disable Consumer Features to prevent automatic installation of third-party apps and games
-New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent" -Force | Out-Null
-Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent" -Name "DisableWindowsConsumerFeatures" -Type DWord -Value 1
+Set-RegistryValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent" -Name "DisableWindowsConsumerFeatures" -Value 1 -Type "DWord" -Force
 Write-Host "[OK] Disabled Windows Consumer Features (prevents automatic app installs)"
 
 # Helper to quietly uninstall an AppX package if it exists. Also removes
@@ -176,3 +175,4 @@ $SoftwarePackages = @(
 foreach ($pkg in $SoftwarePackages) {
         Uninstall-PackageIfPresent $pkg
 }
+

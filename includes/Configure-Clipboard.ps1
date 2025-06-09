@@ -2,8 +2,8 @@
 
 # Enable Clipboard History (Win + V)
 Write-Host "Enabling Clipboard History..."
-reg add "HKCU\Software\Microsoft\Clipboard" /v EnableClipboardHistory /t REG_DWORD /d 1 /f
+Set-RegistryValue -Path "HKCU:\Software\Microsoft\Clipboard" -Name "EnableClipboardHistory" -Value 1 -Type "DWord" -Force
 
 # Disable Clipboard Sync Across Devices
 Write-Host "Disabling Clipboard Sync Across Devices..."
-reg add "HKCU\Software\Microsoft\Clipboard" /v EnableCloudClipboard /t REG_DWORD /d 0 /f
+Set-RegistryValue -Path "HKCU:\Software\Microsoft\Clipboard" -Name "EnableCloudClipboard" -Value 0 -Type "DWord" -Force

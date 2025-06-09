@@ -1,6 +1,3 @@
-# Load shared functions
-. "$PSScriptRoot\Registry-Functions.ps1"
-
 # Disabling Cortana
 Set-RegistryValue -Path "HKCU:\SOFTWARE\Microsoft\Personalization\Settings" -Name "AcceptedPrivacyPolicy" -Value 0 -Type "DWord" -Force
 Set-RegistryValue -Path "HKCU:\SOFTWARE\Microsoft\InputPersonalization" -Name "RestrictImplicitTextCollection" -Value 1 -Type "DWord" -Force

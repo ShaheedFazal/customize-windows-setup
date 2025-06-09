@@ -7,13 +7,10 @@ if (!(Test-Path $ScreenSaverFolder)) {
 
 $photoScr = "$env:windir\System32\PhotoScreensaver.scr"
 
-Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "ScreenSaveActive" -Type String -Value "1"
-Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "ScreenSaveTimeOut" -Type String -Value "600"
-Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "SCRNSAVE.EXE" -Type String -Value $photoScr
+Set-RegistryValue -Path "HKCU:\Control Panel\Desktop" -Name "ScreenSaveActive" -Value "1" -Type "String"
+Set-RegistryValue -Path "HKCU:\Control Panel\Desktop" -Name "ScreenSaveTimeOut" -Value "600" -Type "String"
+Set-RegistryValue -Path "HKCU:\Control Panel\Desktop" -Name "SCRNSAVE.EXE" -Value $photoScr -Type "String"
 
 $photosKey = "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Screensavers\Photos"
-if (!(Test-Path $photosKey)) {
-    New-Item -Path $photosKey | Out-Null
-}
-Set-ItemProperty -Path $photosKey -Name "ImageDirectory" -Type String -Value $ScreenSaverFolder
+Set-RegistryValue -Path $photosKey -Name "ImageDirectory" -Value $ScreenSaverFolder -Type "String"
 

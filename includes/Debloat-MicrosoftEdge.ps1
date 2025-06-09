@@ -27,8 +27,7 @@ $registrySettings = @(
 # Apply each registry setting
 foreach ($setting in $registrySettings) {
     try {
-        New-Item -Path $setting.Path -Force | Out-Null
-        Set-ItemProperty -Path $setting.Path -Name $setting.Name -Value $setting.Value -Type DWord
+        Set-RegistryValue -Path $setting.Path -Name $setting.Name -Value $setting.Value -Type "DWord" -Force
         Write-Host "[OK] Set $($setting.Name) to $($setting.Value) in $($setting.Path)"
     } catch {
         Write-Host "[ERROR] Failed to set $($setting.Name) in $($setting.Path): $_"

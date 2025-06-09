@@ -36,6 +36,8 @@ $FOREGROUNDCOLOR = "Yellow"
 # folder relative to its own location.
 $ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $IncludesPath = Join-Path $ScriptRoot 'includes'
+# Load registry helper functions for all scripts
+. (Join-Path $IncludesPath 'Registry-Functions.ps1')
 
 # ---------- DO NOT CHANGE THINGS BELOW THIS LINE -----------------------------
 
