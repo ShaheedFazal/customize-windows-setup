@@ -95,6 +95,18 @@ $apps = @(
     @{ Name = "Windows Terminal"; Id = "Microsoft.WindowsTerminal" }
 )
 
+# Apps that should not have shortcuts copied to the public desktop
+$skipShortcutApps = @(
+    '.NET Desktop Runtime 6',
+    '.NET Desktop Runtime 7',
+    '.NET Desktop Runtime 8',
+    'Microsoft Visual C++ 2015-2022 Redistributable (x64)',
+    'Microsoft Visual C++ 2015-2022 Redistributable (x86)',
+    'PowerShell 7',
+    'Python',
+    'Windows Terminal'
+)
+
 # Detect system architecture for reliable winget installs
 $architecture = if ([Environment]::Is64BitOperatingSystem) { 'x64' } else { 'x86' }
 
@@ -103,7 +115,12 @@ foreach ($app in $apps) {
     try {
         winget install --id=$($app.Id) --accept-source-agreements --accept-package-agreements -e -h --disable-interactivity --scope machine --architecture $architecture
         Write-Host "[OK] Installed $($app.Name)" -ForegroundColor Green
-        Add-DesktopShortcut -AppName $app.Name
+
+        if ($skipShortcutApps -notcontains $app.Name) {
+            Add-DesktopShortcut -AppName $app.Name
+        } else {
+            Write-Host "[INFO] Skipping desktop shortcut for $($app.Name)" -ForegroundColor Gray
+        }
     } catch {
         Write-Host "[ERROR] Failed to install $($app.Name): $_" -ForegroundColor Red
     }
