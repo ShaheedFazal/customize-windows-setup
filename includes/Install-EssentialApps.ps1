@@ -44,8 +44,13 @@ function Add-DesktopShortcut {
 
     if ($shortcutPath) {
         $destination = Join-Path $desktopDir (Split-Path $shortcutPath -Leaf)
-        Copy-Item $shortcutPath -Destination $destination -Force
-        Write-Host "[OK] Desktop shortcut added for $AppName" -ForegroundColor Green
+        $destItem = Get-Item $destination -ErrorAction SilentlyContinue
+        if ($destItem -and ($destItem.FullName -eq (Get-Item $shortcutPath).FullName)) {
+            Write-Host "[INFO] Desktop shortcut already in place for $AppName" -ForegroundColor Gray
+        } else {
+            Copy-Item $shortcutPath -Destination $destination -Force
+            Write-Host "[OK] Desktop shortcut added for $AppName" -ForegroundColor Green
+        }
     } else {
         Write-Host "[WARN] No shortcut found for $AppName" -ForegroundColor Yellow
     }
