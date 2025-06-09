@@ -87,7 +87,16 @@ $apps = @(
 )
 
 # Apps that should not have shortcuts copied to the public desktop
-$skipShortcutApps = @('PowerShell 7','Python')
+$skipShortcutApps = @(
+    '.NET Desktop Runtime 6',
+    '.NET Desktop Runtime 7',
+    '.NET Desktop Runtime 8',
+    'Microsoft Visual C++ 2015-2022 Redistributable (x64)',
+    'Microsoft Visual C++ 2015-2022 Redistributable (x86)',
+    'PowerShell 7',
+    'Python',
+    'Windows Terminal'
+)
 
 foreach ($app in $apps) {
     Write-Host "[INFO] Installing $($app.Name)..." -ForegroundColor Cyan
