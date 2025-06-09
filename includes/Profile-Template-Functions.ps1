@@ -1,11 +1,9 @@
 # ============================================================================
-# WINDOWS CUSTOMIZATION TOOLKIT - DEFAULT PROFILE FUNCTIONS (Corrected)
+# WINDOWS CUSTOMIZATION TOOLKIT - DEFAULT PROFILE FUNCTIONS (v2 - Corrected)
 # ============================================================================
 
 # ============================================================================
 # SECTION 1: HIVE MOUNTING FUNCTIONS
-# These functions handle mounting and dismounting the default user registry hive.
-# No changes were needed here.
 # ============================================================================
 
 function Mount-DefaultUserHive {
@@ -20,7 +18,6 @@ function Mount-DefaultUserHive {
             throw "Default user profile hive not found at $defaultProfilePath"
         }
 
-        # Suppress output from the reg command
         reg load "$mountPoint" $defaultProfilePath | Out-Null
         Write-Host "[TEMPLATE] Mounted default user hive" -ForegroundColor Green
         return $true
@@ -37,7 +34,6 @@ function Dismount-DefaultUserHive {
 
     try {
         $mountPoint = "HKEY_USERS\DEFAULT_TEMPLATE"
-        # Suppress output from the reg command
         reg unload "$mountPoint" | Out-Null
         Write-Host "[TEMPLATE] Dismounted default user hive" -ForegroundColor Green
     }
@@ -49,16 +45,12 @@ function Dismount-DefaultUserHive {
 
 # ============================================================================
 # SECTION 2: DATA DEFINITION
-# This new function's only job is to define the registry sections to be copied.
-# This separates the data from the logic, fixing the original parsing errors.
 # ============================================================================
 
 function Get-ProfileTemplateSections {
     [CmdletBinding()]
     param()
 
-    # This array of hashtables defines all the registry keys and values to be copied.
-    # This structure is now clean and isolated.
     return @(
         @{ Source = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"; Destination = "HKU:\DEFAULT_TEMPLATE\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"; Description = "Explorer Advanced Settings (taskbar, file extensions, etc.)"; FilterPersonalData = $false },
         @{ Source = "HKCU:\Control Panel\Desktop"; Destination = "HKU:\DEFAULT_TEMPLATE\Control Panel\Desktop"; Description = "Desktop and screensaver settings"; FilterPersonalData = $true },
@@ -71,7 +63,6 @@ function Get-ProfileTemplateSections {
 
 # ============================================================================
 # SECTION 3: REGISTRY COPYING FUNCTIONS
-# These functions now have clear, single purposes: to copy registry data.
 # ============================================================================
 
 function Copy-SpecificRegistryValues {
@@ -82,8 +73,6 @@ function Copy-SpecificRegistryValues {
     )
 
     try {
-        # CORRECTED LOGIC: This now iterates through the list of values specified
-        # in the 'CopySpecificValues' key of the section hashtable.
         foreach ($valueName in $Section.CopySpecificValues) {
             try {
                 if (!(Test-Path $Section.Source)) {
@@ -94,7 +83,6 @@ function Copy-SpecificRegistryValues {
                 $valueData = (Get-ItemProperty -Path $Section.Source -Name $valueName -ErrorAction Stop).$valueName
                 $valueType = (Get-Item -Path $Section.Source).GetValueKind($valueName)
                 
-                # Ensure the destination path exists
                 if (!(Test-Path $Section.Destination)) {
                     New-Item -Path $Section.Destination -Force | Out-Null
                 }
@@ -118,36 +106,43 @@ function Copy-SpecificRegistryValues {
 function Copy-RegistryKeyContents {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory = $true)]
-        [string]$SourcePath,
-        [Parameter(Mandatory = $true)]
-        [string]$DestinationPath,
-        [Parameter(Mandatory = $false)]
-        [switch]$FilterPersonalData
+        [Parameter(Mandatory = $true)] [string]$SourcePath,
+        [Parameter(Mandatory = $true)] [string]$DestinationPath,
+        [Parameter(Mandatory = $false)] [switch]$FilterPersonalData
     )
 
     try {
         if (!(Test-Path $SourcePath)) {
-             Write-Host "  ✓ Completed: $($Section.Description) (Source not found, skipped)" -ForegroundColor Gray
-             return $true
+            Write-Host "  ✓ Skipped: Source path '$SourcePath' not found." -ForegroundColor Gray
+            return $true
         }
+
+        $sourceProperties = Get-ItemProperty -Path $SourcePath
+        if ($null -eq $sourceProperties) { return $true }
+
         if (!(Test-Path $DestinationPath)) {
             New-Item -Path $DestinationPath -Force | Out-Null
         }
+        
+        $propNames = $sourceProperties.PSObject.Properties | Where-Object { $_.MemberType -eq 'NoteProperty' } | Select-Object -ExpandProperty Name
+        $personalProperties = @("Email", "UserName", "DesktopWallpaper", "EncodedPassword")
 
-        # Copy the entire key with all its properties
-        Copy-Item -Path $SourcePath -Destination $DestinationPath -Recurse -Force
-
-        # If filtering is enabled, remove personal data from the new location
-        if ($FilterPersonalData) {
-            $personalProperties = @("Email", "UserName", "DesktopWallpaper", "EncodedPassword") # Add any others if needed
-            foreach ($prop in $personalProperties) {
-                if (Get-ItemProperty -Path $DestinationPath -Name $prop -ErrorAction SilentlyContinue) {
-                    Remove-ItemProperty -Path $DestinationPath -Name $prop -Force
-                    Write-Host "    Removed personal property: $prop" -ForegroundColor Yellow
-                }
+        foreach ($propName in $propNames) {
+            if ($FilterPersonalData.IsPresent -and $personalProperties -contains $propName) {
+                Write-Host "    Skipped personal property: $propName" -ForegroundColor Yellow
+                continue
+            }
+            
+            try {
+                $valueData = $sourceProperties.$propName
+                $valueType = (Get-Item -Path $SourcePath).GetValueKind($propName)
+                Set-ItemProperty -Path $DestinationPath -Name $propName -Value $valueData -Type $valueType -Force -ErrorAction Stop | Out-Null
+            } catch {
+                 Write-Host "    Failed to copy property '$propName' in key '$SourcePath' - $_" -ForegroundColor Yellow
             }
         }
+
+        Write-Host "  ✓ Completed copying section for: $($DestinationPath)" -ForegroundColor Green
         return $true
     }
     catch {
@@ -159,14 +154,12 @@ function Copy-RegistryKeyContents {
 
 # ============================================================================
 # SECTION 4: ORCHESTRATION AND EXECUTION
-# These functions coordinate the entire process using the corrected logic.
 # ============================================================================
 
 function Copy-SafeRegistrySections {
     [CmdletBinding()]
     param()
 
-    # CORRECTED LOGIC: Get the clean data from our dedicated function.
     $sections = Get-ProfileTemplateSections
     $successCount = 0
     $totalCount = $sections.Count
@@ -177,20 +170,16 @@ function Copy-SafeRegistrySections {
         Write-Host "  Processing: $($section.Description)"
         
         $sectionSuccess = $false
-        # CORRECTED LOGIC: Check which function to call based on the section's definition.
         if ($section.PSObject.Properties.Name -contains 'CopySpecificValues') {
-            # This section requires copying only specific named values.
             $sectionSuccess = Copy-SpecificRegistryValues -Section $section
         }
         else {
-            # This section requires copying all values in the key.
             $sectionSuccess = Copy-RegistryKeyContents -SourcePath $section.Source -DestinationPath $section.Destination -FilterPersonalData:$section.FilterPersonalData
         }
 
         if ($sectionSuccess) { $successCount++ }
     }
 
-    # Return true only if all sections succeeded
     return ($successCount -eq $totalCount)
 }
 
@@ -203,9 +192,7 @@ function Invoke-ProfileTemplate {
         return $false
     }
 
-    # The try/finally block ensures the hive is always dismounted, even if errors occur.
     try {
-        # Call the orchestrator function
         $success = Copy-SafeRegistrySections
 
         if ($success) {
@@ -222,5 +209,4 @@ function Invoke-ProfileTemplate {
     }
 }
 
-# Export all functions to make them available to the main script
 Export-ModuleMember -Function *
