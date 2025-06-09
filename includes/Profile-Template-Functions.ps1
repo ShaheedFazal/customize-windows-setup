@@ -1,10 +1,11 @@
 # ============================================================================
-# WINDOWS CUSTOMIZATION TOOLKIT - DEFAULT PROFILE FUNCTIONS (FIXED)
+# WINDOWS CUSTOMIZATION TOOLKIT - DEFAULT PROFILE FUNCTIONS
 # ============================================================================
 
 function Mount-DefaultUserHive {
     [CmdletBinding()]
     param()
+    
     try {
         $defaultProfilePath = "C:\Users\Default\NTUSER.DAT"
         $mountPoint = "HKEY_USERS\DEFAULT_TEMPLATE"
@@ -35,6 +36,7 @@ function Mount-DefaultUserHive {
 function Dismount-DefaultUserHive {
     [CmdletBinding()]
     param()
+    
     try {
         $mountPoint = "HKEY_USERS\DEFAULT_TEMPLATE"
         if (Get-ChildItem Registry::HKEY_USERS | Where-Object { $_.Name -like '*DEFAULT_TEMPLATE' }) {
@@ -58,11 +60,13 @@ function Copy-RegistrySection {
         [Parameter(Mandatory=$true)][string]$SourcePath,
         [Parameter(Mandatory=$true)][string]$DestinationPath
     )
+    
     try {
         if (!(Test-Path $SourcePath)) {
             Write-Host "[TEMPLATE] Source path not found: $SourcePath" -ForegroundColor Yellow
             return $false
         }
+        
         $result = reg copy $SourcePath $DestinationPath /s /f 2>&1
         if ($LASTEXITCODE -eq 0) {
             Write-Host "[TEMPLATE] Copied $SourcePath" -ForegroundColor Green
@@ -79,11 +83,15 @@ function Copy-RegistrySection {
 
 function Remove-PersonalPaths {
     [CmdletBinding()]
-    param([Parameter(Mandatory=$true)][string]$KeyPath)
+    param(
+        [Parameter(Mandatory=$true)][string]$KeyPath
+    )
+    
     try {
         if (Test-Path $KeyPath) {
             $userPath = [regex]::Escape($env:USERPROFILE)
             $props = Get-ItemProperty -Path $KeyPath -ErrorAction SilentlyContinue
+            
             if ($props) {
                 foreach ($prop in $props.PSObject.Properties) {
                     if ($prop.Value -is [string] -and $prop.Value -match $userPath) {
@@ -103,7 +111,10 @@ function Remove-PersonalPaths {
 
 function Filter-RegistrySection {
     [CmdletBinding()]
-    param([Parameter(Mandatory=$true)][string]$KeyPath)
+    param(
+        [Parameter(Mandatory=$true)][string]$KeyPath
+    )
+    
     Remove-PersonalPaths -KeyPath $KeyPath | Out-Null
 }
 
@@ -128,6 +139,7 @@ function Test-TemplatingRequirements {
 function Backup-DefaultProfile {
     [CmdletBinding()]
     param()
+    
     try {
         $source = 'C:\Users\Default'
         $backup = 'C:\Users\Default.backup'
@@ -155,9 +167,11 @@ function Backup-DefaultProfile {
 function Restore-DefaultProfile {
     [CmdletBinding()]
     param()
+    
     try {
         $backup = 'C:\Users\Default.backup'
         $dest   = 'C:\Users\Default'
+        
         if (Test-Path $backup) {
             New-Item -ItemType Directory -Path $dest -Force | Out-Null
 
@@ -178,8 +192,7 @@ function Restore-DefaultProfile {
 function Remove-PersonalDataFromSection {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory=$true)]
-        [string]$RegistryPath
+        [Parameter(Mandatory=$true)][string]$RegistryPath
     )
 
     $personalDataValues = @(
@@ -198,13 +211,16 @@ function Remove-PersonalDataFromSection {
         try {
             if ($valueName.Contains('*')) {
                 $pattern = $valueName.Replace('*', '')
-                $allValues = Get-Item -Path $RegistryPath -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Property
-                if ($allValues) {
-                    $matchingValues = $allValues | Where-Object { $_ -like "*$pattern*" }
+                $item = Get-Item -Path $RegistryPath -ErrorAction SilentlyContinue
+                if ($item) {
+                    $allValues = $item | Select-Object -ExpandProperty Property -ErrorAction SilentlyContinue
+                    if ($allValues) {
+                        $matchingValues = $allValues | Where-Object { $_ -like "*$pattern*" }
 
-                    foreach ($matchingValue in $matchingValues) {
-                        Remove-ItemProperty -Path $RegistryPath -Name $matchingValue -Force -ErrorAction SilentlyContinue
-                        Write-Host "      Removed: $matchingValue" -ForegroundColor Gray
+                        foreach ($matchingValue in $matchingValues) {
+                            Remove-ItemProperty -Path $RegistryPath -Name $matchingValue -Force -ErrorAction SilentlyContinue
+                            Write-Host "      Removed: $matchingValue" -ForegroundColor Gray
+                        }
                     }
                 }
             } else {
@@ -215,7 +231,7 @@ function Remove-PersonalDataFromSection {
             }
         }
         catch {
-            # Silently continue on errors
+            # Silently continue on errors - this is expected for missing values
         }
     }
 }
@@ -223,8 +239,7 @@ function Remove-PersonalDataFromSection {
 function Copy-SpecificRegistryValues {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory=$true)]
-        [hashtable]$Section
+        [Parameter(Mandatory=$true)][hashtable]$Section
     )
 
     try {
@@ -232,7 +247,7 @@ function Copy-SpecificRegistryValues {
             New-Item -Path $Section.Destination -Force | Out-Null
         }
 
-        if ($Section.ContainsKey('CopySpecificValues') -and $Section.CopySpecificValues) {
+        if ($Section.CopySpecificValues) {
             foreach ($valueName in $Section.CopySpecificValues) {
                 try {
                     $value = Get-ItemProperty -Path $Section.Source -Name $valueName -ErrorAction SilentlyContinue
@@ -262,12 +277,8 @@ function Copy-SpecificRegistryValues {
 function Copy-RegistryToDefault {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory=$true)]
-        [string]$SourcePath,
-
-        [Parameter(Mandatory=$true)]
-        [string]$DestinationPath,
-
+        [Parameter(Mandatory=$true)][string]$SourcePath,
+        [Parameter(Mandatory=$true)][string]$DestinationPath,
         [switch]$FilterPersonalData
     )
 
@@ -309,12 +320,43 @@ function Get-SafeTemplateSections {
     #>
 
     return @(
-        @{ Source = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"; Destination = "HKU:\DEFAULT_TEMPLATE\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"; Description = "Explorer Advanced Settings (taskbar, file extensions, etc.)"; FilterPersonalData = $false },
-        @{ Source = "HKCU:\Control Panel\Desktop"; Destination = "HKU:\DEFAULT_TEMPLATE\Control Panel\Desktop"; Description = "Desktop and screensaver settings"; FilterPersonalData = $true },
-        @{ Source = "HKCU:\Control Panel\Keyboard"; Destination = "HKU:\DEFAULT_TEMPLATE\Control Panel\Keyboard"; Description = "Keyboard settings (NumLock, etc.)"; FilterPersonalData = $false },
-        @{ Source = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search"; Destination = "HKU:\DEFAULT_TEMPLATE\Software\Microsoft\Windows\CurrentVersion\Search"; Description = "Windows Search preferences"; FilterPersonalData = $true },
-        @{ Source = "HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"; Destination = "HKU:\DEFAULT_TEMPLATE\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"; Description = "Content delivery and privacy settings"; FilterPersonalData = $true },
-        @{ Source = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer"; Destination = "HKU:\DEFAULT_TEMPLATE\Software\Microsoft\Windows\CurrentVersion\Explorer"; Description = "Explorer recent items settings"; FilterPersonalData = $true; CopySpecificValues = @('ShowRecent','ShowFrequent') }
+        @{ 
+            Source = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
+            Destination = "HKU:\DEFAULT_TEMPLATE\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
+            Description = "Explorer Advanced Settings (taskbar, file extensions, etc.)"
+            FilterPersonalData = $false 
+        },
+        @{ 
+            Source = "HKCU:\Control Panel\Desktop"
+            Destination = "HKU:\DEFAULT_TEMPLATE\Control Panel\Desktop"
+            Description = "Desktop and screensaver settings"
+            FilterPersonalData = $true 
+        },
+        @{ 
+            Source = "HKCU:\Control Panel\Keyboard"
+            Destination = "HKU:\DEFAULT_TEMPLATE\Control Panel\Keyboard"
+            Description = "Keyboard settings (NumLock, etc.)"
+            FilterPersonalData = $false 
+        },
+        @{ 
+            Source = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search"
+            Destination = "HKU:\DEFAULT_TEMPLATE\Software\Microsoft\Windows\CurrentVersion\Search"
+            Description = "Windows Search preferences"
+            FilterPersonalData = $true 
+        },
+        @{ 
+            Source = "HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"
+            Destination = "HKU:\DEFAULT_TEMPLATE\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"
+            Description = "Content delivery and privacy settings"
+            FilterPersonalData = $true 
+        },
+        @{ 
+            Source = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer"
+            Destination = "HKU:\DEFAULT_TEMPLATE\Software\Microsoft\Windows\CurrentVersion\Explorer"
+            Description = "Explorer recent items settings"
+            FilterPersonalData = $true
+            CopySpecificValues = @('ShowRecent','ShowFrequent') 
+        }
     )
 }
 
@@ -331,7 +373,7 @@ function Copy-SafeRegistrySections {
     foreach ($section in $sections) {
         Write-Host "  Processing: $($section.Description)" -ForegroundColor Gray
 
-        if ($section.ContainsKey('CopySpecificValues') -and $section.CopySpecificValues) {
+        if ($section.CopySpecificValues) {
             $sectionSuccess = Copy-SpecificRegistryValues -Section $section
         } else {
             $sectionSuccess = Copy-RegistryToDefault -SourcePath $section.Source -DestinationPath $section.Destination -FilterPersonalData:$section.FilterPersonalData
