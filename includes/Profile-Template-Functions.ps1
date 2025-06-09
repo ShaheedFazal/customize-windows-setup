@@ -255,7 +255,11 @@ function Copy-SpecificRegistryValues {
                         $valueData = $value.$valueName
                         $valueType = (Get-Item -Path $Section.Source).GetValueKind($valueName)
 
-                        Set-ItemProperty -Path $Section.Destination -Name $valueName -Value $valueData -Type $valueType -Force
+                        if (Get-ItemProperty -Path $Section.Destination -Name $valueName -ErrorAction SilentlyContinue) {
+                            Set-ItemProperty -Path $Section.Destination -Name $valueName -Value $valueData -Force
+                        } else {
+                            New-ItemProperty -Path $Section.Destination -Name $valueName -Value $valueData -PropertyType $valueType -Force | Out-Null
+                        }
                         Write-Host "    Copied value: $valueName" -ForegroundColor Gray
                     }
                 }

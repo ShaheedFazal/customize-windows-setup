@@ -287,6 +287,11 @@ powershell -ExecutionPolicy Bypass .\customize-windows-client.ps1
 - Ensure `SetUserFTA.exe` downloaded successfully to `C:\Scripts\`
 - Verify target applications installed correctly
 - Run file association scripts after application installation
+- **Parsing Errors After Manual Extraction:**
+  - Some third-party unzip tools can corrupt PowerShell files
+  - Re-download using the provided `download-repo.ps1` script or `Expand-Archive`
+  - Confirm `Profile-Template-Functions.ps1` contains around 430 lines
+  - If issues persist, clone the repo using `git clone` to avoid line-ending corruption
 
 ### Recovery Procedures
 
