@@ -38,6 +38,11 @@ $ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $IncludesPath = Join-Path $ScriptRoot 'includes'
 # Load registry helper functions for all scripts
 . (Join-Path $IncludesPath 'Registry-Functions.ps1')
+$templateFunctionsPath = Join-Path $IncludesPath 'Profile-Template-Functions.ps1'
+if (Test-Path $templateFunctionsPath) {
+    . $templateFunctionsPath
+}
+
 
 # ---------- DO NOT CHANGE THINGS BELOW THIS LINE -----------------------------
 
@@ -125,9 +130,11 @@ if ($confirmation -eq 'y') {
         & (Join-Path $IncludesPath $Action)
     }
 }
-
-
-
+Write-Host ($CR +"All customizations completed for current user") -foregroundcolor $FOREGROUNDCOLOR
+$templateChoice = Read-Host "Apply customizations to default user profile for future users? [y/N]"
+if ($templateChoice -eq 'y') {
+    Invoke-ProfileTemplating
+}
 # Restart to apply all changes
 Write-Host ($CR +"This system will restart to apply all changes") -foregroundcolor $FOREGROUNDCOLOR $CR
 $confirmation = Read-Host "Are you sure you want to proceed restart? [press: y]"
