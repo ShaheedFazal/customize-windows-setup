@@ -121,14 +121,21 @@ try {
     Write-Host "[ERROR] Failed to register scheduled task: $_" -ForegroundColor Red
 }
 
-# Download SetUserFTA - FIXED URL
-$setUserFtaUrl = 'https://github.com/qis/windows/raw/master/setup/SetUserFTA/SetUserFTA.exe'
+# Download SetUserFTA from setuserfta.com (distributed as ZIP)
+$setUserFtaUrl = 'https://setuserfta.com/downloads/SetUserFTA.zip'
+$setUserFtaZip  = Join-Path $env:TEMP 'SetUserFTA.zip'
 $setUserFtaPath = Join-Path $scriptFolder 'SetUserFTA.exe'
 
 if (-not (Test-Path $setUserFtaPath)) {
     Write-Host "Downloading SetUserFTA..." -ForegroundColor Cyan
-    if (Download-File -Url $setUserFtaUrl -Path $setUserFtaPath) {
-        Write-Host "[OK] SetUserFTA downloaded to $setUserFtaPath" -ForegroundColor Green
+    if (Download-File -Url $setUserFtaUrl -Path $setUserFtaZip) {
+        try {
+            Expand-Archive -Path $setUserFtaZip -DestinationPath $scriptFolder -Force
+            Remove-Item $setUserFtaZip -ErrorAction SilentlyContinue
+            Write-Host "[OK] SetUserFTA extracted to $setUserFtaPath" -ForegroundColor Green
+        } catch {
+            Write-Host "[ERROR] Failed to extract SetUserFTA: $_" -ForegroundColor Red
+        }
     } else {
         Write-Host "[ERROR] SetUserFTA download failed" -ForegroundColor Red
     }

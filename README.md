@@ -192,7 +192,7 @@ To use: Place your image as `wallpaper/wallpaper.png` in the toolkit directory.
 - Requires internet connection during first run
 
 **File association changes don't apply:**
-- Ensure `SetUserFTA.exe` was downloaded successfully
+- Ensure `SetUserFTA.zip` was downloaded and extracted successfully
 - Check that target applications are properly installed
 
 **Microsoft account lockout:**
