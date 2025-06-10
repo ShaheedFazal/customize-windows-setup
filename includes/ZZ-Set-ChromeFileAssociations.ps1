@@ -42,10 +42,10 @@ $associations = @{
 
 foreach ($type in $associations.Keys) {
     try {
-        & $setUserFtaPath $type $associations[$type] | Out-Null
+        Set-FileAssociation -ExtensionOrProtocol $type -ProgId $associations[$type] -SetUserFtaPath $setUserFtaPath
     } catch {
         Write-Warning "Failed to associate $type with Chrome"
-        Write-Log "SetUserFTA error for $type : $_"
+        Write-Log "Association error for $type : $_"
     }
 }
 

@@ -241,3 +241,38 @@ function Get-LocalAccountCount {
         return @{ Count = 0; Accounts = @() }
     }
 }
+
+function Set-FileAssociation {
+    param(
+        [Parameter(Mandatory)][string]$ExtensionOrProtocol,
+        [Parameter(Mandatory)][string]$ProgId,
+        [string]$SetUserFtaPath = $(Join-Path $env:TEMP 'SetUserFTA.exe')
+    )
+
+    # Try SetUserFTA.exe first if available
+    if (-not (Test-Path $SetUserFtaPath)) {
+        $SetUserFtaPath = 'C:\\Scripts\\SetUserFTA.exe'
+    }
+
+    $useFallback = $true
+    if (Test-Path $SetUserFtaPath) {
+        try {
+            & $SetUserFtaPath $ExtensionOrProtocol $ProgId | Out-Null
+            $useFallback = $false
+        } catch {
+            if ($_.Exception.Message -match 'not a valid application') {
+                Write-Log "SetUserFTA incompatible: $SetUserFtaPath"
+            } else {
+                Write-Log "SetUserFTA failed for $ExtensionOrProtocol : $_"
+            }
+        }
+    }
+
+    if ($useFallback) {
+        try {
+            cmd /c "assoc $ExtensionOrProtocol=$ProgId" | Out-Null
+        } catch {
+            Write-Log "Fallback association failed for $ExtensionOrProtocol : $_"
+        }
+    }
+}
