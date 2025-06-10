@@ -79,7 +79,8 @@ function Remove-RegistryKey {
             Write-Host "[REGISTRY] Removed key: $Path" -ForegroundColor Yellow
             return $true
         } else {
-            Write-Host "[REGISTRY] Key not found (already removed): $Path" -ForegroundColor Gray
+            # Avoid noisy warnings if the key is already absent
+            Write-Log "[REGISTRY] Key not found (already removed): $Path"
             return $true
         }
     } catch {
