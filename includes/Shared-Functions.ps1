@@ -283,8 +283,7 @@ function Set-FileAssociation {
     param(
         [Parameter(Mandatory)][string]$ExtensionOrProtocol,
         [Parameter(Mandatory)][string]$ProgId,
-        [string]$SetUserFtaPath    = $(Join-Path $env:TEMP 'SetUserFTA.exe'),
-        [string]$SetFileAssocPath  = $(Join-Path $PSScriptRoot 'Set-FileAssoc.ps1')
+        [string]$SetUserFtaPath    = $(Join-Path $env:TEMP 'SetUserFTA.exe')
     )
 
     # Try SetUserFTA.exe first if available
@@ -306,12 +305,16 @@ function Set-FileAssociation {
         }
     }
 
-    if ($useFallback -and (Test-Path $SetFileAssocPath)) {
+    if ($useFallback) {
         try {
-            powershell.exe -NoProfile -ExecutionPolicy Bypass -File $SetFileAssocPath -Extension $ExtensionOrProtocol -ProgId $ProgId | Out-Null
+            $key = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\$ExtensionOrProtocol\UserChoice"
+            if (-not (Test-Path $key)) {
+                New-Item -Path $key -Force | Out-Null
+            }
+            Set-ItemProperty -Path $key -Name 'ProgId' -Value $ProgId -Force
             $useFallback = $false
         } catch {
-            Write-Log "Set-FileAssoc.ps1 failed for $ExtensionOrProtocol : $_"
+            Write-Log "Registry association failed for $ExtensionOrProtocol : $_"
         }
     }
 
