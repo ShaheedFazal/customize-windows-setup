@@ -59,8 +59,11 @@ function Add-WallpaperOverlay {
         [string]$Text
     )
     try {
+        $resolved = Resolve-Path -Path $ImagePath -ErrorAction Stop
+        $realPath = $resolved[0].ProviderPath
+
         Add-Type -AssemblyName System.Drawing
-        $img = [System.Drawing.Image]::FromFile($ImagePath)
+        $img = [System.Drawing.Image]::FromFile($realPath)
         $gfx = [System.Drawing.Graphics]::FromImage($img)
         $font = New-Object System.Drawing.Font('Arial', 24, [System.Drawing.FontStyle]::Bold)
         $rect = New-Object System.Drawing.RectangleF(10, $img.Height - 110, $img.Width - 20, 100)
@@ -68,7 +71,7 @@ function Add-WallpaperOverlay {
         $textBrush = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::White)
         $gfx.FillRectangle($bgBrush, $rect)
         $gfx.DrawString($Text, $font, $textBrush, $rect)
-        $img.Save($ImagePath)
+        $img.Save($realPath)
         $gfx.Dispose(); $img.Dispose()
         Write-Log "Added overlay information to wallpaper"
     } catch {
@@ -112,7 +115,7 @@ function Load-RegistryHive {
     param(
         [Parameter(Mandatory)][string]$HivePath,
         [Parameter(Mandatory)][string]$HiveName,
-        [int]$MaxAttempts = 3,
+        [int]$MaxAttempts = 5,
         [int]$DelaySeconds = 5
     )
 
@@ -274,6 +277,17 @@ foreach ($profile in $offlineProfiles) {
         # Hive was locked after retries
         else {
             Write-Log "! Skipping locked profile: $($profile.Name)" -Color Yellow
+            try {
+                $userStartup = Join-Path $profile.FullName 'AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup'
+                if (-not (Test-Path $userStartup)) {
+                    New-Item -ItemType Directory -Path $userStartup -Force | Out-Null
+                }
+                $userScript = Join-Path $userStartup 'WallpaperFix.bat'
+                Set-Content -Path $userScript -Value $startupScript -Encoding ASCII
+                Write-Log "[OK] Deferred wallpaper fix for $($profile.Name)" -Color Cyan
+            } catch {
+                Write-Log "! Could not defer wallpaper fix for $($profile.Name): $_" -Color Yellow
+            }
         }
     }
 }
