@@ -10,9 +10,12 @@ $setUserFtaPath = Join-Path $env:TEMP 'SetUserFTA.exe'
 if (-not (Test-Path $setUserFtaPath)) {
     $setUserFtaPath = 'C:\Scripts\SetUserFTA.exe'
 }
-if (-not (Test-Path $setUserFtaPath)) {
-    Write-Warning "SetUserFTA.exe not found. File associations will be skipped."
-    Write-Log "SetUserFTA.exe missing for office defaults"
+
+$setFileAssocPath = Join-Path $PSScriptRoot 'Set-FileAssoc.ps1'
+
+if (-not (Test-Path $setUserFtaPath) -and -not (Test-Path $setFileAssocPath)) {
+    Write-Warning "SetUserFTA.exe and Set-FileAssoc.ps1 not found. File associations will be skipped."
+    Write-Log "No association tools available for office defaults"
     return
 }
 
@@ -52,7 +55,7 @@ switch ($choice) {
         Write-Host "Setting Google Workspace defaults..." -ForegroundColor Green
         foreach ($ext in $chromeMap.Keys) {
             try {
-                Set-FileAssociation -ExtensionOrProtocol $ext -ProgId $chromeMap[$ext] -SetUserFtaPath $setUserFtaPath
+                Set-FileAssociation -ExtensionOrProtocol $ext -ProgId $chromeMap[$ext] -SetUserFtaPath $setUserFtaPath -SetFileAssocPath $setFileAssocPath
             } catch {
                 Write-Warning "Failed to set association for $ext"
                 Write-Log "Association error for $ext : $_"
@@ -84,7 +87,7 @@ switch ($choice) {
         Write-Host "Setting LibreOffice defaults..." -ForegroundColor Green
         foreach ($ext in $libreOfficeMap.Keys) {
             try {
-                Set-FileAssociation -ExtensionOrProtocol $ext -ProgId $libreOfficeMap[$ext] -SetUserFtaPath $setUserFtaPath
+                Set-FileAssociation -ExtensionOrProtocol $ext -ProgId $libreOfficeMap[$ext] -SetUserFtaPath $setUserFtaPath -SetFileAssocPath $setFileAssocPath
             } catch {
                 Write-Warning "Failed to set association for $ext"
                 Write-Log "Association error for $ext : $_"
