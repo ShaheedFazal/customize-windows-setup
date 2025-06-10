@@ -13,20 +13,77 @@ $ScriptRoot    = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $RepoWallpaper = Join-Path $ScriptRoot '..\wallpaper\wallpaper.png'
 $SystemDir     = 'C:\\Wallpaper'
 $SystemWallpaper = Join-Path $SystemDir 'wallpaper.png'
+$LogFile        = Join-Path $SystemDir 'apply_wallpaper.log'
+
+if (-not (Test-Path $SystemDir)) {
+    New-Item -Path $SystemDir -ItemType Directory -Force | Out-Null
+}
+if (-not (Test-Path $LogFile)) { New-Item -Path $LogFile -ItemType File -Force | Out-Null }
+
+function Write-Log {
+    param(
+        [string]$Message,
+        [System.ConsoleColor]$Color = [System.ConsoleColor]::White
+    )
+    Write-Host $Message -ForegroundColor $Color
+    Add-Content -Path $LogFile -Value "$(Get-Date -Format 'u') : $Message"
+}
+
+function Get-InternalIP {
+    try {
+        $addr = Get-NetIPAddress -AddressFamily IPv4 -PrefixOrigin Dhcp -ErrorAction Stop |
+                Where-Object { $_.IPAddress -notlike '169.254*' } |
+                Select-Object -First 1 -ExpandProperty IPAddress
+        if (-not $addr) {
+            $addr = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -ne '127.0.0.1' } | Select-Object -First 1 -ExpandProperty IPAddress)
+        }
+        return $addr
+    } catch {
+        Write-Log "Failed to obtain internal IP: $_"
+        return 'Unknown'
+    }
+}
+
+function Get-ExternalIP {
+    try {
+        return (Invoke-RestMethod -Uri 'https://api.ipify.org')
+    } catch {
+        Write-Log "Failed to obtain external IP: $_"
+        return 'Unknown'
+    }
+}
+
+function Add-WallpaperOverlay {
+    param(
+        [string]$ImagePath,
+        [string]$Text
+    )
+    try {
+        Add-Type -AssemblyName System.Drawing
+        $img = [System.Drawing.Image]::FromFile($ImagePath)
+        $gfx = [System.Drawing.Graphics]::FromImage($img)
+        $font = New-Object System.Drawing.Font('Arial', 24, [System.Drawing.FontStyle]::Bold)
+        $rect = New-Object System.Drawing.RectangleF(10, $img.Height - 110, $img.Width - 20, 100)
+        $bgBrush  = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(128,0,0,0))
+        $textBrush = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::White)
+        $gfx.FillRectangle($bgBrush, $rect)
+        $gfx.DrawString($Text, $font, $textBrush, $rect)
+        $img.Save($ImagePath)
+        $gfx.Dispose(); $img.Dispose()
+        Write-Log "Added overlay information to wallpaper"
+    } catch {
+        Write-Log "Failed to add overlay: $_"
+    }
+}
 
 # If no path specified and not forcing system defaults, use repository wallpaper
 if ([string]::IsNullOrEmpty($WallpaperPath) -and -not $UseSystemDefault) {
     if (Test-Path $RepoWallpaper) {
-        if (-not (Test-Path $SystemDir)) {
-            New-Item -Path $SystemDir -ItemType Directory -Force | Out-Null
-        }
-        Copy-Item -Path $RepoWallpaper -Destination $SystemWallpaper -Force
-        Write-Host "Copied custom wallpaper to $SystemWallpaper" -ForegroundColor Cyan
-        $WallpaperPath = $SystemWallpaper
+        $WallpaperPath = $RepoWallpaper
     }
 }
 
-Write-Host "=== WALLPAPER PERSISTENCE FIX ===" -ForegroundColor Cyan
+Write-Log "=== WALLPAPER PERSISTENCE FIX ===" -Color Cyan
 
 # Simple registry function (doesn't require shared functions)
 function Set-RegistryValue {
@@ -42,10 +99,10 @@ function Set-RegistryValue {
             New-Item -Path $Path -Force | Out-Null
         }
         Set-ItemProperty -Path $Path -Name $Name -Value $Value -Type $Type -Force
-        Write-Host "[OK] Set $Name in $Path" -ForegroundColor Green
+        Write-Log "[OK] Set $Name in $Path" -Color Green
         return $true
     } catch {
-        Write-Host "[FAIL] Failed to set $Name in $Path : $_" -ForegroundColor Red
+        Write-Log "[FAIL] Failed to set $Name in $Path : $_" -Color Red
         return $false
     }
 }
@@ -63,19 +120,28 @@ if ($UseSystemDefault -or [string]::IsNullOrEmpty($WallpaperPath)) {
     foreach ($wallpaper in $defaultWallpapers) {
         if (Test-Path $wallpaper) {
             $WallpaperPath = $wallpaper
-            Write-Host "Using wallpaper: $WallpaperPath" -ForegroundColor Cyan
+            Write-Log "Using wallpaper: $WallpaperPath" -Color Cyan
             break
         }
     }
 }
 
 if (-not (Test-Path $WallpaperPath)) {
-    Write-Host "ERROR: Wallpaper file not found: $WallpaperPath" -ForegroundColor Red
-    Write-Host "Please specify a valid wallpaper path or use -UseSystemDefault" -ForegroundColor Yellow
+    Write-Log "ERROR: Wallpaper file not found: $WallpaperPath" -Color Red
+    Write-Log "Please specify a valid wallpaper path or use -UseSystemDefault" -Color Yellow
     exit 1
 }
 
-Write-Host "`n1. Setting wallpaper for current user..." -ForegroundColor Yellow
+Copy-Item -Path $WallpaperPath -Destination $SystemWallpaper -Force
+Write-Log "Copied $WallpaperPath to $SystemWallpaper" -Color Cyan
+$machine   = $env:COMPUTERNAME
+$internal  = Get-InternalIP
+$external  = Get-ExternalIP
+$overlay   = "Machine: $machine`nInternal IP: $internal`nExternal IP: $external"
+Add-WallpaperOverlay -ImagePath $SystemWallpaper -Text $overlay
+$WallpaperPath = $SystemWallpaper
+
+Write-Log "`n1. Setting wallpaper for current user..." -Color Yellow
 
 # Set wallpaper for current user
 Set-RegistryValue -Path "HKCU:\Control Panel\Desktop" -Name "WallPaper" -Value $WallpaperPath -Type "String"
@@ -96,12 +162,12 @@ public class WallpaperAPI {
 }
 "@
     [WallpaperAPI]::SetWallpaper($WallpaperPath)
-    Write-Host "[OK] Wallpaper applied immediately" -ForegroundColor Green
+    Write-Log "[OK] Wallpaper applied immediately" -Color Green
 } catch {
-    Write-Host "! Could not apply wallpaper immediately: $_" -ForegroundColor Yellow
+    Write-Log "! Could not apply wallpaper immediately: $_" -Color Yellow
 }
 
-Write-Host "`n2. Setting up startup persistence..." -ForegroundColor Yellow
+Write-Log "`n2. Setting up startup persistence..." -Color Yellow
 
 # FIXED: Registry startup entry with proper API parameters
 $registryPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run"
@@ -109,9 +175,9 @@ $scriptCommand = "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle
 
 try {
     Set-ItemProperty -Path $registryPath -Name "WallpaperPersistence" -Value $scriptCommand
-    Write-Host "[OK] Added registry startup entry" -ForegroundColor Green
+    Write-Log "[OK] Added registry startup entry" -Color Green
 } catch {
-    Write-Host "[FAIL] Failed to add registry startup entry: $_" -ForegroundColor Red
+    Write-Log "[FAIL] Failed to add registry startup entry: $_" -Color Red
 }
 
 # FIXED: Startup folder script with proper error handling
@@ -132,12 +198,12 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command "
 $startupPath = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\WallpaperFix.bat"
 try {
     Set-Content -Path $startupPath -Value $startupScript -Encoding ASCII
-    Write-Host "[OK] Created startup folder script" -ForegroundColor Green
+    Write-Log "[OK] Created startup folder script" -Color Green
 } catch {
-    Write-Host "[FAIL] Failed to create startup script: $_" -ForegroundColor Red
+    Write-Log "[FAIL] Failed to create startup script: $_" -Color Red
 }
 
-Write-Host "`n3. Setting wallpaper for existing users..." -ForegroundColor Yellow
+Write-Log "`n3. Setting wallpaper for existing users..." -Color Yellow
 
 # Apply wallpaper to all currently loaded user profiles
 $userProfiles = Get-ChildItem "Registry::HKEY_USERS" | Where-Object { $_.Name -match "S-1-5-21-.*" }
@@ -150,15 +216,15 @@ foreach ($profile in $userProfiles) {
             Set-RegistryValue -Path $userRegPath -Name "WallPaper" -Value $WallpaperPath -Type "String"
             Set-RegistryValue -Path $userRegPath -Name "WallpaperStyle" -Value "10" -Type "String"
             Set-RegistryValue -Path $userRegPath -Name "TileWallpaper" -Value "0" -Type "String"
-            Write-Host "[OK] Configured for user SID: $userSID" -ForegroundColor Green
+            Write-Log "[OK] Configured for user SID: $userSID" -Color Green
         } catch {
-            Write-Host "! Could not configure user SID: $userSID" -ForegroundColor Yellow
+            Write-Log "! Could not configure user SID: $userSID" -Color Yellow
         }
     }
 }
 
 # Apply wallpaper to offline user profiles by loading their registry hives
-Write-Host "Checking offline user profiles..." -ForegroundColor Yellow
+Write-Log "Checking offline user profiles..." -Color Yellow
 $offlineProfiles = Get-ChildItem -Path 'C:\Users' -Directory |
     Where-Object { $_.Name -notin @('Public','Default','Default User','All Users') }
 foreach ($profile in $offlineProfiles) {
@@ -172,17 +238,17 @@ foreach ($profile in $offlineProfiles) {
                 Set-RegistryValue -Path $hivePath -Name "WallPaper" -Value $WallpaperPath -Type "String"
                 Set-RegistryValue -Path $hivePath -Name "WallpaperStyle" -Value "10" -Type "String"
                 Set-RegistryValue -Path $hivePath -Name "TileWallpaper" -Value "0" -Type "String"
-                Write-Host "[OK] Configured offline profile: $($profile.Name)" -ForegroundColor Green
+                Write-Log "[OK] Configured offline profile: $($profile.Name)" -Color Green
             } finally {
                 & reg.exe unload "HKU\$hiveName" 2>&1 | Out-Null
             }
         } else {
-            Write-Host "! Could not load hive for $($profile.Name): $loadResult" -ForegroundColor Yellow
+            Write-Log "! Could not load hive for $($profile.Name): $loadResult" -Color Yellow
         }
     }
 }
 
-Write-Host "`n4. Setting default wallpaper for new users..." -ForegroundColor Yellow
+Write-Log "`n4. Setting default wallpaper for new users..." -Color Yellow
 
 # Set wallpaper for default user profile (new users)
 $defaultUserPath = "C:\Users\Default\NTUSER.DAT"
@@ -193,16 +259,16 @@ if (Test-Path $defaultUserPath) {
             Set-RegistryValue -Path "Registry::HKEY_USERS\DefaultUserTemp\Control Panel\Desktop" -Name "WallPaper" -Value $WallpaperPath -Type "String"
             Set-RegistryValue -Path "Registry::HKEY_USERS\DefaultUserTemp\Control Panel\Desktop" -Name "WallpaperStyle" -Value "10" -Type "String"
             Set-RegistryValue -Path "Registry::HKEY_USERS\DefaultUserTemp\Control Panel\Desktop" -Name "TileWallpaper" -Value "0" -Type "String"
-            Write-Host "[OK] Set default wallpaper for new users" -ForegroundColor Green
+            Write-Log "[OK] Set default wallpaper for new users" -Color Green
         } finally {
             & reg.exe unload "HKU\DefaultUserTemp" 2>&1 | Out-Null
         }
     } else {
-        Write-Host "! Could not mount default user registry: $mountResult" -ForegroundColor Yellow
+        Write-Log "! Could not mount default user registry: $mountResult" -Color Yellow
     }
 }
 
-Write-Host "`n5. Creating recovery tools..." -ForegroundColor Yellow
+Write-Log "`n5. Creating recovery tools..." -Color Yellow
 
 # Create a recovery script
 $recoveryScript = @"
@@ -235,18 +301,18 @@ Read-Host "Press Enter to exit"
 $recoveryPath = "$env:USERPROFILE\Desktop\Restore-Wallpaper.ps1"
 try {
     Set-Content -Path $recoveryPath -Value $recoveryScript -Encoding UTF8
-    Write-Host "[OK] Created recovery script: $recoveryPath" -ForegroundColor Green
+    Write-Log "[OK] Created recovery script: $recoveryPath" -Color Green
 } catch {
-    Write-Host "! Could not create recovery script: $_" -ForegroundColor Yellow
+    Write-Log "! Could not create recovery script: $_" -Color Yellow
 }
 
-Write-Host "`n=== WALLPAPER PERSISTENCE FIX COMPLETE ===" -ForegroundColor Green
-Write-Host "Wallpaper: $WallpaperPath" -ForegroundColor Cyan
-Write-Host "`nThe wallpaper should now persist after restarts." -ForegroundColor Cyan
-Write-Host "If issues persist, run the recovery script on your desktop." -ForegroundColor Yellow
+Write-Log "`n=== WALLPAPER PERSISTENCE FIX COMPLETE ===" -Color Green
+Write-Log "Wallpaper: $WallpaperPath" -Color Cyan
+Write-Log "`nThe wallpaper should now persist after restarts." -Color Cyan
+Write-Log "If issues persist, run the recovery script on your desktop." -Color Yellow
 
 # Show instructions for manual testing
-Write-Host "`nTo test persistence:" -ForegroundColor Yellow
-Write-Host "1. Restart your computer" -ForegroundColor Gray
-Write-Host "2. Check if wallpaper is still applied" -ForegroundColor Gray
-Write-Host "3. If not, run: .\Restore-Wallpaper.ps1" -ForegroundColor Gray
+Write-Log "`nTo test persistence:" -Color Yellow
+Write-Log "1. Restart your computer" -Color Gray
+Write-Log "2. Check if wallpaper is still applied" -Color Gray
+Write-Log "3. If not, run: .\Restore-Wallpaper.ps1" -Color Gray
