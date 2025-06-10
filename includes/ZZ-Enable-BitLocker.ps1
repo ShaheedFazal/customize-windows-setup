@@ -134,9 +134,12 @@ function Enable-BitLockerWithBackup {
 
         if ($existingTPMProtector) {
             Write-Host "[BITLOCKER] TPM protector already exists - enabling without creating a new one" -ForegroundColor Yellow
+            # SkipHardwareTest only applies when adding a new protector. Since a
+            # TPM protector already exists, omit that parameter to avoid invalid
+            # parameter combinations.
             Enable-BitLocker -MountPoint 'C:' -EncryptionMethod $encryptionMethod -UsedSpaceOnly -ErrorAction Stop
         } else {
-            Enable-BitLocker -MountPoint 'C:' -TpmProtector -EncryptionMethod $encryptionMethod -UsedSpaceOnly -ErrorAction Stop
+            Enable-BitLocker -MountPoint 'C:' -TpmProtector -EncryptionMethod $encryptionMethod -UsedSpaceOnly -SkipHardwareTest -ErrorAction Stop
         }
         Write-Host "  [OK] BitLocker enabled" -ForegroundColor Green
         

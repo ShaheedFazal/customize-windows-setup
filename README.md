@@ -171,6 +171,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "Set-ExecutionPolicy Bypa
 - Automatic TPM-based encryption for seamless boot experience
 - Recovery password generation and secure storage
 - Used-space-only encryption for faster initial setup
+- Hardware test skipped automatically when adding a new TPM protector to avoid user prompts
 - Recovery key backup to `Documents/BitLockerRecoveryKey-COMPUTERNAME.txt`
 
 **Windows Server Specific:**
