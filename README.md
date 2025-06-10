@@ -106,7 +106,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "Set-ExecutionPolicy Bypa
 **Essential Software Installation (via winget):**
 - **.NET Runtimes:** Desktop Runtime 6, 7, 8 + Visual C++ Redistributables
 - **Productivity:** LibreOffice suite, Notepad++, 7-Zip, VLC Media Player
-- **Communication:** Microsoft Teams, Telegram Desktop, Zoom
+- **Communication:** Microsoft Teams (per-user or machine-wide installs handled), Telegram Desktop, Zoom
 - **Development:** PowerShell 7, Python 3, Windows Terminal
 - **Google Workspace:** Chrome browser, Google Drive desktop client
 - **Remote Access:** AnyDesk for technical support
