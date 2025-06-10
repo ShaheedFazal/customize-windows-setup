@@ -107,6 +107,35 @@ function Set-RegistryValue {
     }
 }
 
+# Attempt to load a registry hive with retries when the file is locked
+function Load-RegistryHive {
+    param(
+        [Parameter(Mandatory)][string]$HivePath,
+        [Parameter(Mandatory)][string]$HiveName,
+        [int]$MaxAttempts = 3,
+        [int]$DelaySeconds = 5
+    )
+
+    for ($i = 1; $i -le $MaxAttempts; $i++) {
+        $result = & reg.exe load "HKU\$HiveName" $HivePath 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            Write-Log "Loaded hive $HiveName" -Color Gray
+            return $true
+        }
+
+        if ($result -match 'used by another process') {
+            Write-Log "Hive $HiveName in use. Waiting ($i/$MaxAttempts)..." -Color Yellow
+            Start-Sleep -Seconds $DelaySeconds
+        } else {
+            Write-Log "! Could not load hive $HiveName: $result" -Color Yellow
+            return $false
+        }
+    }
+
+    Write-Log "! Hive $HiveName still locked after $MaxAttempts attempts" -Color Yellow
+    return $false
+}
+
 # Determine wallpaper to use
 if ($UseSystemDefault -or [string]::IsNullOrEmpty($WallpaperPath)) {
     # Use Windows default wallpapers
@@ -231,8 +260,7 @@ foreach ($profile in $offlineProfiles) {
     $ntUser = Join-Path $profile.FullName 'NTUSER.DAT'
     if (Test-Path $ntUser) {
         $hiveName = "TempHive_$($profile.Name)"
-        $loadResult = & reg.exe load "HKU\$hiveName" $ntUser 2>&1
-        if ($LASTEXITCODE -eq 0) {
+        if (Load-RegistryHive -HivePath $ntUser -HiveName $hiveName) {
             try {
                 $hivePath = "Registry::HKEY_USERS\$hiveName\Control Panel\Desktop"
                 Set-RegistryValue -Path $hivePath -Name "WallPaper" -Value $WallpaperPath -Type "String"
@@ -242,8 +270,10 @@ foreach ($profile in $offlineProfiles) {
             } finally {
                 & reg.exe unload "HKU\$hiveName" 2>&1 | Out-Null
             }
-        } else {
-            Write-Log "! Could not load hive for $($profile.Name): $loadResult" -Color Yellow
+        }
+        # Hive was locked after retries
+        else {
+            Write-Log "! Skipping locked profile: $($profile.Name)" -Color Yellow
         }
     }
 }
