@@ -254,7 +254,8 @@ function Set-FileAssociation {
     param(
         [Parameter(Mandatory)][string]$ExtensionOrProtocol,
         [Parameter(Mandatory)][string]$ProgId,
-        [string]$SetUserFtaPath = $(Join-Path $env:TEMP 'SetUserFTA.exe')
+        [string]$SetUserFtaPath    = $(Join-Path $env:TEMP 'SetUserFTA.exe'),
+        [string]$SetFileAssocPath  = $(Join-Path $PSScriptRoot 'Set-FileAssoc.ps1')
     )
 
     # Try SetUserFTA.exe first if available
@@ -273,6 +274,15 @@ function Set-FileAssociation {
             } else {
                 Write-Log "SetUserFTA failed for $ExtensionOrProtocol : $_"
             }
+        }
+    }
+
+    if ($useFallback -and (Test-Path $SetFileAssocPath)) {
+        try {
+            powershell.exe -NoProfile -ExecutionPolicy Bypass -File $SetFileAssocPath -Extension $ExtensionOrProtocol -ProgId $ProgId | Out-Null
+            $useFallback = $false
+        } catch {
+            Write-Log "Set-FileAssoc.ps1 failed for $ExtensionOrProtocol : $_"
         }
     }
 

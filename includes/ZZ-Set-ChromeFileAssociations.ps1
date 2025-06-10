@@ -8,9 +8,12 @@ $setUserFtaPath = Join-Path $env:TEMP 'SetUserFTA.exe'
 if (-not (Test-Path $setUserFtaPath)) {
     $setUserFtaPath = 'C:\\Scripts\\SetUserFTA.exe'
 }
-if (-not (Test-Path $setUserFtaPath)) {
-    Write-Warning "SetUserFTA.exe not found. Skipping Chrome file associations."
-    Write-Log "SetUserFTA.exe missing for Chrome associations"
+
+$setFileAssocPath = Join-Path $PSScriptRoot 'Set-FileAssoc.ps1'
+
+if (-not (Test-Path $setUserFtaPath) -and -not (Test-Path $setFileAssocPath)) {
+    Write-Warning "SetUserFTA.exe and Set-FileAssoc.ps1 not found. Skipping Chrome file associations."
+    Write-Log "No association tools available for Chrome"
     return
 }
 
@@ -42,7 +45,7 @@ $associations = @{
 
 foreach ($type in $associations.Keys) {
     try {
-        Set-FileAssociation -ExtensionOrProtocol $type -ProgId $associations[$type] -SetUserFtaPath $setUserFtaPath
+        Set-FileAssociation -ExtensionOrProtocol $type -ProgId $associations[$type] -SetUserFtaPath $setUserFtaPath -SetFileAssocPath $setFileAssocPath
     } catch {
         Write-Warning "Failed to associate $type with Chrome"
         Write-Log "Association error for $type : $_"
