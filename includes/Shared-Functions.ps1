@@ -2,6 +2,20 @@
 # WINDOWS CUSTOMIZATION TOOLKIT - SHARED FUNCTIONS
 # =============================================================================
 
+function Write-Log {
+    param([string]$Message)
+    $logDir  = 'C:\\Temp'
+    $logFile = Join-Path $logDir 'Customization.log'
+    try {
+        if (-not (Test-Path $logDir)) {
+            New-Item -Path $logDir -ItemType Directory -Force | Out-Null
+        }
+        Add-Content -Path $logFile -Value "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')`t$Message"
+    } catch {
+        # Logging should never interrupt execution
+    }
+}
+
 function Set-RegistryValue {
     param(
         [Parameter(Mandatory)][string]$Path,
@@ -146,23 +160,26 @@ function New-LocalUserAccount {
             }
         } until ($plain1 -eq $plain2)
 
-        # Create the user account
-        net user $username $plain1 /add | Out-Null
+        # Create the user account and capture output for error reporting
+        $createOutput = net user $username $plain1 /add 2>&1
         if ($LASTEXITCODE -ne 0) {
-            throw "Failed to create user account"
+            Write-Log "Failed to create user $username : $createOutput"
+            throw "Failed to create user account: $createOutput"
         }
 
         # Add to appropriate group
         if ($AccountType -eq "Administrator") {
-            net localgroup Administrators $username /add | Out-Null
+            $groupOutput = net localgroup Administrators $username /add 2>&1
             if ($LASTEXITCODE -ne 0) {
-                throw "Failed to add user to Administrators group"
+                Write-Log "Failed to add $username to Administrators : $groupOutput"
+                throw "Failed to add user to Administrators group: $groupOutput"
             }
             Write-Host "[ACCOUNT] Created local administrator account: $username" -ForegroundColor Green
         } else {
-            net localgroup Users $username /add | Out-Null
+            $groupOutput = net localgroup Users $username /add 2>&1
             if ($LASTEXITCODE -ne 0) {
-                throw "Failed to add user to Users group"
+                Write-Log "Failed to add $username to Users : $groupOutput"
+                throw "Failed to add user to Users group: $groupOutput"
             }
             Write-Host "[ACCOUNT] Created standard user account: $username" -ForegroundColor Green
         }
@@ -175,6 +192,7 @@ function New-LocalUserAccount {
 
     } catch {
         Write-Host "[ACCOUNT ERROR] Failed to create $AccountType account: $_" -ForegroundColor Red
+        Write-Log "Account creation error for $AccountType : $_"
         return $null
     }
 }

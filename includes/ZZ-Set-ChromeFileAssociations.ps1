@@ -9,7 +9,8 @@ if (-not (Test-Path $setUserFtaPath)) {
     $setUserFtaPath = 'C:\\Scripts\\SetUserFTA.exe'
 }
 if (-not (Test-Path $setUserFtaPath)) {
-    Write-Warning "SetUserFTA.exe not found. Ensure Install-EssentialApps.ps1 was executed."
+    Write-Warning "SetUserFTA.exe not found. Skipping Chrome file associations."
+    Write-Log "SetUserFTA.exe missing for Chrome associations"
     return
 }
 
@@ -40,7 +41,12 @@ $associations = @{
 }
 
 foreach ($type in $associations.Keys) {
-    & $setUserFtaPath $type $associations[$type] | Out-Null
+    try {
+        & $setUserFtaPath $type $associations[$type] | Out-Null
+    } catch {
+        Write-Warning "Failed to associate $type with Chrome"
+        Write-Log "SetUserFTA error for $type : $_"
+    }
 }
 
 Write-Host "Google Chrome set as default browser." -ForegroundColor Green

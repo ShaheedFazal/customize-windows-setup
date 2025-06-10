@@ -11,7 +11,11 @@ function Uninstall-PackageIfPresent {
 
     $package = Get-AppxPackage $Identifier -ErrorAction SilentlyContinue
     if ($null -ne $package) {
-        $package | Remove-AppxPackage -ErrorAction SilentlyContinue
+        try {
+            $package | Remove-AppxPackage -ErrorAction Stop
+        } catch {
+            Write-Log "Failed to remove AppX $Identifier : $_"
+        }
     }
 
     $prov = Get-AppxProvisionedPackage -Online | Where-Object DisplayName -like $Identifier
@@ -21,7 +25,7 @@ function Uninstall-PackageIfPresent {
         }
         catch [System.Runtime.InteropServices.COMException] {
             if ($_.Exception.HResult -ne -2147024893) {
-                throw
+                Write-Log "Failed to remove provisioned package $Identifier : $_"
             }
         }
     }

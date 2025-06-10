@@ -26,7 +26,7 @@ function Test-BitLockerCompatibility {
             $compatible = $false
             $issues += "TPM not enabled in BIOS/UEFI settings"
         } else {
-            Write-Host "  ✓ TPM $($tpm.TpmVersion) detected and ready" -ForegroundColor Green
+            Write-Host "  [OK] TPM $($tpm.TpmVersion) detected and ready" -ForegroundColor Green
         }
         
         # Additional TPM checks
@@ -47,7 +47,7 @@ function Test-BitLockerCompatibility {
             $compatible = $false
             $issues += "System drive must be NTFS (currently: $($systemDrive.FileSystem))"
         } else {
-            Write-Host "  ✓ System drive is NTFS" -ForegroundColor Green
+            Write-Host "  [OK] System drive is NTFS" -ForegroundColor Green
         }
     } catch {
         $issues += "Cannot check system drive file system: $($_.Exception.Message)"
@@ -60,7 +60,7 @@ function Test-BitLockerCompatibility {
         if ($freeSpaceGB -lt 2) {
             $warnings += "Low disk space ($freeSpaceGB GB free) - encryption may be slow"
         } else {
-            Write-Host "  ✓ Sufficient disk space available ($freeSpaceGB GB free)" -ForegroundColor Green
+            Write-Host "  [OK] Sufficient disk space available ($freeSpaceGB GB free)" -ForegroundColor Green
         }
     } catch {
         $warnings += "Cannot check disk space"
@@ -70,7 +70,7 @@ function Test-BitLockerCompatibility {
     try {
         $bitlockerStatus = Get-BitLockerVolume -MountPoint 'C:' -ErrorAction Stop
         if ($bitlockerStatus.ProtectionStatus -ne 'Off') {
-            Write-Host "  ℹ BitLocker already enabled (Status: $($bitlockerStatus.ProtectionStatus))" -ForegroundColor Blue
+            Write-Host "  [INFO] BitLocker already enabled (Status: $($bitlockerStatus.ProtectionStatus))" -ForegroundColor Blue
             return @{ 
                 Compatible = $true
                 AlreadyEnabled = $true
@@ -80,7 +80,7 @@ function Test-BitLockerCompatibility {
                 Warnings = $warnings
             }
         } else {
-            Write-Host "  ✓ BitLocker not currently enabled" -ForegroundColor Green
+            Write-Host "  [OK] BitLocker not currently enabled" -ForegroundColor Green
         }
     } catch {
         $issues += "Cannot check current BitLocker status: $($_.Exception.Message)"
@@ -96,7 +96,7 @@ function Test-BitLockerCompatibility {
             $compatible = $false
             $issues += "Windows Home edition detected - BitLocker requires Pro, Enterprise, or Education"
         } else {
-            Write-Host "  ✓ Windows edition supports BitLocker" -ForegroundColor Green
+            Write-Host "  [OK] Windows edition supports BitLocker" -ForegroundColor Green
         }
     } catch {
         $warnings += "Cannot determine Windows edition"
@@ -107,7 +107,7 @@ function Test-BitLockerCompatibility {
         $compatible = $false
         $issues += "Administrator privileges required for BitLocker configuration"
     } else {
-        Write-Host "  ✓ Running with Administrator privileges" -ForegroundColor Green
+        Write-Host "  [OK] Running with Administrator privileges" -ForegroundColor Green
     }
     
     return @{
@@ -127,12 +127,12 @@ function Enable-BitLockerWithBackup {
         
         # Enable BitLocker using TPM only and encrypt used space
         Enable-BitLocker -MountPoint 'C:' -TpmProtector -EncryptionMethod XtsAes256 -UsedSpaceOnly -ErrorAction Stop
-        Write-Host "  ✓ BitLocker enabled with TPM protection" -ForegroundColor Green
+        Write-Host "  [OK] BitLocker enabled with TPM protection" -ForegroundColor Green
         
         # Add a recovery password protector
         Write-Host "[BITLOCKER] Adding recovery password protector..." -ForegroundColor Gray
         Add-BitLockerKeyProtector -MountPoint 'C:' -RecoveryPasswordProtector -ErrorAction Stop | Out-Null
-        Write-Host "  ✓ Recovery password protector added" -ForegroundColor Green
+        Write-Host "  [OK] Recovery password protector added" -ForegroundColor Green
         
         # Retrieve the generated recovery password
         $recoveryPassword = (Get-BitLockerVolume -MountPoint 'C:').KeyProtector |
@@ -202,9 +202,9 @@ function Enable-BitLockerWithBackup {
                 
                 try {
                     $recoveryInfo | Set-Content -Path $savePath -Encoding UTF8 -ErrorAction Stop
-                    Write-Host "  ✓ Recovery information saved: $savePath" -ForegroundColor Green
-                    Write-Host "  ⚠ IMPORTANT: Move this file to secure external storage!" -ForegroundColor Yellow
-                    Write-Host "  ⚠ Delete the local copy after backing up externally!" -ForegroundColor Yellow
+                    Write-Host "  [OK] Recovery information saved: $savePath" -ForegroundColor Green
+                    Write-Host "  WARNING: Move this file to secure external storage!" -ForegroundColor Yellow
+                    Write-Host "  WARNING: Delete the local copy after backing up externally!" -ForegroundColor Yellow
                 } catch {
                     Write-Host "  ✗ Could not save file: $_" -ForegroundColor Red
                     Write-Host "  Recovery Password: $recoveryPassword" -ForegroundColor Yellow
@@ -213,8 +213,8 @@ function Enable-BitLockerWithBackup {
             "3" {
                 try {
                     $recoveryInfo | Out-Printer -ErrorAction Stop
-                    Write-Host "  ✓ Recovery information sent to printer" -ForegroundColor Green
-                    Write-Host "  ⚠ Ensure printer output is secured immediately!" -ForegroundColor Yellow
+                    Write-Host "  [OK] Recovery information sent to printer" -ForegroundColor Green
+                    Write-Host "  WARNING: Ensure printer output is secured immediately!" -ForegroundColor Yellow
                 } catch {
                     Write-Host "  ✗ Could not print: $_" -ForegroundColor Red
                     Write-Host "  Recovery Password: $recoveryPassword" -ForegroundColor Yellow
@@ -237,8 +237,8 @@ function Enable-BitLockerWithBackup {
             Write-Host "  Encryption Progress: $($status.EncryptionPercentage)%" -ForegroundColor White
             
             if ($status.EncryptionPercentage -lt 100) {
-                Write-Host "  ℹ Encryption will continue in the background" -ForegroundColor Blue
-                Write-Host "  ℹ Computer performance may be slightly affected during encryption" -ForegroundColor Blue
+                Write-Host "  [INFO] Encryption will continue in the background" -ForegroundColor Blue
+                Write-Host "  [INFO] Computer performance may be slightly affected during encryption" -ForegroundColor Blue
             }
         }
         
@@ -315,7 +315,7 @@ if (-not $compatibility.Compatible) {
 if ($compatibility.Warnings) {
     Write-Host "[BITLOCKER] Warnings:" -ForegroundColor Yellow
     foreach ($warning in $compatibility.Warnings) {
-        Write-Host "  ⚠ $warning" -ForegroundColor Yellow
+        Write-Host "  WARNING: $warning" -ForegroundColor Yellow
     }
 }
 
@@ -330,8 +330,8 @@ if ($compatibility.AlreadyEnabled) {
     $keyPath = Join-Path $documents $keyFileName
     
     if (Test-Path $keyPath) {
-        Write-Host "  ⚠ Found existing recovery key file: $keyPath" -ForegroundColor Yellow
-        Write-Host "  ⚠ For security, consider moving this to external secure storage" -ForegroundColor Yellow
+        Write-Host "  WARNING: Found existing recovery key file: $keyPath" -ForegroundColor Yellow
+        Write-Host "  WARNING: For security, consider moving this to external secure storage" -ForegroundColor Yellow
     }
     
     return
@@ -340,11 +340,11 @@ if ($compatibility.AlreadyEnabled) {
 # Prompt user for confirmation
 Write-Host "`n[BITLOCKER] Ready to enable BitLocker encryption" -ForegroundColor Cyan
 Write-Host "This will:" -ForegroundColor White
-Write-Host "  • Encrypt the entire C: drive with AES-256 encryption" -ForegroundColor White
-Write-Host "  • Use TPM for automatic unlocking" -ForegroundColor White
-Write-Host "  • Generate a recovery password for emergency access" -ForegroundColor White
-Write-Host "  • Save recovery information to your Documents folder" -ForegroundColor White
-Write-Host "  • Continue encryption in the background after completion" -ForegroundColor White
+Write-Host "  - Encrypt the entire C: drive with AES-256 encryption" -ForegroundColor White
+Write-Host "  - Use TPM for automatic unlocking" -ForegroundColor White
+Write-Host "  - Generate a recovery password for emergency access" -ForegroundColor White
+Write-Host "  - Save recovery information to your Documents folder" -ForegroundColor White
+Write-Host "  - Continue encryption in the background after completion" -ForegroundColor White
 
 $confirmation = Read-Host "`nEnable BitLocker encryption? [y/N]"
 if ($confirmation -ne 'y') {
@@ -356,7 +356,7 @@ if ($confirmation -ne 'y') {
 $success = Enable-BitLockerWithBackup
 
 if ($success) {
-    Write-Host "`n[BITLOCKER] ✓ BitLocker has been successfully enabled!" -ForegroundColor Green
+    Write-Host "`n[BITLOCKER] BitLocker has been successfully enabled!" -ForegroundColor Green
     Write-Host "`nIMPORTANT SECURITY REMINDERS:" -ForegroundColor Red
     Write-Host "1. Store recovery password in a secure location SEPARATE from this computer" -ForegroundColor Yellow
     Write-Host "2. Consider using a password manager or secure cloud storage" -ForegroundColor Yellow
