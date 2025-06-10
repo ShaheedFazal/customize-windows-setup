@@ -47,6 +47,24 @@ function Find-AppExecutable {
         [Environment]::GetEnvironmentVariable('ProgramFiles(x86)')
     ) | Where-Object { $_ -and (Test-Path $_) }
 
+    if ($AppName -eq 'Microsoft Teams') {
+        $teamsPaths = @(
+            Join-Path $env:ProgramFiles 'Microsoft\Teams\current\Teams.exe'
+            Join-Path ([Environment]::GetEnvironmentVariable('ProgramFiles(x86)')) 'Microsoft\Teams\current\Teams.exe'
+            Join-Path $env:LOCALAPPDATA 'Microsoft\Teams\current\Teams.exe'
+        )
+        foreach ($tp in $teamsPaths) {
+            if (Test-Path $tp) {
+                if ($tp -like "$env:LOCALAPPDATA*") {
+                    Write-Host "[INFO] Detected per-user Teams installation" -ForegroundColor Gray
+                } else {
+                    Write-Host "[INFO] Detected machine-wide Teams installation" -ForegroundColor Gray
+                }
+                return $tp
+            }
+        }
+    }
+
     foreach ($dir in $searchDirs) {
         $exe = Get-ChildItem -Path $dir -Filter "*$AppName*.exe" -Recurse -ErrorAction SilentlyContinue |
                Select-Object -First 1
@@ -83,6 +101,9 @@ function Add-DesktopShortcut {
             Write-Host "[OK] Desktop shortcut created for $AppName" -ForegroundColor Green
         } else {
             Write-Host "[WARN] No shortcut found for $AppName" -ForegroundColor Yellow
+            if ($AppName -eq 'Microsoft Teams') {
+                Write-Host "[INFO] Teams may be installed for another user or in a non-standard location" -ForegroundColor Gray
+            }
         }
     }
 }
