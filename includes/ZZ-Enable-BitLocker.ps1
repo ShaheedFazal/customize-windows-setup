@@ -121,13 +121,24 @@ function Test-BitLockerCompatibility {
 function Enable-BitLockerWithBackup {
     [CmdletBinding()]
     param()
-    
+
     try {
         Write-Host "[BITLOCKER] Enabling BitLocker encryption..." -ForegroundColor Cyan
-        
-        # Enable BitLocker using TPM only and encrypt used space
-        Enable-BitLocker -MountPoint 'C:' -TpmProtector -EncryptionMethod XtsAes256 -UsedSpaceOnly -ErrorAction Stop
-        Write-Host "  [OK] BitLocker enabled with TPM protection" -ForegroundColor Green
+        # Determine the correct encryption method based on OS build
+        $build = [int](Get-CimInstance Win32_OperatingSystem).BuildNumber
+        $encryptionMethod = if ($build -ge 10586) { 'XtsAes256' } else { 'Aes256' }
+
+        # Enable BitLocker using TPM if not already present
+        $existingTPMProtector = ($bitLockerInfo = Get-BitLockerVolume -MountPoint 'C:' -ErrorAction SilentlyContinue).KeyProtector |
+            Where-Object { $_.KeyProtectorType -eq 'Tpm' }
+
+        if ($existingTPMProtector) {
+            Write-Host "[BITLOCKER] TPM protector already exists - enabling without creating a new one" -ForegroundColor Yellow
+            Enable-BitLocker -MountPoint 'C:' -EncryptionMethod $encryptionMethod -UsedSpaceOnly -ErrorAction Stop
+        } else {
+            Enable-BitLocker -MountPoint 'C:' -TpmProtector -EncryptionMethod $encryptionMethod -UsedSpaceOnly -ErrorAction Stop
+        }
+        Write-Host "  [OK] BitLocker enabled" -ForegroundColor Green
         
         # Add a recovery password protector
         Write-Host "[BITLOCKER] Adding recovery password protector..." -ForegroundColor Gray
@@ -151,7 +162,7 @@ function Enable-BitLockerWithBackup {
             "Computer Name: $env:COMPUTERNAME",
             "User: $env:USERNAME",
             "Date Encrypted: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')",
-            "Encryption Method: XTS-AES 256",
+            "Encryption Method: $encryptionMethod",
             "Key Protector: TPM + Recovery Password",
             "",
             "RECOVERY PASSWORD:",

@@ -59,8 +59,11 @@ function Add-WallpaperOverlay {
         [string]$Text
     )
     try {
+        $resolved = Resolve-Path -Path $ImagePath -ErrorAction Stop
+        $realPath = $resolved[0].ProviderPath
+
         Add-Type -AssemblyName System.Drawing
-        $img = [System.Drawing.Image]::FromFile($ImagePath)
+        $img = [System.Drawing.Image]::FromFile($realPath)
         $gfx = [System.Drawing.Graphics]::FromImage($img)
         $font = New-Object System.Drawing.Font('Arial', 24, [System.Drawing.FontStyle]::Bold)
         $rect = New-Object System.Drawing.RectangleF(10, $img.Height - 110, $img.Width - 20, 100)
@@ -68,7 +71,7 @@ function Add-WallpaperOverlay {
         $textBrush = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::White)
         $gfx.FillRectangle($bgBrush, $rect)
         $gfx.DrawString($Text, $font, $textBrush, $rect)
-        $img.Save($ImagePath)
+        $img.Save($realPath)
         $gfx.Dispose(); $img.Dispose()
         Write-Log "Added overlay information to wallpaper"
     } catch {
@@ -105,6 +108,35 @@ function Set-RegistryValue {
         Write-Log "[FAIL] Failed to set $Name in $Path : $_" -Color Red
         return $false
     }
+}
+
+# Attempt to load a registry hive with retries when the file is locked
+function Load-RegistryHive {
+    param(
+        [Parameter(Mandatory)][string]$HivePath,
+        [Parameter(Mandatory)][string]$HiveName,
+        [int]$MaxAttempts = 5,
+        [int]$DelaySeconds = 5
+    )
+
+    for ($i = 1; $i -le $MaxAttempts; $i++) {
+        $result = & reg.exe load "HKU\$HiveName" $HivePath 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            Write-Log "Loaded hive $HiveName" -Color Gray
+            return $true
+        }
+
+        if ($result -match 'used by another process') {
+            Write-Log "Hive $HiveName in use. Waiting ($i/$MaxAttempts)..." -Color Yellow
+            Start-Sleep -Seconds $DelaySeconds
+        } else {
+            Write-Log "! Could not load hive ${HiveName}: ${result}" -Color Yellow
+            return $false
+        }
+    }
+
+    Write-Log "! Hive $HiveName still locked after $MaxAttempts attempts" -Color Yellow
+    return $false
 }
 
 # Determine wallpaper to use
@@ -231,8 +263,7 @@ foreach ($profile in $offlineProfiles) {
     $ntUser = Join-Path $profile.FullName 'NTUSER.DAT'
     if (Test-Path $ntUser) {
         $hiveName = "TempHive_$($profile.Name)"
-        $loadResult = & reg.exe load "HKU\$hiveName" $ntUser 2>&1
-        if ($LASTEXITCODE -eq 0) {
+        if (Load-RegistryHive -HivePath $ntUser -HiveName $hiveName) {
             try {
                 $hivePath = "Registry::HKEY_USERS\$hiveName\Control Panel\Desktop"
                 Set-RegistryValue -Path $hivePath -Name "WallPaper" -Value $WallpaperPath -Type "String"
@@ -242,8 +273,21 @@ foreach ($profile in $offlineProfiles) {
             } finally {
                 & reg.exe unload "HKU\$hiveName" 2>&1 | Out-Null
             }
-        } else {
-            Write-Log "! Could not load hive for $($profile.Name): $loadResult" -Color Yellow
+        }
+        # Hive was locked after retries
+        else {
+            Write-Log "! Skipping locked profile: $($profile.Name)" -Color Yellow
+            try {
+                $userStartup = Join-Path $profile.FullName 'AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup'
+                if (-not (Test-Path $userStartup)) {
+                    New-Item -ItemType Directory -Path $userStartup -Force | Out-Null
+                }
+                $userScript = Join-Path $userStartup 'WallpaperFix.bat'
+                Set-Content -Path $userScript -Value $startupScript -Encoding ASCII
+                Write-Log "[OK] Deferred wallpaper fix for $($profile.Name)" -Color Cyan
+            } catch {
+                Write-Log "! Could not defer wallpaper fix for $($profile.Name): $_" -Color Yellow
+            }
         }
     }
 }

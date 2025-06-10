@@ -106,7 +106,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "Set-ExecutionPolicy Bypa
 **Essential Software Installation (via winget):**
 - **.NET Runtimes:** Desktop Runtime 6, 7, 8 + Visual C++ Redistributables
 - **Productivity:** LibreOffice suite, Notepad++, 7-Zip, VLC Media Player
-- **Communication:** Microsoft Teams, Telegram Desktop, Zoom
+- **Communication:** Microsoft Teams (per-user or machine-wide installs handled), Telegram Desktop, Zoom
 - **Development:** PowerShell 7, Python 3, Windows Terminal
 - **Google Workspace:** Chrome browser, Google Drive desktop client
 - **Remote Access:** AnyDesk for technical support
@@ -198,7 +198,7 @@ The toolkit installs essential applications and sets up automated maintenance:
 - Generates update script at `C:\Scripts\Update-WingetApps.ps1`
 
 **File Association Management:**
-- Downloads and configures SetUserFTA.exe for reliable file associations
+- Downloads and configures SetUserFTA.exe for reliable file associations (falls back to built-in `assoc` when incompatible)
 - Supports both Chrome-based (Google Workspace) and LibreOffice associations
 - Handles PDF, Office documents, and web protocols
 - Maintains consistency across user profiles
@@ -285,8 +285,8 @@ powershell -ExecutionPolicy Bypass .\customize-windows-client.ps1
 - Prompts for local account creation before proceeding
 - Warns about potential lockout scenarios
 
-**File Association Issues:**
-- Ensure `SetUserFTA.exe` downloaded successfully to `C:\Scripts\`
+-**File Association Issues:**
+- Ensure `SetUserFTA.exe` downloaded successfully to `C:\Scripts\` (or rely on built-in fallback)
 - Verify target applications installed correctly
 - Run file association scripts after application installation
 - **Parsing Errors After Manual Extraction:**

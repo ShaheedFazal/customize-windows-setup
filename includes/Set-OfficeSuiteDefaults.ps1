@@ -52,10 +52,10 @@ switch ($choice) {
         Write-Host "Setting Google Workspace defaults..." -ForegroundColor Green
         foreach ($ext in $chromeMap.Keys) {
             try {
-                & $setUserFtaPath $ext $chromeMap[$ext] | Out-Null
+                Set-FileAssociation -ExtensionOrProtocol $ext -ProgId $chromeMap[$ext] -SetUserFtaPath $setUserFtaPath
             } catch {
                 Write-Warning "Failed to set association for $ext"
-                Write-Log "SetUserFTA error for $ext : $_"
+                Write-Log "Association error for $ext : $_"
             }
         }
 
@@ -84,10 +84,10 @@ switch ($choice) {
         Write-Host "Setting LibreOffice defaults..." -ForegroundColor Green
         foreach ($ext in $libreOfficeMap.Keys) {
             try {
-                & $setUserFtaPath $ext $libreOfficeMap[$ext] | Out-Null
+                Set-FileAssociation -ExtensionOrProtocol $ext -ProgId $libreOfficeMap[$ext] -SetUserFtaPath $setUserFtaPath
             } catch {
                 Write-Warning "Failed to set association for $ext"
-                Write-Log "SetUserFTA error for $ext : $_"
+                Write-Log "Association error for $ext : $_"
             }
         }
     }

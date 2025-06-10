@@ -34,12 +34,8 @@ Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction Silent
 $startTime = [datetime]::ParseExact('21:00', 'HH:mm', $null)
 $trigger   = New-ScheduledTaskTrigger -Daily -At $startTime
 try {
-    if ($trigger.PSObject.Properties.Name -contains 'Repetition') {
-        $trigger.Repetition.Interval  = (New-TimeSpan -Minutes 15)
-        $trigger.Repetition.Duration = (New-TimeSpan -Hours 6)
-    } else {
-        throw 'Repetition property not found'
-    }
+    $trigger.Repetition.Interval  = New-TimeSpan -Minutes 15
+    $trigger.Repetition.Duration = New-TimeSpan -Hours 6
 } catch {
     Write-Log "Failed to set repetition property on shutdown trigger: $_"
     try {

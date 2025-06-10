@@ -20,12 +20,21 @@ function Uninstall-PackageIfPresent {
 
     $prov = Get-AppxProvisionedPackage -Online | Where-Object DisplayName -like $Identifier
     if ($null -ne $prov) {
-        try {
-            $prov | Remove-AppxProvisionedPackage -Online -ErrorAction Stop
-        }
-        catch [System.Runtime.InteropServices.COMException] {
-            if ($_.Exception.HResult -ne -2147024893) {
-                Write-Log "Failed to remove provisioned package $Identifier : $_"
+        # Some entries may reference missing install locations which causes
+        # Remove-AppxProvisionedPackage to throw a path related error. Only
+        # attempt removal when a valid install path exists.
+        foreach ($p in $prov) {
+            if ($p.InstallLocation -and (Test-Path $p.InstallLocation)) {
+                try {
+                    $p | Remove-AppxProvisionedPackage -Online -ErrorAction Stop
+                }
+                catch [System.Runtime.InteropServices.COMException] {
+                    if ($_.Exception.HResult -ne -2147024893) {
+                        Write-Log "Failed to remove provisioned package $Identifier : $_"
+                    }
+                }
+            } else {
+                Write-Log "Skipping removal of provisioned package $Identifier due to missing install location"
             }
         }
     }

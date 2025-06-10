@@ -17,10 +17,19 @@ $tasksToDisable = @(
 
 foreach ($task in $tasksToDisable) {
     try {
-        Disable-ScheduledTask -TaskName $task -ErrorAction Stop | Out-Null
-        Write-Host "[TASK] Disabled: $task" -ForegroundColor Green
+        $taskName = Split-Path $task -Leaf
+        $taskPath = '\' + (Split-Path $task -Parent) + '\'
+
+        $existingTask = Get-ScheduledTask -TaskName $taskName -TaskPath $taskPath -ErrorAction SilentlyContinue
+
+        if ($null -ne $existingTask) {
+            Disable-ScheduledTask -TaskName $taskName -TaskPath $taskPath -ErrorAction Stop | Out-Null
+            Write-Host "[TASK] Disabled: $task" -ForegroundColor Green
+        } else {
+            Write-Host "[TASK] Not found: $task" -ForegroundColor Yellow
+        }
     } catch {
-        Write-Host "[TASK] Could not disable $task (may not exist)" -ForegroundColor Yellow
+        Write-Host "[TASK] Could not disable $task ($($_.Exception.Message))" -ForegroundColor Yellow
     }
 }
 
