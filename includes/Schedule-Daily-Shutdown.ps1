@@ -27,10 +27,12 @@ Set-Content -Path $scriptPath -Value $scriptContent -Encoding UTF8 -Force
 Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
 
 # Create trigger: start at 9:00 PM and repeat every 15 minutes for 6 hours
-# Try to set the Repetition properties directly. If that fails (for example on
-# very old PowerShell builds), attempt to specify them during creation. If that
-# also fails, fall back to a simple daily trigger.
-$trigger = New-ScheduledTaskTrigger -Daily -At "9:00 PM"
+# Use a culture-invariant 24-hour time format to avoid localisation issues
+# when parsing the start time. Try to set the Repetition properties directly.
+# If that fails (for example on very old PowerShell builds), attempt to specify
+# them during creation. If that also fails, fall back to a simple daily trigger.
+$startTime = [datetime]::ParseExact('21:00', 'HH:mm', $null)
+$trigger   = New-ScheduledTaskTrigger -Daily -At $startTime
 try {
     if ($trigger.PSObject.Properties.Name -contains 'Repetition') {
         $trigger.Repetition.Interval  = (New-TimeSpan -Minutes 15)
@@ -41,13 +43,13 @@ try {
 } catch {
     Write-Log "Failed to set repetition property on shutdown trigger: $_"
     try {
-        $trigger = New-ScheduledTaskTrigger -Daily -At "9:00 PM" `
+        $trigger = New-ScheduledTaskTrigger -Daily -At $startTime `
             -RepetitionInterval (New-TimeSpan -Minutes 15) `
             -RepetitionDuration (New-TimeSpan -Hours 6)
     } catch {
         Write-Warning 'Failed to add repetition options. Task will run once per day at 9:00 PM.'
         Write-Log "Fallback simple trigger created due to error: $_"
-        $trigger = New-ScheduledTaskTrigger -Daily -At "9:00 PM"
+        $trigger = New-ScheduledTaskTrigger -Daily -At $startTime
     }
 }
 
