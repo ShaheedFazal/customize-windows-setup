@@ -7,8 +7,7 @@ $registryPaths = @(
 )
 
 foreach ($path in $registryPaths) {
-    if (Test-Path $path -PathType Container -and \
-        (Get-ItemProperty -Path $path -Name $userFolderGuid -ErrorAction SilentlyContinue)) {
+    if (Test-Path $path -PathType Container -and (Get-ItemProperty -Path $path -Name $userFolderGuid -ErrorAction SilentlyContinue)) {
         Remove-RegistryValue -Path $path -Name $userFolderGuid
     } else {
         Write-Host "[REGISTRY] Value not found (already removed): $path\$userFolderGuid" -ForegroundColor Gray
