@@ -59,14 +59,15 @@ function Add-WallpaperOverlay {
         [string]$Text
     )
     try {
-        $resolved = Resolve-Path -Path $ImagePath -ErrorAction Stop
-        $realPath = $resolved[0].ProviderPath
+        $realPath = Resolve-Path -LiteralPath $ImagePath -ErrorAction Stop | Select-Object -First 1 -ExpandProperty ProviderPath
 
         Add-Type -AssemblyName System.Drawing
-        $img = [System.Drawing.Image]::FromFile($realPath)
-        $gfx = [System.Drawing.Graphics]::FromImage($img)
-        $font = New-Object System.Drawing.Font('Arial', 24, [System.Drawing.FontStyle]::Bold)
-        $rect = New-Object System.Drawing.RectangleF(10, $img.Height - 110, $img.Width - 20, 100)
+        $img   = [System.Drawing.Image]::FromFile($realPath)
+        $gfx   = [System.Drawing.Graphics]::FromImage($img)
+        $font  = New-Object System.Drawing.Font('Arial', 24, [System.Drawing.FontStyle]::Bold)
+        $height = [int]$img.Height
+        $width  = [int]$img.Width
+        $rect  = New-Object System.Drawing.RectangleF(10, $height - 110, $width - 20, 100)
         $bgBrush  = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(128,0,0,0))
         $textBrush = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::White)
         $gfx.FillRectangle($bgBrush, $rect)
