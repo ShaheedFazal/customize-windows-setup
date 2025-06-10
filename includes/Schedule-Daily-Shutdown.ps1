@@ -1,14 +1,15 @@
+# --- Define Script Variables ---
 $taskName = "SmartAutoShutdown"
 $scriptPath = "C:\Scripts\check_and_shutdown.ps1"
 
-# Create script folder and script
+# --- Create Script Folder and Script Content ---
 New-Item -ItemType Directory -Path (Split-Path $scriptPath) -Force | Out-Null
 
 $scriptContent = @'
 function Is-UserActive {
-    $quser = quser 2>$null
-    if ($quser) {
-        foreach ($line in $quser) {
+    $quserOutput = quser 2>$null
+    if ($quserOutput) {
+        foreach ($line in $quserOutput) {
             if ($line -match "Active") {
                 return $true
             }
@@ -23,30 +24,65 @@ if (-not (Is-UserActive)) {
 '@
 Set-Content -Path $scriptPath -Value $scriptContent -Encoding UTF8 -Force
 
-# Remove old task
-Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
-
-# Create trigger: start at 9:00 PM and repeat every 15 minutes for 6 hours
-# Use today's date to ensure a valid DateTime object across Windows builds
-$startTime = (Get-Date).Date.AddHours(21)
+# --- Use the Scheduler Service COM Object for Maximum Reliability ---
 try {
-    $trigger = New-ScheduledTaskTrigger -Daily -At $startTime `
-        -RepetitionInterval (New-TimeSpan -Minutes 15) `
-        -RepetitionDuration (New-TimeSpan -Hours 6)
-} catch {
-    Write-Warning 'Failed to add repetition options. Task will run once per day at 9:00 PM.'
-    Write-Log "Fallback simple trigger created due to error: $_"
-    $trigger = New-ScheduledTaskTrigger -Daily -At $startTime
-}
+    Write-Host "[INFO] Using the COM object to build the scheduled task..." -ForegroundColor Cyan
 
-# Define action
-$action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`""
+    # 1. Connect to the Task Scheduler Service
+    $schedule = New-Object -ComObject "Schedule.Service"
+    $schedule.Connect()
 
-# Register task under SYSTEM
-try {
-    Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -RunLevel Highest -User "SYSTEM" -Description "Shuts down when no users are active after 9PM"
-    Write-Host "[OK] Smart auto-shutdown task created successfully" -ForegroundColor Green
+    # 2. Get the root folder ('\') where tasks are stored
+    $rootFolder = $schedule.GetFolder("\")
+
+    # 3. Define the Task's core properties
+    $taskDefinition = $schedule.NewTask(0)
+
+    # 4. Set the Principal (who the task runs as)
+    $taskDefinition.Principal.UserId = "S-1-5-18" # SYSTEM account
+    $taskDefinition.Principal.RunLevel = 1       # Highest Privileges
+
+    # 5. Define the Trigger
+    $trigger = $taskDefinition.Triggers.Create(2) # Daily trigger
+    $startTime = (Get-Date).Date.AddHours(21)
+    $trigger.StartBoundary = $startTime.ToString("yyyy-MM-dd'T'HH:mm:ss")
+    $trigger.DaysInterval = 1
+    $trigger.Repetition.Interval = "PT15M" # 15 Minutes
+    $trigger.Repetition.Duration = "PT6H"  # 6 Hours
+
+    # 6. Define the Action
+    $action = $taskDefinition.Actions.Create(0) # Execute a program
+    $action.Path = "powershell.exe"
+    $action.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`""
+
+    # 7. Define the task settings
+    $taskDefinition.Settings.Enabled = $true
+    $taskDefinition.Settings.StopIfGoingOnBatteries = $false
+    $taskDefinition.Settings.DisallowStartIfOnBatteries = $false
+    $taskDefinition.Settings.AllowHardTerminate = $true
+    $taskDefinition.Settings.StartWhenAvailable = $true
+
+    # 8. Register the Task (Create or Update)
+    # First, delete any old version of the task.
+    try {
+        $rootFolder.DeleteTask($taskName, 0)
+        Write-Host "[INFO] Removed old version of the task." -ForegroundColor Cyan
+    } catch {
+        # This is fine, it just means the task didn't exist before.
+    }
+    
+    # Register the new task and suppress the output object.
+    $rootFolder.RegisterTaskDefinition(
+        $taskName,
+        $taskDefinition,
+        6,
+        "S-1-5-18",
+        $null,
+        1
+    ) | Out-Null
+
+    Write-Host "[OK] Smart auto-shutdown task created successfully." -ForegroundColor Green
+
 } catch {
-    Write-Warning "Failed to register shutdown task: $_"
-    Write-Log "Failed to register shutdown task: $_"
+    Write-Error "A critical error occurred while creating the task: $($_.Exception.Message)"
 }
