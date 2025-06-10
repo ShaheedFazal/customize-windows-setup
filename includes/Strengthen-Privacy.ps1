@@ -26,7 +26,7 @@ foreach ($task in $tasksToDisable) {
             Disable-ScheduledTask -TaskName $taskName -TaskPath $taskPath -ErrorAction Stop | Out-Null
             Write-Host "[TASK] Disabled: $task" -ForegroundColor Green
         } else {
-            Write-Host "[TASK] Not found: $task" -ForegroundColor Yellow
+            Write-Host "[TASK] Already absent: $task" -ForegroundColor Gray
         }
     } catch {
         Write-Host "[TASK] Could not disable $task ($($_.Exception.Message))" -ForegroundColor Yellow
