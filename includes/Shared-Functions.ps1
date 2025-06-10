@@ -177,18 +177,24 @@ function New-LocalUserAccount {
 
         # Add to appropriate group
         if ($AccountType -eq "Administrator") {
-            $groupOutput = net localgroup Administrators $username /add 2>&1
+            $group = "Administrators"
+        } else {
+            $group = "Users"
+        }
+
+        if (-not (Test-LocalGroupMember -Group $group -Username $username)) {
+            $groupOutput = net localgroup $group $username /add 2>&1
             if ($LASTEXITCODE -ne 0) {
-                Write-Log "Failed to add $username to Administrators : $groupOutput"
-                throw "Failed to add user to Administrators group: $groupOutput"
+                Write-Log "Failed to add $username to $group : $groupOutput"
+                throw "Failed to add user to $group group: $groupOutput"
             }
+        } else {
+            Write-Host "[ACCOUNT] $username already in $group group" -ForegroundColor Gray
+        }
+
+        if ($AccountType -eq "Administrator") {
             Write-Host "[ACCOUNT] Created local administrator account: $username" -ForegroundColor Green
         } else {
-            $groupOutput = net localgroup Users $username /add 2>&1
-            if ($LASTEXITCODE -ne 0) {
-                Write-Log "Failed to add $username to Users : $groupOutput"
-                throw "Failed to add user to Users group: $groupOutput"
-            }
             Write-Host "[ACCOUNT] Created standard user account: $username" -ForegroundColor Green
         }
 
@@ -247,6 +253,29 @@ function Get-LocalAccountCount {
     } catch {
         Write-Host "[ACCOUNT ERROR] Failed to enumerate local accounts: $_" -ForegroundColor Red
         return @{ Count = 0; Accounts = @() }
+    }
+}
+
+function Test-LocalGroupMember {
+    param(
+        [Parameter(Mandatory)][string]$Group,
+        [Parameter(Mandatory)][string]$Username
+    )
+
+    try {
+        $members = net localgroup $Group 2>&1 | Out-String
+        if ($LASTEXITCODE -ne 0) {
+            Write-Log "Failed to list members of $Group : $members"
+            return $false
+        }
+        if ($members -match "(?im)^\s*$Username\s*$") {
+            return $true
+        } else {
+            return $false
+        }
+    } catch {
+        Write-Host "[ACCOUNT ERROR] Failed to check $Group membership: $_" -ForegroundColor Red
+        return $false
     }
 }
 
