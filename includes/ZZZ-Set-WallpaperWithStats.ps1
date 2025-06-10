@@ -127,7 +127,7 @@ function Load-RegistryHive {
             Write-Log "Hive $HiveName in use. Waiting ($i/$MaxAttempts)..." -Color Yellow
             Start-Sleep -Seconds $DelaySeconds
         } else {
-            Write-Log "! Could not load hive $HiveName: $result" -Color Yellow
+            Write-Log "! Could not load hive ${HiveName}: ${result}" -Color Yellow
             return $false
         }
     }
