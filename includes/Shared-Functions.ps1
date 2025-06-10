@@ -147,26 +147,33 @@ function New-LocalUserAccount {
     try {
         $username = Read-Host $PromptText
 
-        # Password collection with validation
+        $created = $false
         do {
-            $pw1 = Read-Host 'Enter password' -AsSecureString
-            $pw2 = Read-Host 'Confirm password' -AsSecureString
+            # Password collection with validation
+            do {
+                $pw1 = Read-Host 'Enter password' -AsSecureString
+                $pw2 = Read-Host 'Confirm password' -AsSecureString
 
-            # Convert to plain text for comparison
-            $plain1 = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($pw1))
-            $plain2 = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($pw2))
+                # Convert to plain text for comparison
+                $plain1 = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($pw1))
+                $plain2 = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($pw2))
 
-            if ($plain1 -ne $plain2) {
-                Write-Host "[ACCOUNT] Passwords do not match. Please try again." -ForegroundColor Yellow
+                if ($plain1 -ne $plain2) {
+                    Write-Host "[ACCOUNT] Passwords do not match. Please try again." -ForegroundColor Yellow
+                }
+            } until ($plain1 -eq $plain2)
+
+            # Create the user account and capture output for error reporting
+            $createOutput = net user $username $plain1 /add 2>&1
+            if ($LASTEXITCODE -eq 0) {
+                $created = $true
+            } elseif ($createOutput -match 'password') {
+                Write-Host "[ACCOUNT] Password did not meet requirements. Please try another." -ForegroundColor Yellow
+            } else {
+                Write-Log "Failed to create user $username : $createOutput"
+                throw "Failed to create user account: $createOutput"
             }
-        } until ($plain1 -eq $plain2)
-
-        # Create the user account and capture output for error reporting
-        $createOutput = net user $username $plain1 /add 2>&1
-        if ($LASTEXITCODE -ne 0) {
-            Write-Log "Failed to create user $username : $createOutput"
-            throw "Failed to create user account: $createOutput"
-        }
+        } until ($created)
 
         # Add to appropriate group
         if ($AccountType -eq "Administrator") {
