@@ -27,7 +27,7 @@ Write-Host "Privileges: $(if($IsAdmin){'Administrator'}else{'Standard User'})" -
 
 # List of validated user-level scripts
 $userScripts = @(
-    @{ Script = 'ZZ-Set-ChromeFileAssociations.ps1'; Description = 'Set Chrome as default browser' },
+    @{ Script = 'ZZ-Set-FileAssociations.ps1';      Description = 'Configure file associations' },
     @{ Script = 'Hide-Recently-Shortcuts.ps1';       Description = 'Hide recently used shortcuts' },
     @{ Script = 'Hide-People-Icon-Taskbar.ps1';      Description = 'Hide People icon from taskbar' },
     @{ Script = 'Hide-Task-View-Button.ps1';         Description = 'Hide Task View button' },
