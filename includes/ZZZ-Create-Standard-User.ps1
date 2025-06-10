@@ -9,4 +9,6 @@ if ($confirm -ne 'y') {
 $username = New-LocalUserAccount -AccountType 'Standard'
 if ($null -ne $username) {
     Write-Host "Created standard user account '$username'."
+} else {
+    Write-Warning 'Failed to create the standard user account. Check log for details.'
 }

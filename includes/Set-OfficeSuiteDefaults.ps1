@@ -11,7 +11,8 @@ if (-not (Test-Path $setUserFtaPath)) {
     $setUserFtaPath = 'C:\Scripts\SetUserFTA.exe'
 }
 if (-not (Test-Path $setUserFtaPath)) {
-    Write-Warning "SetUserFTA.exe not found. Ensure Install-EssentialApps.ps1 was executed."
+    Write-Warning "SetUserFTA.exe not found. File associations will be skipped."
+    Write-Log "SetUserFTA.exe missing for office defaults"
     return
 }
 
@@ -50,7 +51,12 @@ switch ($choice) {
     '1' {
         Write-Host "Setting Google Workspace defaults..." -ForegroundColor Green
         foreach ($ext in $chromeMap.Keys) {
-            & $setUserFtaPath $ext $chromeMap[$ext] | Out-Null
+            try {
+                & $setUserFtaPath $ext $chromeMap[$ext] | Out-Null
+            } catch {
+                Write-Warning "Failed to set association for $ext"
+                Write-Log "SetUserFTA error for $ext : $_"
+            }
         }
 
         # Shortcuts for Google Workspace apps
@@ -77,7 +83,12 @@ switch ($choice) {
     '2' {
         Write-Host "Setting LibreOffice defaults..." -ForegroundColor Green
         foreach ($ext in $libreOfficeMap.Keys) {
-            & $setUserFtaPath $ext $libreOfficeMap[$ext] | Out-Null
+            try {
+                & $setUserFtaPath $ext $libreOfficeMap[$ext] | Out-Null
+            } catch {
+                Write-Warning "Failed to set association for $ext"
+                Write-Log "SetUserFTA error for $ext : $_"
+            }
         }
     }
     default {

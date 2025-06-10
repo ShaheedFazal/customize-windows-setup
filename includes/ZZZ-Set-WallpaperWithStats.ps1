@@ -42,10 +42,10 @@ function Set-RegistryValue {
             New-Item -Path $Path -Force | Out-Null
         }
         Set-ItemProperty -Path $Path -Name $Name -Value $Value -Type $Type -Force
-        Write-Host "✓ Set $Name in $Path" -ForegroundColor Green
+        Write-Host "[OK] Set $Name in $Path" -ForegroundColor Green
         return $true
     } catch {
-        Write-Host "✗ Failed to set $Name in $Path : $_" -ForegroundColor Red
+        Write-Host "[FAIL] Failed to set $Name in $Path : $_" -ForegroundColor Red
         return $false
     }
 }
@@ -96,7 +96,7 @@ public class WallpaperAPI {
 }
 "@
     [WallpaperAPI]::SetWallpaper($WallpaperPath)
-    Write-Host "✓ Wallpaper applied immediately" -ForegroundColor Green
+    Write-Host "[OK] Wallpaper applied immediately" -ForegroundColor Green
 } catch {
     Write-Host "! Could not apply wallpaper immediately: $_" -ForegroundColor Yellow
 }
@@ -109,9 +109,9 @@ $scriptCommand = "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle
 
 try {
     Set-ItemProperty -Path $registryPath -Name "WallpaperPersistence" -Value $scriptCommand
-    Write-Host "✓ Added registry startup entry" -ForegroundColor Green
+    Write-Host "[OK] Added registry startup entry" -ForegroundColor Green
 } catch {
-    Write-Host "✗ Failed to add registry startup entry: $_" -ForegroundColor Red
+    Write-Host "[FAIL] Failed to add registry startup entry: $_" -ForegroundColor Red
 }
 
 # FIXED: Startup folder script with proper error handling
@@ -132,9 +132,9 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command "
 $startupPath = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\WallpaperFix.bat"
 try {
     Set-Content -Path $startupPath -Value $startupScript -Encoding ASCII
-    Write-Host "✓ Created startup folder script" -ForegroundColor Green
+    Write-Host "[OK] Created startup folder script" -ForegroundColor Green
 } catch {
-    Write-Host "✗ Failed to create startup script: $_" -ForegroundColor Red
+    Write-Host "[FAIL] Failed to create startup script: $_" -ForegroundColor Red
 }
 
 Write-Host "`n3. Setting wallpaper for existing users..." -ForegroundColor Yellow
@@ -150,7 +150,7 @@ foreach ($profile in $userProfiles) {
             Set-RegistryValue -Path $userRegPath -Name "WallPaper" -Value $WallpaperPath -Type "String"
             Set-RegistryValue -Path $userRegPath -Name "WallpaperStyle" -Value "10" -Type "String"
             Set-RegistryValue -Path $userRegPath -Name "TileWallpaper" -Value "0" -Type "String"
-            Write-Host "✓ Configured for user SID: $userSID" -ForegroundColor Green
+            Write-Host "[OK] Configured for user SID: $userSID" -ForegroundColor Green
         } catch {
             Write-Host "! Could not configure user SID: $userSID" -ForegroundColor Yellow
         }
@@ -172,7 +172,7 @@ foreach ($profile in $offlineProfiles) {
                 Set-RegistryValue -Path $hivePath -Name "WallPaper" -Value $WallpaperPath -Type "String"
                 Set-RegistryValue -Path $hivePath -Name "WallpaperStyle" -Value "10" -Type "String"
                 Set-RegistryValue -Path $hivePath -Name "TileWallpaper" -Value "0" -Type "String"
-                Write-Host "✓ Configured offline profile: $($profile.Name)" -ForegroundColor Green
+                Write-Host "[OK] Configured offline profile: $($profile.Name)" -ForegroundColor Green
             } finally {
                 & reg.exe unload "HKU\$hiveName" 2>&1 | Out-Null
             }
@@ -193,7 +193,7 @@ if (Test-Path $defaultUserPath) {
             Set-RegistryValue -Path "Registry::HKEY_USERS\DefaultUserTemp\Control Panel\Desktop" -Name "WallPaper" -Value $WallpaperPath -Type "String"
             Set-RegistryValue -Path "Registry::HKEY_USERS\DefaultUserTemp\Control Panel\Desktop" -Name "WallpaperStyle" -Value "10" -Type "String"
             Set-RegistryValue -Path "Registry::HKEY_USERS\DefaultUserTemp\Control Panel\Desktop" -Name "TileWallpaper" -Value "0" -Type "String"
-            Write-Host "✓ Set default wallpaper for new users" -ForegroundColor Green
+            Write-Host "[OK] Set default wallpaper for new users" -ForegroundColor Green
         } finally {
             & reg.exe unload "HKU\DefaultUserTemp" 2>&1 | Out-Null
         }
@@ -235,7 +235,7 @@ Read-Host "Press Enter to exit"
 $recoveryPath = "$env:USERPROFILE\Desktop\Restore-Wallpaper.ps1"
 try {
     Set-Content -Path $recoveryPath -Value $recoveryScript -Encoding UTF8
-    Write-Host "✓ Created recovery script: $recoveryPath" -ForegroundColor Green
+    Write-Host "[OK] Created recovery script: $recoveryPath" -ForegroundColor Green
 } catch {
     Write-Host "! Could not create recovery script: $_" -ForegroundColor Yellow
 }

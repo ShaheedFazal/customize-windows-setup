@@ -39,12 +39,14 @@ try {
         throw 'Repetition property not found'
     }
 } catch {
+    Write-Log "Failed to set repetition property on shutdown trigger: $_"
     try {
         $trigger = New-ScheduledTaskTrigger -Daily -At "9:00 PM" `
             -RepetitionInterval (New-TimeSpan -Minutes 15) `
             -RepetitionDuration (New-TimeSpan -Hours 6)
     } catch {
         Write-Warning 'Failed to add repetition options. Task will run once per day at 9:00 PM.'
+        Write-Log "Fallback simple trigger created due to error: $_"
         $trigger = New-ScheduledTaskTrigger -Daily -At "9:00 PM"
     }
 }
@@ -53,6 +55,10 @@ try {
 $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`""
 
 # Register task under SYSTEM
-Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -RunLevel Highest -User "SYSTEM" -Description "Shuts down when no users are active after 9PM"
-
-Write-Host "[OK] Smart auto-shutdown task created successfully" -ForegroundColor Green
+try {
+    Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -RunLevel Highest -User "SYSTEM" -Description "Shuts down when no users are active after 9PM"
+    Write-Host "[OK] Smart auto-shutdown task created successfully" -ForegroundColor Green
+} catch {
+    Write-Warning "Failed to register shutdown task: $_"
+    Write-Log "Failed to register shutdown task: $_"
+}
