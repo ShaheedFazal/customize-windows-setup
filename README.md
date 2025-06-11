@@ -141,9 +141,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "Set-ExecutionPolicy Bypa
 - Sets Control Panel to small icons (classic view)
 
 **Custom Wallpaper System:**
-- Applies custom wallpaper with system information overlay
-- Displays computer name, model, serial number, workgroup, and Windows version
-- Automatically positions text to avoid taskbar overlap
+- Applies a custom wallpaper
 - Supports custom images via `wallpaper/wallpaper.png`
 
 **Office Suite Integration:**
@@ -250,12 +248,8 @@ $DRIVELETTERCDROM = "z:"                   # CD-ROM drive letter assignment
 ### Advanced Customisation Options
 
 **Wallpaper Personalisation:**
-1. Add your image as `wallpaper/wallpaper.png` (the script copies this file to `C:\Wallpaper\wallpaper.png`)
-2. Adjust positioning variables in `Set-WallpaperWithStats.ps1`:
-   ```powershell
-   $bottomMargin = 60    # Space above taskbar
-   $rightMargin = 20     # Right edge padding
-   ```
+1. Add your image as `wallpaper/wallpaper.png`
+2. Run `ZZZ-Set-Wallpaper.ps1` to apply the image.
 
 **Microsoft Edge Policies:**
 - 18 configurable policies in `Debloat-MicrosoftEdge.ps1`
@@ -417,7 +411,7 @@ function Uninstall-PackageIfPresent {
 
 **Hardware Compatibility:**
 - **Ethernet adapter** for Wake-on-LAN features
-- **Compatible graphics** for wallpaper overlay functionality
+- **Compatible graphics** for wallpaper features
 - **Standard x64 architecture** (ARM64 support limited)
 
 ## 📄 Legal & Licensing
