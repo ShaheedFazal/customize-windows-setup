@@ -1,58 +1,38 @@
 <#
 .SYNOPSIS
-Enhanced BGInfo deployment script that checks for local repo files before downloading
+Enhanced BGInfo deployment script using reliable startup folder approach
 
 .DESCRIPTION
-A script used to download, install, and configure the latest version of BGInfo on Windows systems.
-This enhanced version first checks for BGInfo files in the local repository structure before downloading.
-
-This script will do all of the following:
-- Check if PowerShell is running as Administrator, otherwise exit the script
-- Create a BGInfo folder on the C: drive if it doesn't already exist; otherwise, delete its contents
-- Check for local BGInfo files in repo structure, or download latest BGInfo software to C:\BGInfo
-- Check for local logon.bgi file in repo, or download it to C:\BGInfo
-- Create BGInfo registry key for AutoStart
-- Run BGInfo
+A script that downloads, installs and configures BGInfo using the proven startup folder method.
+This approach is more reliable than registry-based autostart for BGInfo.
 
 .NOTES
 File Name:     ZZZ-ApplyBGInfo.ps1
-Created:       Enhanced version based on Wim Matthyssen's original
-Last Modified: Current date
+Enhanced:      Based on proven NinjaOne approach with local repo file checking
 PowerShell:    Version 5.1 or later
 Requires:      -RunAsAdministrator
-OS Support:    Windows Server 2016, 2019, 2022, 2025 and Windows 10/11
-Enhanced:      Added local repo file checking before download fallback
+OS Support:    Windows 10/11, Windows Server 2016+
 #>
-
-## ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 ## Determine script and repo directory paths
 $ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $RepoRoot = Split-Path $ScriptRoot -Parent
 
 ## Variables
-$bgInfoFolder = "C:\Wallpaper"
-$bgInfoFolderContent = "$bgInfoFolder\BGInfo*"
+$bgInfoFolder = "C:\BGInfo"
+$bgInfoExecutable = "$bgInfoFolder\Bginfo64.exe"
 
 # Local repo paths (check wallpaper folder first)
 $localWallpaperFolder = Join-Path $RepoRoot 'wallpaper'
 $localBGInfoZip = Join-Path $localWallpaperFolder 'BGInfo.zip'
 $localBGInfoExe = Join-Path $localWallpaperFolder 'Bginfo64.exe'
-$localWallpaperBgi = Join-Path $localWallpaperFolder 'WallpaperSettings.bgi'
 
-# Download URLs (fallback if local files not found)
+# Download URL
 $bgInfoUrl = "https://download.sysinternals.com/files/BGInfo.zip"
-$wallpaperBgiUrl = "https://raw.githubusercontent.com/ShaheedFazal/customize-windows-setup/main/wallpaper/WallpaperSettings.bgi"
 
-# Target paths
-$bgInfoZip = "$bgInfoFolder\BGInfo.zip"
-$bgInfoEula = "$bgInfoFolder\Eula.txt"
-$wallpaperBgiZip = "$bgInfoFolder\WallpaperSettings.zip"
-
-# Registry settings
-$bgInfoRegPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run"
-$bgInfoRegKey = "BGInfo"
-$bgInfoRegKeyValue = 'cmd /c "timeout /t 10 /nobreak >nul && C:\Wallpaper\Bginfo64.exe C:\Wallpaper\WallpaperSettings.bgi /timer:0 /nolicprompt"'
+# Startup folder path for all users
+$startupFolder = "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp"
+$startupShortcut = "$startupFolder\BGInfo.lnk"
 
 # Formatting variables
 $global:currenttime = Set-PSBreakpoint -Variable currenttime -Mode Read -Action {$global:currenttime = Get-Date -UFormat "%A %m/%d/%Y %R"}
@@ -62,8 +42,6 @@ $foregroundColor3 = "Red"
 $writeEmptyLine = "`n"
 $writeSeperatorSpaces = " - "
 
-## ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
 ## Functions
 
 function Test-Administrator {
@@ -71,129 +49,170 @@ function Test-Administrator {
     return $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
-function Copy-LocalBGInfoFiles {
-    [CmdletBinding()]
-    param()
-    
-    $configFound = $false
-    $executableFound = $false
-    
-    Write-Host ($writeEmptyLine + "# Checking for local BGInfo files in wallpaper folder..." + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor2
-    
-    # Check if we have a local BGInfo executable
-    if (Test-Path $localBGInfoExe) {
-        Write-Host "# Found local BGInfo executable: $localBGInfoExe" -foregroundcolor $foregroundColor2
-        Copy-Item -Path $localBGInfoExe -Destination "$bgInfoFolder\Bginfo64.exe" -Force
-        $executableFound = $true
-    }
-    elseif (Test-Path $localBGInfoZip) {
-        Write-Host "# Found local BGInfo ZIP: $localBGInfoZip" -foregroundcolor $foregroundColor2
-        Copy-Item -Path $localBGInfoZip -Destination $bgInfoZip -Force
-        
-        # Extract the ZIP file
-        Expand-Archive -LiteralPath $bgInfoZip -DestinationPath $bgInfoFolder -Force
-        Remove-Item $bgInfoZip -Force -ErrorAction SilentlyContinue
-        Remove-Item $bgInfoEula -Force -ErrorAction SilentlyContinue
-        $executableFound = $true
-    }
-    
-    # Check for local WallpaperSettings.bgi file
-    if (Test-Path $localWallpaperBgi) {
-        Write-Host "# Found local WallpaperSettings.bgi: $localWallpaperBgi" -foregroundcolor $foregroundColor2
-        Copy-Item -Path $localWallpaperBgi -Destination "$bgInfoFolder\WallpaperSettings.bgi" -Force
-        $configFound = $true
-    }
-    
-    if ($configFound -or $executableFound) {
-        Write-Host ($writeEmptyLine + "# Local BGInfo files copied from wallpaper folder successfully" + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor1
-        if ($configFound) { 
-            Write-Host "  ✓ Configuration file WallpaperSettings.bgi found locally" -foregroundcolor $foregroundColor1 
-        }
-        if ($executableFound) { 
-            Write-Host "  ✓ Executable file Bginfo64.exe found locally" -foregroundcolor $foregroundColor1 
-        }
-    } else {
-        Write-Host "# No local BGInfo files found in wallpaper folder" -foregroundcolor $foregroundColor2
-    }
-    
-    return @{
-        ConfigFound = $configFound
-        ExecutableFound = $executableFound
-        AnyFound = ($configFound -or $executableFound)
-    }
-}
-
-function Download-BGInfoFromWeb {
+function New-Shortcut {
     [CmdletBinding()]
     param(
-        [bool]$NeedExecutable = $true,
-        [bool]$NeedConfig = $true
+        [Parameter(Mandatory)][String]$Path,
+        [Parameter(Mandatory)][String]$Target,
+        [Parameter()][String]$Arguments,
+        [Parameter()][String]$WorkingDir,
+        [Parameter()][String]$IconPath
     )
     
     try {
-        Write-Host ($writeEmptyLine + "# Downloading missing BGInfo files from web..." + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor2
-        
-        # Ensure TLS 1.2 is used for compatibility
-        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-        
-        # Download BGInfo executable if needed
-        if ($NeedExecutable -and (-not (Test-Path "$bgInfoFolder\Bginfo64.exe"))) {
-            Write-Host "# Downloading BGInfo executable..." -foregroundcolor $foregroundColor2
-            
-            try {
-                # Try BitsTransfer first
-                Import-Module BitsTransfer -ErrorAction Stop
-                Start-BitsTransfer -Source $bgInfoUrl -Destination $bgInfoZip
-            } catch {
-                # Fallback to Invoke-WebRequest
-                Write-Host "# BitsTransfer failed, using Invoke-WebRequest..." -foregroundcolor $foregroundColor2
-                Invoke-WebRequest -Uri $bgInfoUrl -OutFile $bgInfoZip -UseBasicParsing
-            }
-            
-            # Extract and clean up
-            Expand-Archive -LiteralPath $bgInfoZip -DestinationPath $bgInfoFolder -Force
-            Remove-Item $bgInfoZip, $bgInfoEula -Force -ErrorAction SilentlyContinue
-            Write-Host "  ✓ BGInfo executable downloaded and extracted" -foregroundcolor $foregroundColor1
+        Write-Host "# Creating BGInfo startup shortcut..." -foregroundcolor $foregroundColor2
+        $ShellObject = New-Object -ComObject ("WScript.Shell")
+        $Shortcut = $ShellObject.CreateShortcut($Path)
+        $Shortcut.TargetPath = $Target
+        if ($WorkingDir) { $Shortcut.WorkingDirectory = $WorkingDir }
+        if ($Arguments) { $Shortcut.Arguments = $Arguments }
+        if ($IconPath) { $Shortcut.IconLocation = $IconPath }
+        $Shortcut.Save()
+
+        if (Test-Path $Path) {
+            Write-Host "  [OK] Startup shortcut created: $Path" -foregroundcolor $foregroundColor1
+            return $true
+        } else {
+            Write-Host "  [ERROR] Failed to create shortcut" -foregroundcolor $foregroundColor3
+            return $false
         }
-        
-        # Download WallpaperSettings.bgi if needed
-        if ($NeedConfig -and (-not (Test-Path "$bgInfoFolder\WallpaperSettings.bgi"))) {
-            Write-Host "# Downloading WallpaperSettings.bgi configuration..." -foregroundcolor $foregroundColor2
-            
-            Invoke-WebRequest -Uri $wallpaperBgiUrl -OutFile "$bgInfoFolder\WallpaperSettings.bgi" -UseBasicParsing
-            Write-Host "  ✓ WallpaperSettings.bgi downloaded" -foregroundcolor $foregroundColor1
-        }
-        
-        Write-Host ($writeEmptyLine + "# Required BGInfo files obtained successfully" + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor1
-        return $true
-        
     } catch {
-        Write-Host ($writeEmptyLine + "# Failed to download BGInfo files: $_" + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor3
+        Write-Host "  [ERROR] Shortcut creation failed: $_" -foregroundcolor $foregroundColor3
         return $false
     }
 }
 
-function Test-BGInfoFiles {
+function Get-BGInfoExecutable {
     [CmdletBinding()]
     param()
     
-    $required = @(
-        "$bgInfoFolder\Bginfo64.exe",
-        "$bgInfoFolder\WallpaperSettings.bgi"
-    )
+    Write-Host ($writeEmptyLine + "# Obtaining BGInfo executable..." + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor2
     
-    foreach ($file in $required) {
-        if (-not (Test-Path $file)) {
-            Write-Host "# Missing required file: $file" -foregroundcolor $foregroundColor3
-            return $false
+    # Check for local executable first
+    if (Test-Path $localBGInfoExe) {
+        Write-Host "# Found local BGInfo executable: $localBGInfoExe" -foregroundcolor $foregroundColor2
+        Copy-Item -Path $localBGInfoExe -Destination $bgInfoExecutable -Force
+        Write-Host "  [OK] Local BGInfo executable copied" -foregroundcolor $foregroundColor1
+        return $true
+    }
+    
+    # Check for local ZIP file
+    if (Test-Path $localBGInfoZip) {
+        Write-Host "# Found local BGInfo ZIP: $localBGInfoZip" -foregroundcolor $foregroundColor2
+        Copy-Item -Path $localBGInfoZip -Destination "$bgInfoFolder\BGInfo.zip" -Force
+        Expand-Archive -LiteralPath "$bgInfoFolder\BGInfo.zip" -DestinationPath $bgInfoFolder -Force
+        Remove-Item "$bgInfoFolder\BGInfo.zip" -Force -ErrorAction SilentlyContinue
+        Remove-Item "$bgInfoFolder\Eula.txt" -Force -ErrorAction SilentlyContinue
+        Write-Host "  [OK] Local BGInfo ZIP extracted" -foregroundcolor $foregroundColor1
+        return $true
+    }
+    
+    # Download from web as fallback
+    Write-Host "# No local BGInfo found, downloading from web..." -foregroundcolor $foregroundColor2
+    try {
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        
+        try {
+            Import-Module BitsTransfer -ErrorAction Stop
+            Start-BitsTransfer -Source $bgInfoUrl -Destination "$bgInfoFolder\BGInfo.zip"
+        } catch {
+            Invoke-WebRequest -Uri $bgInfoUrl -OutFile "$bgInfoFolder\BGInfo.zip" -UseBasicParsing
+        }
+        
+        Expand-Archive -LiteralPath "$bgInfoFolder\BGInfo.zip" -DestinationPath $bgInfoFolder -Force
+        Remove-Item "$bgInfoFolder\BGInfo.zip" -Force -ErrorAction SilentlyContinue
+        Remove-Item "$bgInfoFolder\Eula.txt" -Force -ErrorAction SilentlyContinue
+        Write-Host "  [OK] BGInfo downloaded and extracted" -foregroundcolor $foregroundColor1
+        return $true
+        
+    } catch {
+        Write-Host "  [ERROR] Failed to download BGInfo: $_" -foregroundcolor $foregroundColor3
+        return $false
+    }
+}
+
+function Create-MinimalBGInfoConfig {
+    [CmdletBinding()]
+    param()
+    
+    Write-Host "# Creating minimal BGInfo configuration..." -foregroundcolor $foregroundColor2
+    
+    try {
+        # Create a minimal config by running BGInfo interactively once, then saving custom config
+        $configPath = "$bgInfoFolder\Minimal.bgi"
+        
+        # First run BGInfo to let it create its initial setup
+        $process = Start-Process -FilePath $bgInfoExecutable -ArgumentList "/accepteula" -PassThru -WindowStyle Normal
+        
+        # Wait for user to customize and close BGInfo
+        Write-Host "  [INFO] BGInfo will open - please:" -foregroundcolor $foregroundColor2
+        Write-Host "    1. REMOVE unwanted fields (right-click to delete)" -foregroundcolor $foregroundColor2
+        Write-Host "    2. Keep only: Computer Name, IP Address, OS Version" -foregroundcolor $foregroundColor2
+        Write-Host "    3. Click 'Apply' when done" -foregroundcolor $foregroundColor2
+        Write-Host "    4. BGInfo will close and save your settings" -foregroundcolor $foregroundColor2
+        
+        # Wait for the process to complete
+        $process.WaitForExit()
+        
+        Write-Host "  [OK] Minimal BGInfo configuration created" -foregroundcolor $foregroundColor1
+        return $true
+        
+    } catch {
+        Write-Host "  [ERROR] Failed to create BGInfo configuration: $_" -foregroundcolor $foregroundColor3
+        return $false
+    }
+}
+function Register-BGInfoStartup {
+    [CmdletBinding()]
+    param()
+    
+    Write-Host ($writeEmptyLine + "# Setting up BGInfo autostart..." + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor2
+    
+    # Remove any existing BGInfo shortcuts
+    if (Test-Path $startupShortcut) {
+        Remove-Item $startupShortcut -Force -ErrorAction SilentlyContinue
+        Write-Host "# Removed existing BGInfo startup shortcut" -foregroundcolor $foregroundColor2
+    }
+    
+    # Remove any existing registry entries
+    $regPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run"
+    $regEntries = @("BGInfo", "BgInfo", "bginfo")
+    foreach ($entry in $regEntries) {
+        if (Get-ItemProperty -Path $regPath -Name $entry -ErrorAction SilentlyContinue) {
+            Remove-ItemProperty -Path $regPath -Name $entry -Force -ErrorAction SilentlyContinue
+            Write-Host "# Removed existing registry entry: $entry" -foregroundcolor $foregroundColor2
         }
     }
     
-    Write-Host "# All required BGInfo files are present" -foregroundcolor $foregroundColor1
-    return $true
+    # Create startup shortcut with saved configuration
+    $arguments = "/timer:0 /silent"  # Uses saved config automatically
+    $success = New-Shortcut -Path $startupShortcut -Target $bgInfoExecutable -Arguments $arguments
+    
+    if ($success) {
+        Write-Host ($writeEmptyLine + "# BGInfo startup configured successfully" + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor1
+        return $true
+    } else {
+        Write-Host ($writeEmptyLine + "# Failed to configure BGInfo startup" + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor3
+        return $false
+    }
 }
 
-## ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+function Test-BGInfoExecution {
+    [CmdletBinding()]
+    param()
+    
+    Write-Host ($writeEmptyLine + "# Testing BGInfo execution with minimal config..." + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor2
+    
+    try {
+        # Run BGInfo with the saved configuration
+        Start-Process -FilePath $bgInfoExecutable -ArgumentList "/timer:0 /silent" -Wait -WindowStyle Hidden
+        Write-Host "  [OK] BGInfo executed successfully with minimal display" -foregroundcolor $foregroundColor1
+        return $true
+    } catch {
+        Write-Host "  [ERROR] BGInfo execution failed: $_" -foregroundcolor $foregroundColor3
+        return $false
+    }
+}
 
 ## Main Script Execution
 
@@ -206,95 +225,56 @@ if (-not (Test-Administrator)) {
 # Write script started
 Write-Host ($writeEmptyLine + "# Enhanced BGInfo deployment script started" + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor1 $writeEmptyLine
 
-## ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-# Create Wallpaper folder or clean existing BGInfo content
+# Create BGInfo folder
 try {
     if (!(Test-Path -Path $bgInfoFolder)) {
         New-Item -ItemType Directory -Force -Path $bgInfoFolder | Out-Null
-        Write-Host ($writeEmptyLine + "# Wallpaper folder created at $bgInfoFolder" + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor2 $writeEmptyLine
+        Write-Host ($writeEmptyLine + "# BGInfo folder created at $bgInfoFolder" + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor2 $writeEmptyLine
     } else {
-        # Only remove BGInfo-related files, preserve wallpaper files
-        Remove-Item -Path $bgInfoFolderContent -Force -Recurse -ErrorAction SilentlyContinue
-        Write-Host ($writeEmptyLine + "# Existing BGInfo content cleaned from wallpaper folder" + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor2 $writeEmptyLine
+        Write-Host ($writeEmptyLine + "# BGInfo folder already exists at $bgInfoFolder" + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor2 $writeEmptyLine
     }
 } catch {
-    Write-Host ($writeEmptyLine + "# Failed to create or clean wallpaper folder: $_" + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor3 $writeEmptyLine
+    Write-Host ($writeEmptyLine + "# Failed to create BGInfo folder: $_" + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor3 $writeEmptyLine
     exit 1
 }
 
-## ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-# Try to copy local files first, then download what's missing
-$localFiles = Copy-LocalBGInfoFiles
-
-# Determine what we need to download
-$needExecutable = -not (Test-Path "$bgInfoFolder\Bginfo64.exe")
-$needConfig = -not (Test-Path "$bgInfoFolder\WallpaperSettings.bgi")
-
-if ($needExecutable -or $needConfig) {
-    $downloadSuccess = Download-BGInfoFromWeb -NeedExecutable $needExecutable -NeedConfig $needConfig
-    if (-not $downloadSuccess) {
-        Write-Host ($writeEmptyLine + "# Failed to obtain required BGInfo files" + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor3 $writeEmptyLine
-        exit 1
-    }
-} else {
-    Write-Host ($writeEmptyLine + "# All required BGInfo files are available" + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor1
-}
-
-# Verify all required files are present
-if (-not (Test-BGInfoFiles)) {
-    Write-Host ($writeEmptyLine + "# BGInfo installation incomplete - missing required files" + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor3 $writeEmptyLine
+# Get BGInfo executable
+$executableSuccess = Get-BGInfoExecutable
+if (-not $executableSuccess) {
+    Write-Host ($writeEmptyLine + "# Failed to obtain BGInfo executable" + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor3 $writeEmptyLine
     exit 1
 }
 
-## ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-# Create BGInfo registry key for AutoStart
-try {
-    # Clean up any existing BGInfo entries (case-insensitive)
-    $runKey = Get-Item -Path $bgInfoRegPath
-    $existingEntries = $runKey.GetValueNames() | Where-Object { $_ -match "^bg?info$" }
-    
-    foreach ($entry in $existingEntries) {
-        Write-Host "# Removing existing BGInfo registry entry: $entry" -foregroundcolor $foregroundColor2
-        Remove-ItemProperty -Path $bgInfoRegPath -Name $entry -Force -ErrorAction SilentlyContinue
-    }
-    
-    # Create the new correct entry with startup delay
-    New-ItemProperty -Path $bgInfoRegPath -Name $bgInfoRegKey -PropertyType String -Value $bgInfoRegKeyValue -Force | Out-Null
-    Write-Host ($writeEmptyLine + "# BGInfo registry key created/updated with 10-second startup delay" + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor2 $writeEmptyLine
-    
-} catch {
-    Write-Host ($writeEmptyLine + "# Failed to create BGInfo registry key: $_" + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor3 $writeEmptyLine
+# Verify executable exists
+if (-not (Test-Path $bgInfoExecutable)) {
+    Write-Host ($writeEmptyLine + "# BGInfo executable not found at $bgInfoExecutable" + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor3 $writeEmptyLine
     exit 1
 }
 
-## ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-# Run BGInfo
-try {
-    Write-Host ($writeEmptyLine + "# Executing BGInfo..." + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor2
-    Start-Process -FilePath "$bgInfoFolder\Bginfo64.exe" -ArgumentList "$bgInfoFolder\WallpaperSettings.bgi /timer:0 /nolicprompt" -NoNewWindow -Wait
-    Write-Host ($writeEmptyLine + "# BGInfo executed successfully" + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor1 $writeEmptyLine
-} catch {
-    Write-Host ($writeEmptyLine + "# Failed to execute BGInfo: $_" + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor3 $writeEmptyLine
+# Create minimal configuration
+$configSuccess = Create-MinimalBGInfoConfig
+if (-not $configSuccess) {
+    Write-Host ($writeEmptyLine + "# Failed to create minimal BGInfo configuration" + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor3 $writeEmptyLine
     exit 1
 }
 
-## ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Register BGInfo for startup
+$startupSuccess = Register-BGInfoStartup
+if (-not $startupSuccess) {
+    Write-Host ($writeEmptyLine + "# Failed to configure BGInfo startup" + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor3 $writeEmptyLine
+    exit 1
+}
 
-# Write script completed
+# Test BGInfo execution
+$testSuccess = Test-BGInfoExecution
+if (-not $testSuccess) {
+    Write-Host ($writeEmptyLine + "# BGInfo test execution failed" + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor3 $writeEmptyLine
+    exit 1
+}
+
+# Script completed successfully
 Write-Host ($writeEmptyLine + "# Enhanced BGInfo deployment completed successfully!" + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor1 $writeEmptyLine
-
-if ($localFiles.ConfigFound -and $localFiles.ExecutableFound) {
-    Write-Host "# Used all local BGInfo files from wallpaper folder" -foregroundcolor $foregroundColor1
-} elseif ($localFiles.AnyFound) {
-    Write-Host "# Used local BGInfo files from wallpaper folder + downloaded missing files" -foregroundcolor $foregroundColor1
-} else {
-    Write-Host "# Downloaded all BGInfo files from web sources" -foregroundcolor $foregroundColor1
-}
-
-Write-Host "# BGInfo files installed to: $bgInfoFolder" -foregroundcolor $foregroundColor1
-Write-Host "# BGInfo will run automatically at startup with 10-second delay" -foregroundcolor $foregroundColor1
-Write-Host ($writeEmptyLine + "# This delay ensures desktop is ready before BGInfo applies overlay" + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor1 $writeEmptyLine
+Write-Host "# BGInfo executable: $bgInfoExecutable" -foregroundcolor $foregroundColor1
+Write-Host "# Startup shortcut: $startupShortcut" -foregroundcolor $foregroundColor1
+Write-Host "# BGInfo will run automatically at startup for all users" -foregroundcolor $foregroundColor1
+Write-Host ($writeEmptyLine + "# BGInfo is now active on your desktop with system information overlay" + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor1 $writeEmptyLine
