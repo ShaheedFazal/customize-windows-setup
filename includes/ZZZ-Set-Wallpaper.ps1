@@ -26,7 +26,7 @@ if (-not $isPersisted -and (Test-Path $RepoWallpaperFolder)) {
 $DefaultImage    = Join-Path $WallpaperFolder 'wallpaper.png'
 $BgInfoExe       = Join-Path $WallpaperFolder 'Bginfo.exe'
 $BgInfoSettings  = Join-Path $WallpaperFolder 'WallpaperSettings'
-$BgInfoDir       = Split-Path -Parent $BgInfoExe
+$BgInfoDir       = $WallpaperFolder
 
 # BGInfo download configuration
 $BgInfoUrl = 'https://download.sysinternals.com/files/BGInfo.zip'
