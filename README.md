@@ -216,11 +216,6 @@ The toolkit installs essential applications and sets up automated maintenance:
 - Provides 60-second warning before shutdown
 - Checks every 15 minutes for 6 hours (9 PM - 3 AM)
 
-**Screensaver Configuration:**
-- Creates dedicated screensaver image folder at `C:\Screensaver`
-- Configures Photos screensaver with 10-minute timeout
-- Enables screensaver protection for security
-
 ## 🔧 Customisation & Configuration
 
 ### Feature Toggle System
