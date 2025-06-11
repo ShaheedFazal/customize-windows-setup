@@ -132,8 +132,11 @@ if ($confirmation -ne 'y') {
     return
 }
 
-# Create list of all actions in the includes folder
-$AllActions = Get-ChildItem -Path $IncludesPath -File | Sort-Object -Property Name
+# Create list of all PowerShell scripts in the includes folder
+# Only ".ps1" files should be executed. Other file types like xml
+# or documentation files are ignored to prevent errors when invoking them.
+$AllActions = Get-ChildItem -Path $IncludesPath -Filter '*.ps1' -File |
+    Sort-Object -Property Name
 
 # Files prefixed with ZZZ should run after default profile templating
 $PreTemplateActions = $AllActions | Where-Object { $_.Name -notlike 'ZZZ-*' }
