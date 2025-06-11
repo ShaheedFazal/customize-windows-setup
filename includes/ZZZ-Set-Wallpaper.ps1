@@ -1,16 +1,31 @@
 # Apply a custom wallpaper for the current user
+# Wallpaper assets persist under C:\wallpaper
+# BGInfo is downloaded to that location when missing
 param([string]$WallpaperPath = '')
 
 $ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Definition
-$DefaultImage = Join-Path $ScriptRoot '..\wallpaper\wallpaper.png'
-$BgInfoExe = Join-Path $ScriptRoot '..\wallpaper\Bginfo.exe'
-$BgInfoSettings = Join-Path $ScriptRoot '..\wallpaper\WallpaperSettings'
+$RepoWallpaperFolder = Join-Path $ScriptRoot '..\wallpaper'
+$WallpaperFolder = 'C:\\wallpaper'
 
-# Startup configuration
+# Ensure wallpaper folder exists and copy assets when running from the repository
 $CommonStartup   = [Environment]::GetFolderPath('CommonStartup')
 $ScriptFolder    = 'C:\\Scripts'
 $PersistedScript = Join-Path $ScriptFolder 'Reload-Wallpaper.ps1'
 $StartupCmd      = Join-Path $CommonStartup 'ReloadWallpaper.cmd'
+$isPersisted     = ($PSCommandPath -ieq $PersistedScript)
+
+if (-not (Test-Path $WallpaperFolder)) {
+    New-Item -ItemType Directory -Path $WallpaperFolder -Force | Out-Null
+}
+if (-not $isPersisted -and (Test-Path $RepoWallpaperFolder)) {
+    Get-ChildItem -Path $RepoWallpaperFolder -File | ForEach-Object {
+        Copy-Item -Path $_.FullName -Destination (Join-Path $WallpaperFolder $_.Name) -Force
+    }
+}
+
+$DefaultImage    = Join-Path $WallpaperFolder 'wallpaper.png'
+$BgInfoExe       = Join-Path $WallpaperFolder 'Bginfo.exe'
+$BgInfoSettings  = Join-Path $WallpaperFolder 'WallpaperSettings'
 
 # BGInfo download configuration
 $BgInfoUrl = 'https://download.sysinternals.com/files/BGInfo.zip'
@@ -46,7 +61,6 @@ if (-not (Test-Path $WallpaperPath)) {
 }
 
 # Persist script and configure startup if running from the repository
-$isPersisted = ($PSCommandPath -ieq $PersistedScript)
 if (-not $isPersisted) {
     if (-not (Test-Path $ScriptFolder)) {
         New-Item -ItemType Directory -Path $ScriptFolder -Force | Out-Null
@@ -60,7 +74,7 @@ if (-not $isPersisted) {
     }
 }
 
-# Download BGInfo if missing
+# Download BGInfo to $WallpaperFolder if missing
 if (-not (Test-Path $BgInfoExe)) {
     Write-Host 'BGInfo not found. Downloading...' -ForegroundColor Cyan
     if (Download-File -Url $BgInfoUrl -Path $BgInfoZip) {
