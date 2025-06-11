@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 Enhanced BGInfo deployment script that checks for local repo files before downloading
 
@@ -75,7 +75,8 @@ function Copy-LocalBGInfoFiles {
     [CmdletBinding()]
     param()
     
-    $filesFound = $false
+    $configFound = $false
+    $executableFound = $false
     
     Write-Host ($writeEmptyLine + "# Checking for local BGInfo files in wallpaper folder..." + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor2
     
@@ -83,7 +84,7 @@ function Copy-LocalBGInfoFiles {
     if (Test-Path $localBGInfoExe) {
         Write-Host "# Found local BGInfo executable: $localBGInfoExe" -foregroundcolor $foregroundColor2
         Copy-Item -Path $localBGInfoExe -Destination "$bgInfoFolder\Bginfo64.exe" -Force
-        $filesFound = $true
+        $executableFound = $true
     }
     elseif (Test-Path $localBGInfoZip) {
         Write-Host "# Found local BGInfo ZIP: $localBGInfoZip" -foregroundcolor $foregroundColor2
@@ -93,37 +94,46 @@ function Copy-LocalBGInfoFiles {
         Expand-Archive -LiteralPath $bgInfoZip -DestinationPath $bgInfoFolder -Force
         Remove-Item $bgInfoZip -Force -ErrorAction SilentlyContinue
         Remove-Item $bgInfoEula -Force -ErrorAction SilentlyContinue
-        $filesFound = $true
+        $executableFound = $true
     }
     
     # Check for local WallpaperSettings.bgi file
     if (Test-Path $localWallpaperBgi) {
         Write-Host "# Found local WallpaperSettings.bgi: $localWallpaperBgi" -foregroundcolor $foregroundColor2
         Copy-Item -Path $localWallpaperBgi -Destination "$bgInfoFolder\WallpaperSettings.bgi" -Force
-        $filesFound = $true
+        $configFound = $true
     }
     
-    if ($filesFound) {
+    if ($configFound -or $executableFound) {
         Write-Host ($writeEmptyLine + "# Local BGInfo files copied from wallpaper folder successfully" + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor1
+        if ($configFound) { Write-Host "  ✓ Configuration file (WallpaperSettings.bgi) found locally" -foregroundcolor $foregroundColor1 }
+        if ($executableFound) { Write-Host "  ✓ Executable file (Bginfo64.exe) found locally" -foregroundcolor $foregroundColor1 }
     } else {
         Write-Host "# No local BGInfo files found in wallpaper folder" -foregroundcolor $foregroundColor2
     }
     
-    return $filesFound
+    return @{
+        ConfigFound = $configFound
+        ExecutableFound = $executableFound
+        AnyFound = ($configFound -or $executableFound)
+    }
 }
 
 function Download-BGInfoFromWeb {
     [CmdletBinding()]
-    param()
+    param(
+        [bool]$NeedExecutable = $true,
+        [bool]$NeedConfig = $true
+    )
     
     try {
-        Write-Host ($writeEmptyLine + "# Local files not found, downloading BGInfo from web..." + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor2
+        Write-Host ($writeEmptyLine + "# Downloading missing BGInfo files from web..." + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor2
         
         # Ensure TLS 1.2 is used for compatibility
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
         
-        # Download BGInfo if we don't have the executable
-        if (-not (Test-Path "$bgInfoFolder\Bginfo64.exe")) {
+        # Download BGInfo executable if needed
+        if ($NeedExecutable -and (-not (Test-Path "$bgInfoFolder\Bginfo64.exe"))) {
             Write-Host "# Downloading BGInfo executable..." -foregroundcolor $foregroundColor2
             
             try {
@@ -139,20 +149,22 @@ function Download-BGInfoFromWeb {
             # Extract and clean up
             Expand-Archive -LiteralPath $bgInfoZip -DestinationPath $bgInfoFolder -Force
             Remove-Item $bgInfoZip, $bgInfoEula -Force -ErrorAction SilentlyContinue
+            Write-Host "  ✓ BGInfo executable downloaded and extracted" -foregroundcolor $foregroundColor1
         }
         
-        # Download WallpaperSettings.bgi if we don't have it
-        if (-not (Test-Path "$bgInfoFolder\WallpaperSettings.bgi")) {
+        # Download WallpaperSettings.bgi if needed
+        if ($NeedConfig -and (-not (Test-Path "$bgInfoFolder\WallpaperSettings.bgi"))) {
             Write-Host "# Downloading WallpaperSettings.bgi configuration..." -foregroundcolor $foregroundColor2
             
             Invoke-WebRequest -Uri $wallpaperBgiUrl -OutFile "$bgInfoFolder\WallpaperSettings.bgi" -UseBasicParsing
+            Write-Host "  ✓ WallpaperSettings.bgi downloaded" -foregroundcolor $foregroundColor1
         }
         
-        Write-Host ($writeEmptyLine + "# BGInfo downloaded and extracted successfully" + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor1
+        Write-Host ($writeEmptyLine + "# Required BGInfo files obtained successfully" + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor1
         return $true
         
     } catch {
-        Write-Host ($writeEmptyLine + "# Failed to download BGInfo: $_" + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor3
+        Write-Host ($writeEmptyLine + "# Failed to download BGInfo files: $_" + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor3
         return $false
     }
 }
@@ -209,15 +221,21 @@ try {
 
 ## ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-# Try to copy local files first, then download if needed
-$localFilesUsed = Copy-LocalBGInfoFiles
+# Try to copy local files first, then download what's missing
+$localFiles = Copy-LocalBGInfoFiles
 
-if (-not $localFilesUsed) {
-    $downloadSuccess = Download-BGInfoFromWeb
+# Determine what we need to download
+$needExecutable = -not (Test-Path "$bgInfoFolder\Bginfo64.exe")
+$needConfig = -not (Test-Path "$bgInfoFolder\WallpaperSettings.bgi")
+
+if ($needExecutable -or $needConfig) {
+    $downloadSuccess = Download-BGInfoFromWeb -NeedExecutable $needExecutable -NeedConfig $needConfig
     if (-not $downloadSuccess) {
-        Write-Host ($writeEmptyLine + "# Failed to obtain BGInfo files from any source" + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor3 $writeEmptyLine
+        Write-Host ($writeEmptyLine + "# Failed to obtain required BGInfo files" + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor3 $writeEmptyLine
         exit 1
     }
+} else {
+    Write-Host ($writeEmptyLine + "# All required BGInfo files are available" + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor1
 }
 
 # Verify all required files are present
@@ -258,10 +276,12 @@ try {
 # Write script completed
 Write-Host ($writeEmptyLine + "# Enhanced BGInfo deployment completed successfully!" + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor1 $writeEmptyLine
 
-if ($localFilesUsed) {
-    Write-Host "# Used local BGInfo files from wallpaper folder" -foregroundcolor $foregroundColor1
+if ($localFiles.ConfigFound -and $localFiles.ExecutableFound) {
+    Write-Host "# Used all local BGInfo files from wallpaper folder" -foregroundcolor $foregroundColor1
+} elseif ($localFiles.AnyFound) {
+    Write-Host "# Used local BGInfo files from wallpaper folder + downloaded missing files" -foregroundcolor $foregroundColor1
 } else {
-    Write-Host "# Downloaded BGInfo files from web sources" -foregroundcolor $foregroundColor1
+    Write-Host "# Downloaded all BGInfo files from web sources" -foregroundcolor $foregroundColor1
 }
 
 Write-Host "# BGInfo files installed to: $bgInfoFolder" -foregroundcolor $foregroundColor1
