@@ -143,6 +143,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "Set-ExecutionPolicy Bypa
 **Custom Wallpaper System:**
 - Applies a custom wallpaper
 - Supports custom images via `wallpaper/wallpaper.png`
+- Utilises BGInfo when `wallpaper/WallpaperSettings` is found. The script downloads BGInfo automatically if needed.
+- Configures a startup entry so the wallpaper is re-applied at each logon
 
 **Office Suite Integration:**
 - Interactive choice between Google Workspace (web-based) and LibreOffice
@@ -243,8 +245,10 @@ $DRIVELETTERCDROM = "z:"                   # CD-ROM drive letter assignment
 ### Advanced Customisation Options
 
 **Wallpaper Personalisation:**
-1. Add your image as `wallpaper/wallpaper.png`
-2. Run `ZZZ-Set-Wallpaper.ps1` to apply the image.
+1. Add your image as `wallpaper/wallpaper.png`.
+2. (Optional) place a `WallpaperSettings` file created by BGInfo in the same folder.
+3. Run `ZZZ-Set-Wallpaper.ps1` to apply the wallpaper. The script downloads BGInfo if missing and uses the settings file to generate the wallpaper.
+4. The script sets up a startup task so the wallpaper reloads automatically at logon.
 
 **Microsoft Edge Policies:**
 - 18 configurable policies in `Debloat-MicrosoftEdge.ps1`
