@@ -7,7 +7,7 @@ $registryPaths = @(
 )
 
 foreach ($path in $registryPaths) {
-    if (Test-Path $path -PathType Container -and `
+    if ((Test-Path $path -PathType Container) -and
         (Get-ItemProperty -Path $path -Name $userFolderGuid -ErrorAction SilentlyContinue)) {
         Remove-RegistryValue -Path $path -Name $userFolderGuid
     } else {
