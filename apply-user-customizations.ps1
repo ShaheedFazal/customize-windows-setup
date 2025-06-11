@@ -31,6 +31,7 @@ $userScripts = @(
     @{ Script = 'Hide-Recently-Shortcuts.ps1';       Description = 'Hide recently used shortcuts' },
     @{ Script = 'Hide-People-Icon-Taskbar.ps1';      Description = 'Hide People icon from taskbar' },
     @{ Script = 'Hide-Task-View-Button.ps1';         Description = 'Hide Task View button' },
+    @{ Script = 'Disable-Widgets.ps1';           Description = 'Disable Windows 11 widgets' },
     @{ Script = 'Hide-User-Folder-From-Desktop.ps1'; Description = 'Hide User Folder icon from desktop' },
     @{ Script = 'Show-All-Tray-Icons.ps1';           Description = 'Show all system tray icons' },
     @{ Script = 'Show-Small-Icons-in-Taskbar.ps1';   Description = 'Use small taskbar icons' },
