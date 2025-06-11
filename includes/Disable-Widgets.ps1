@@ -4,13 +4,9 @@
 Set-RegistryValue -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarDa" -Value 0 -Type "DWord" -Force
 
 # Apply system-wide policy to disable Widgets
-try {
-    $widgetsPolicy = "HKLM:\SOFTWARE\Policies\Microsoft\Dsh"
-    if (!(Test-Path $widgetsPolicy)) {
-        New-Item -Path $widgetsPolicy -Force | Out-Null
-    }
-    Set-ItemProperty -Path $widgetsPolicy -Name "AllowNewsAndInterests" -Type DWord -Value 0
+$widgetsPolicy = "HKLM:\SOFTWARE\Policies\Microsoft\Dsh"
+if (Set-RegistryValue -Path $widgetsPolicy -Name "AllowNewsAndInterests" -Value 0 -Type "DWord" -Force) {
     Write-Host "[OK] Policy applied: Widgets disabled system-wide"
-} catch {
-    Write-Host "[WARN] Could not apply widgets policy: $($_.Exception.Message)"
+} else {
+    Write-Host "[WARN] Could not apply widgets policy" -ForegroundColor Yellow
 }

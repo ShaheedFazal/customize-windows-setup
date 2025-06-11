@@ -70,10 +70,11 @@ if(!(Test-Path $TEMPFOLDER)) {
     New-Item -ItemType Directory -Force -Path $TEMPFOLDER | Out-Null
 }
 
-if(-not (Test-Administrator)) {
-    Write-Error "This script must be executed as Administrator.";
-    Read-Host "Press ENTER to continue..."
-    exit 1;
+if (-not (Test-Administrator)) {
+    Write-Host "[INFO] Re-launching with administrative privileges..." -ForegroundColor Yellow
+    $quotedArgs = $MyInvocation.UnboundArguments | ForEach-Object { '"' + $_ + '"' } -join ' '
+    Start-Process -FilePath "powershell.exe" -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`" $quotedArgs" -Verb RunAs
+    exit
 }
 
 # Start logging the console output
