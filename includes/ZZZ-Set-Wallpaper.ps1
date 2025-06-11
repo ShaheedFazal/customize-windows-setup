@@ -26,6 +26,7 @@ if (-not $isPersisted -and (Test-Path $RepoWallpaperFolder)) {
 $DefaultImage    = Join-Path $WallpaperFolder 'wallpaper.png'
 $BgInfoExe       = Join-Path $WallpaperFolder 'Bginfo.exe'
 $BgInfoSettings  = Join-Path $WallpaperFolder 'WallpaperSettings'
+$BgInfoDir       = $WallpaperFolder
 
 # BGInfo download configuration
 $BgInfoUrl = 'https://download.sysinternals.com/files/BGInfo.zip'
@@ -79,9 +80,12 @@ if (-not (Test-Path $BgInfoExe)) {
     Write-Host 'BGInfo not found. Downloading...' -ForegroundColor Cyan
     if (Download-File -Url $BgInfoUrl -Path $BgInfoZip) {
         try {
-            Expand-Archive -Path $BgInfoZip -DestinationPath (Split-Path $BgInfoExe) -Force
+            if (-not (Test-Path $BgInfoDir)) {
+                New-Item -ItemType Directory -Path $BgInfoDir -Force | Out-Null
+            }
+            Expand-Archive -Path $BgInfoZip -DestinationPath $BgInfoDir -Force
             Remove-Item $BgInfoZip -ErrorAction SilentlyContinue
-            $downloaded = Get-ChildItem -Path (Split-Path $BgInfoExe) -Filter 'Bginfo*.exe' -Recurse | Select-Object -First 1
+            $downloaded = Get-ChildItem -Path $BgInfoDir -Filter 'Bginfo*.exe' -Recurse | Select-Object -First 1
             if ($downloaded) {
                 Move-Item $downloaded.FullName $BgInfoExe -Force
                 Write-Host "BGInfo downloaded to $BgInfoExe" -ForegroundColor Green
