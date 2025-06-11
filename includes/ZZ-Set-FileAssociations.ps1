@@ -34,6 +34,21 @@ try {
     Write-Host " - Successfully applied new default file associations." -ForegroundColor Green
     Write-Host "   (Changes will take effect for existing users on their next login)"
 
+    # Apply associations immediately for the current user using Set-FileAssociation
+    try {
+        if (-not (Get-Command Set-FileAssociation -ErrorAction SilentlyContinue)) {
+            $shared = Join-Path $scriptDirectory 'Shared-Functions.ps1'
+            if (Test-Path $shared) { . $shared }
+        }
+        $xmlContent = [xml](Get-Content -Path $xmlPath)
+        foreach ($assoc in $xmlContent.DefaultAssociations.Association) {
+            Set-FileAssociation -ExtensionOrProtocol $assoc.Identifier -ProgId $assoc.ProgId
+        }
+        Write-Host " - Current user associations configured." -ForegroundColor Green
+    } catch {
+        Write-Warning "Failed to set associations for current user: $_"
+    }
+
 }
 catch {
     Write-Error "An error occurred during file association setup: $_"
