@@ -13,6 +13,64 @@
 
 Write-Host "Starting system configuration..." -ForegroundColor Cyan
 
+# Ensure TLS 1.2 for downloads
+if (-not ([System.Net.ServicePointManager]::SecurityProtocol -band [System.Net.SecurityProtocolType]::Tls12)) {
+    [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
+}
+
+function Download-File {
+    param([string]$Url, [string]$Path)
+    $maxRetries = 3
+    for ($i = 1; $i -le $maxRetries; $i++) {
+        try {
+            Invoke-WebRequest -Uri $Url -OutFile $Path -UseBasicParsing -ErrorAction Stop
+            return $true
+        } catch {
+            if ($i -eq $maxRetries) { return $false }
+            Start-Sleep -Seconds (2 * $i)
+        }
+    }
+    return $false
+}
+
+# Ensure SetUserFTA is available for file association changes
+$scriptFolder = 'C:\\Scripts'
+if (-not (Test-Path $scriptFolder)) {
+    New-Item -ItemType Directory -Path $scriptFolder | Out-Null
+}
+$arch        = if ([Environment]::Is64BitOperatingSystem) { 'x64' } else { 'x86' }
+$setUserFtaUrl = "https://setuserfta.com/downloads/SetUserFTA_$arch.zip"
+$setUserFtaZip  = Join-Path $env:TEMP "SetUserFTA_$arch.zip"
+$setUserFtaPath = Join-Path $scriptFolder 'SetUserFTA.exe'
+
+if (-not (Test-Path $setUserFtaPath)) {
+    Write-Host "Downloading SetUserFTA..." -ForegroundColor Cyan
+    if (Download-File -Url $setUserFtaUrl -Path $setUserFtaZip) {
+        try {
+            Expand-Archive -Path $setUserFtaZip -DestinationPath $scriptFolder -Force
+            Remove-Item $setUserFtaZip -ErrorAction SilentlyContinue
+
+            $executable = Get-ChildItem -Path $scriptFolder -Filter 'SetUserFTA*.exe' -Recurse | Where-Object { $_.Name -match $arch } | Select-Object -First 1
+            if (-not $executable) {
+                $executable = Get-ChildItem -Path $scriptFolder -Filter 'SetUserFTA*.exe' -Recurse | Select-Object -First 1
+            }
+            if ($executable) {
+                Copy-Item $executable.FullName $setUserFtaPath -Force
+                Write-Host "[OK] SetUserFTA extracted to $setUserFtaPath" -ForegroundColor Green
+            } else {
+                Write-Warning "SetUserFTA executable not found after extraction"
+                Write-Log "SetUserFTA executable missing after extraction"
+            }
+        } catch {
+            Write-Host "[ERROR] Failed to extract SetUserFTA: $_" -ForegroundColor Red
+            Write-Log "SetUserFTA extraction failed: $_"
+        }
+    } else {
+        Write-Host "[ERROR] SetUserFTA download failed" -ForegroundColor Red
+        Write-Log "SetUserFTA download failed from $setUserFtaUrl"
+    }
+}
+
 # --- Action 1: Apply Default File Associations ---
 try {
     Write-Host "`n[1/2] Applying default file associations..." -ForegroundColor White
