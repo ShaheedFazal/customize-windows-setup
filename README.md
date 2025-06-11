@@ -128,7 +128,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "Set-ExecutionPolicy Bypa
 ### 🎨 Interface & User Experience
 
 **Taskbar & Start Menu Optimisation:**
-- Hides search box, Task View, and People icons
+- Hides search box, Task View, People, and Widgets icons
+- Disables Windows 11 Widgets feature
 - Shows small taskbar icons for space efficiency
 - Displays all system tray icons for better visibility
 - Removes recently and frequently used items from Explorer
