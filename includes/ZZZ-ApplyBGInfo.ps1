@@ -52,7 +52,7 @@ $wallpaperBgiZip = "$bgInfoFolder\WallpaperSettings.zip"
 # Registry settings
 $bgInfoRegPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run"
 $bgInfoRegKey = "BGInfo"
-$bgInfoRegKeyValue = "C:\Wallpaper\Bginfo64.exe C:\Wallpaper\WallpaperSettings.bgi /timer:0 /nolicprompt"
+$bgInfoRegKeyValue = 'cmd /c "timeout /t 10 /nobreak >nul && C:\Wallpaper\Bginfo64.exe C:\Wallpaper\WallpaperSettings.bgi /timer:0 /nolicprompt"'
 
 # Formatting variables
 $global:currenttime = Set-PSBreakpoint -Variable currenttime -Mode Read -Action {$global:currenttime = Get-Date -UFormat "%A %m/%d/%Y %R"}
@@ -252,12 +252,19 @@ if (-not (Test-BGInfoFiles)) {
 
 # Create BGInfo registry key for AutoStart
 try {
-    if (Get-ItemProperty -Path $bgInfoRegPath -Name $bgInfoRegKey -ErrorAction SilentlyContinue) {
-        Write-Host ($writeEmptyLine + "# BGInfo registry key already exists" + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor2 $writeEmptyLine
-    } else {
-        New-ItemProperty -Path $bgInfoRegPath -Name $bgInfoRegKey -PropertyType String -Value $bgInfoRegKeyValue -Force | Out-Null
-        Write-Host ($writeEmptyLine + "# BGInfo registry key created" + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor2 $writeEmptyLine
+    # Clean up any existing BGInfo entries (case-insensitive)
+    $runKey = Get-Item -Path $bgInfoRegPath
+    $existingEntries = $runKey.GetValueNames() | Where-Object { $_ -match "^bg?info$" }
+    
+    foreach ($entry in $existingEntries) {
+        Write-Host "# Removing existing BGInfo registry entry: $entry" -foregroundcolor $foregroundColor2
+        Remove-ItemProperty -Path $bgInfoRegPath -Name $entry -Force -ErrorAction SilentlyContinue
     }
+    
+    # Create the new correct entry with startup delay
+    New-ItemProperty -Path $bgInfoRegPath -Name $bgInfoRegKey -PropertyType String -Value $bgInfoRegKeyValue -Force | Out-Null
+    Write-Host ($writeEmptyLine + "# BGInfo registry key created/updated with 10-second startup delay" + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor2 $writeEmptyLine
+    
 } catch {
     Write-Host ($writeEmptyLine + "# Failed to create BGInfo registry key: $_" + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor3 $writeEmptyLine
     exit 1
@@ -289,4 +296,5 @@ if ($localFiles.ConfigFound -and $localFiles.ExecutableFound) {
 }
 
 Write-Host "# BGInfo files installed to: $bgInfoFolder" -foregroundcolor $foregroundColor1
-Write-Host ($writeEmptyLine + "# BGInfo will now run automatically at startup" + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor1 $writeEmptyLine
+Write-Host "# BGInfo will run automatically at startup with 10-second delay" -foregroundcolor $foregroundColor1
+Write-Host ($writeEmptyLine + "# This delay ensures desktop is ready before BGInfo applies overlay" + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor1 $writeEmptyLine
