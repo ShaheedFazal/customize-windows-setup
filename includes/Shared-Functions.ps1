@@ -294,7 +294,9 @@ function Set-FileAssociation {
     $useFallback = $true
     if (Test-Path $SetUserFtaPath) {
         try {
-            & $SetUserFtaPath $ExtensionOrProtocol $ProgId | Out-Null
+            # Use -ErrorAction Stop so we can catch failures when the
+            # executable is incompatible with the current OS
+            & $SetUserFtaPath $ExtensionOrProtocol $ProgId -ErrorAction Stop | Out-Null
             $useFallback = $false
         } catch {
             if ($_.Exception.Message -match 'not a valid application') {

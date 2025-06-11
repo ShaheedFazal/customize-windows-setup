@@ -284,8 +284,9 @@ powershell -ExecutionPolicy Bypass .\customize-windows-client.ps1
 - Warns about potential lockout scenarios
 
 -**File Association Issues:**
- - The file-association script now verifies that `SetUserFTA.exe` exists at the path specified by `-SetUserFtaDir` (default `C:\Scripts`). If it is missing, the script stops and instructs you to download it from [setuserfta.com](https://setuserfta.com).
+ - The file-association script automatically downloads `SetUserFTA.exe` to the directory specified by `-SetUserFtaDir` (default `C:\Scripts`) if it isn't already present.
 - The registry method and `assoc` command are only attempted when SetUserFTA executes but fails.
+- Execution errors like architecture mismatches are now caught and logged so the fallback methods run automatically.
 - Verify target applications installed correctly
 - Run file association scripts after application installation
 - **Parsing Errors After Manual Extraction:**
