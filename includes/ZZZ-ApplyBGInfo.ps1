@@ -106,8 +106,12 @@ function Copy-LocalBGInfoFiles {
     
     if ($configFound -or $executableFound) {
         Write-Host ($writeEmptyLine + "# Local BGInfo files copied from wallpaper folder successfully" + $writeSeperatorSpaces + $currentTime) -foregroundcolor $foregroundColor1
-        if ($configFound) { Write-Host "  ✓ Configuration file (WallpaperSettings.bgi) found locally" -foregroundcolor $foregroundColor1 }
-        if ($executableFound) { Write-Host "  ✓ Executable file (Bginfo64.exe) found locally" -foregroundcolor $foregroundColor1 }
+        if ($configFound) { 
+            Write-Host "  ✓ Configuration file WallpaperSettings.bgi found locally" -foregroundcolor $foregroundColor1 
+        }
+        if ($executableFound) { 
+            Write-Host "  ✓ Executable file Bginfo64.exe found locally" -foregroundcolor $foregroundColor1 
+        }
     } else {
         Write-Host "# No local BGInfo files found in wallpaper folder" -foregroundcolor $foregroundColor2
     }
