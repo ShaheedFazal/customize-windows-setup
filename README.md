@@ -146,8 +146,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "Set-ExecutionPolicy Bypa
 
 **Office Suite Integration:**
 - Interactive choice between Google Workspace (web-based) and LibreOffice
-- Automatic file association configuration for documents, spreadsheets, presentations
-- Google Workspace option includes desktop shortcuts and file associations
+- Google Workspace option includes desktop shortcuts
 - LibreOffice option provides full offline productivity suite
 
 ### 🔧 Network & Connectivity
@@ -196,15 +195,6 @@ The toolkit installs essential applications and sets up automated maintenance:
 - Updates all winget-managed applications automatically
 - Runs as SYSTEM account for reliable execution
 - Generates update script at `C:\Scripts\Update-WingetApps.ps1`
-
- - **File Association Management:**
- - Downloads and configures SetUserFTA.exe for reliable file associations. By default the tool is stored in `C:\Scripts` but you can supply a different path with the `-SetUserFtaDir` parameter.
- - Falls back to a built-in registry method and finally the `assoc` command when SetUserFTA is unavailable.
-- Supports both Chrome-based (Google Workspace) and LibreOffice associations
-- Handles PDF, Office documents, and web protocols
-- Maintains consistency across user profiles
-- Integrates methods from [PS-SFTA](https://github.com/DanysysTeam/PS-SFTA) so
-  existing accounts receive updated associations immediately
 
 ### Smart Features
 
@@ -279,12 +269,6 @@ powershell -ExecutionPolicy Bypass .\customize-windows-client.ps1
 - Prompts for local account creation before proceeding
 - Warns about potential lockout scenarios
 
--**File Association Issues:**
- - The file-association script automatically downloads `SetUserFTA.exe` to the directory specified by `-SetUserFtaDir` (default `C:\Scripts`) if it isn't already present.
-- The registry method and `assoc` command are only attempted when SetUserFTA executes but fails.
-- Execution errors like architecture mismatches are now caught and logged so the fallback methods run automatically.
-- Verify target applications installed correctly
-- Run file association scripts after application installation
 - **Parsing Errors After Manual Extraction:**
   - Some third-party unzip tools can corrupt PowerShell files
   - Re-download using the provided `download-repo.ps1` script or `Expand-Archive`
