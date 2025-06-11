@@ -204,6 +204,8 @@ The toolkit installs essential applications and sets up automated maintenance:
 - Supports both Chrome-based (Google Workspace) and LibreOffice associations
 - Handles PDF, Office documents, and web protocols
 - Maintains consistency across user profiles
+- Integrates methods from [PS-SFTA](https://github.com/DanysysTeam/PS-SFTA) so
+  existing accounts receive updated associations immediately
 
 ### Smart Features
 
