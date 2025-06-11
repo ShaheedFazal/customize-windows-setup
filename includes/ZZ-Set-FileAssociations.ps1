@@ -1,114 +1,70 @@
-# Configure default file associations for Chrome and office documents
+#Requires -RunAsAdministrator
+<#
+.SYNOPSIS
+    Applies standard configurations for a workgroup computer.
+.DESCRIPTION
+    This script performs two main actions:
+    1. Sets default file associations using a 'WorkgroupDefaults.xml' file.
+    2. Configures a Microsoft Edge policy to stop it from asking to be the default browser.
 
-param(
-    [ValidateSet('Google','LibreOffice')]
-    [string]$Suite
-)
+    The script looks for the XML file in its own directory.
+    This script MUST be run with Administrator privileges.
+#>
 
-Write-Host "Configuring file associations..." -ForegroundColor Cyan
+Write-Host "Starting system configuration..." -ForegroundColor Cyan
 
-$setUserFtaPath = Join-Path $env:TEMP 'SetUserFTA.exe'
-if (-not (Test-Path $setUserFtaPath)) {
-    $setUserFtaPath = 'C:\\Scripts\\SetUserFTA.exe'
-}
+# --- Action 1: Apply Default File Associations ---
+try {
+    Write-Host "`n[1/2] Applying default file associations..." -ForegroundColor White
 
-# ---- Set Chrome as default browser if installed ----
-$chromePaths = @(
-    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'
-)
-$chromeInstalled = $chromePaths | Where-Object { Test-Path $_ } | Measure-Object | Select-Object -ExpandProperty Count
+    # Get the directory where this script is located.
+    $scriptDirectory = $PSScriptRoot
 
-if ($chromeInstalled) {
-    Write-Host "Setting Google Chrome defaults..." -ForegroundColor Green
-    $chromeAssoc = @{
-        'http'   = 'ChromeHTML'
-        'https'  = 'ChromeHTML'
-        '.htm'   = 'ChromeHTML'
-        '.html'  = 'ChromeHTML'
-        '.pdf'   = 'ChromePDF'
-        'mailto' = 'ChromeHTML'
+    # Define the expected name of the XML configuration file.
+    $xmlFileName = "AppAssoc.xml"
+    $xmlPath = Join-Path $scriptDirectory $xmlFileName
+
+    # Check if the XML file actually exists.
+    if (-not (Test-Path $xmlPath)) {
+        throw "Configuration file not found. Make sure '$xmlFileName' is in the same folder as this script."
     }
-    foreach ($type in $chromeAssoc.Keys) {
-        try {
-            Set-FileAssociation -ExtensionOrProtocol $type -ProgId $chromeAssoc[$type] -SetUserFtaPath $setUserFtaPath
-        } catch {
-            Write-Warning "Failed to associate $type with Chrome"
-            Write-Log "Association error for $type : $_"
-        }
+
+    Write-Host " - Found configuration file at: $xmlPath" -ForegroundColor Green
+    Dism.exe /Online /Import-DefaultAppAssociations:$xmlPath
+    Write-Host " - Successfully applied new default file associations." -ForegroundColor Green
+    Write-Host "   (Changes will take effect for existing users on their next login)"
+
+}
+catch {
+    Write-Error "An error occurred during file association setup: $_"
+}
+
+
+# --- Action 2: Configure Microsoft Edge Policy ---
+try {
+    Write-Host "`n[2/2] Configuring Microsoft Edge policies..." -ForegroundColor White
+
+    # Define the path in HKEY_LOCAL_MACHINE to apply the policy to ALL users.
+    $edgePolicyPath = "HKLM:\SOFTWARE\Policies\Microsoft\Edge"
+
+    # Check if the 'Edge' key exists. If not, create it.
+    if (-not (Test-Path $edgePolicyPath)) {
+        Write-Host " - Edge policy key not found. Creating it now..." -ForegroundColor Yellow
+        New-Item -Path $edgePolicyPath -Force | Out-Null
     }
-    Write-Host "Google Chrome set as default browser." -ForegroundColor Green
-} else {
-    Write-Host "Google Chrome not found. Skipping default browser configuration." -ForegroundColor Yellow
+
+    # Set the registry value to disable the default browser check.
+    # Name: DefaultBrowserSettingEnabled
+    # Type: DWORD (32-bit)
+    # Value: 0
+    New-ItemProperty -Path $edgePolicyPath -Name "DefaultBrowserSettingEnabled" -Value 0 -PropertyType DWord -Force | Out-Null
+
+    Write-Host " - Successfully set Edge policy to prevent default browser prompts." -ForegroundColor Green
+}
+catch {
+    Write-Error "An error occurred during Edge policy configuration: $_"
 }
 
-# ---- Set office document defaults ----
-if (-not $Suite) {
-    $Suite = $OFFICESUITE
-}
 
-if (-not $Suite) {
-    Write-Host "No office suite selection made. Skipping." -ForegroundColor Yellow
-    return
-}
-
-$libreOfficeMap = @{
-    '.doc'  = 'LibreOffice.WriterDocument.1'
-    '.docx' = 'LibreOffice.WriterDocument.1'
-    '.xls'  = 'LibreOffice.CalcDocument.1'
-    '.xlsx' = 'LibreOffice.CalcDocument.1'
-    '.ppt'  = 'LibreOffice.ImpressDocument.1'
-    '.pptx' = 'LibreOffice.ImpressDocument.1'
-}
-
-$chromeMap = @{
-    '.doc'  = 'ChromeHTML'
-    '.docx' = 'ChromeHTML'
-    '.xls'  = 'ChromeHTML'
-    '.xlsx' = 'ChromeHTML'
-    '.ppt'  = 'ChromeHTML'
-    '.pptx' = 'ChromeHTML'
-}
-
-switch ($Suite) {
-    'Google' {
-        Write-Host "Setting Google Workspace defaults..." -ForegroundColor Green
-        foreach ($ext in $chromeMap.Keys) {
-            try {
-                Set-FileAssociation -ExtensionOrProtocol $ext -ProgId $chromeMap[$ext] -SetUserFtaPath $setUserFtaPath
-            } catch {
-                Write-Warning "Failed to set association for $ext"
-                Write-Log "Association error for $ext : $_"
-            }
-        }
-
-        $apps = @{
-            'Google Docs'   = 'https://docs.google.com/document/u/0/'
-            'Google Sheets' = 'https://docs.google.com/spreadsheets/u/0/'
-            'Google Slides' = 'https://docs.google.com/presentation/u/0/'
-            'Google Drive'  = 'https://drive.google.com/'
-        }
-        $startDir   = [Environment]::GetFolderPath('CommonPrograms')
-        $desktopDir = [Environment]::GetFolderPath('CommonDesktopDirectory')
-        foreach ($app in $apps.GetEnumerator()) {
-            $content = "[InternetShortcut]`nURL=$($app.Value)"
-            Set-Content -Path (Join-Path $startDir   ($app.Key + '.url')) -Value $content -Encoding ASCII
-            Set-Content -Path (Join-Path $desktopDir ($app.Key + '.url')) -Value $content -Encoding ASCII
-        }
-        Write-Host "Google Workspace shortcuts added." -ForegroundColor Green
-    }
-    'LibreOffice' {
-        Write-Host "Setting LibreOffice defaults..." -ForegroundColor Green
-        foreach ($ext in $libreOfficeMap.Keys) {
-            try {
-                Set-FileAssociation -ExtensionOrProtocol $ext -ProgId $libreOfficeMap[$ext] -SetUserFtaPath $setUserFtaPath
-            } catch {
-                Write-Warning "Failed to set association for $ext"
-                Write-Log "Association error for $ext : $_"
-            }
-        }
-    }
-    default {
-        Write-Host "No office suite selection made. Skipping." -ForegroundColor Yellow
-    }
-}
+# --- Finish ---
+Write-Host "`nConfiguration complete." -ForegroundColor Cyan
