@@ -54,7 +54,7 @@ if (-not $isPersisted) {
     Copy-Item -Path $PSCommandPath -Destination $PersistedScript -Force
 
     if (-not (Test-Path $StartupCmd)) {
-        $cmd = "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `\"$PersistedScript`\""
+        $cmd = "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$PersistedScript`""
         Set-Content -Path $StartupCmd -Value $cmd -Encoding ASCII
         Write-Host "Startup wallpaper reload configured." -ForegroundColor Green
     }
