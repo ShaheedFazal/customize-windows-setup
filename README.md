@@ -199,9 +199,9 @@ The toolkit installs essential applications and sets up automated maintenance:
 - Runs as SYSTEM account for reliable execution
 - Generates update script at `C:\Scripts\Update-WingetApps.ps1`
 
-- **File Association Management:**
-- Downloads and configures SetUserFTA.exe for reliable file associations.
-- Falls back to a built-in registry method and finally the `assoc` command when SetUserFTA is unavailable.
+ - **File Association Management:**
+ - Downloads and configures SetUserFTA.exe for reliable file associations. By default the tool is stored in `C:\Scripts` but you can supply a different path with the `-SetUserFtaDir` parameter.
+ - Falls back to a built-in registry method and finally the `assoc` command when SetUserFTA is unavailable.
 - Supports both Chrome-based (Google Workspace) and LibreOffice associations
 - Handles PDF, Office documents, and web protocols
 - Maintains consistency across user profiles
@@ -284,7 +284,8 @@ powershell -ExecutionPolicy Bypass .\customize-windows-client.ps1
 - Warns about potential lockout scenarios
 
 -**File Association Issues:**
-- Ensure `SetUserFTA.exe` downloaded successfully to `C:\Scripts\`. The toolkit falls back to a registry method and then `assoc` if needed
+ - The file-association script now verifies that `SetUserFTA.exe` exists at the path specified by `-SetUserFtaDir` (default `C:\Scripts`). If it is missing, the script stops and instructs you to download it from [setuserfta.com](https://setuserfta.com).
+- The registry method and `assoc` command are only attempted when SetUserFTA executes but fails.
 - Verify target applications installed correctly
 - Run file association scripts after application installation
 - **Parsing Errors After Manual Extraction:**
