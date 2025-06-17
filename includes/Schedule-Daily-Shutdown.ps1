@@ -5,7 +5,7 @@ param(
     [string]$ScriptDirectory = "C:\Scripts",
     [int]$IdleTimeoutMinutes = 30,
     # Default Zapier webhook used for shutdown notifications
-    [string]$WebhookUrl = "https://hooks.zapier.com/hooks/catch/45778/uyf4gr8/"
+    [string]$WebhookUrl = ""
 )
 
 # Ensure the helper script directory exists
