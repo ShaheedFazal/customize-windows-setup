@@ -117,14 +117,23 @@ try {
 
 # Backup Registry
 Write-Host ($CR +"Create Registry Backup" + $BLANK + $TIME) -foregroundcolor $FOREGROUNDCOLOR $CR
-try {
-    reg export HKLM C:\Install\registry-backup-hklm.reg /y | Out-Null
-    reg export HKCU C:\Install\registry-backup-hkcu.reg /y | Out-Null
-    reg export HKCR C:\Install\registry-backup-hkcr.reg /y | Out-Null
-} catch {
-    Write-Warning "Failed to create registry backup: $_"
-    $ScriptSuccess = $false
-    $ErrorMessages += "Registry backup: $_"
+$regBackupFiles = @{ 
+    HKLM = "$INSTALLFOLDER\registry-backup-hklm.reg" 
+    HKCU = "$INSTALLFOLDER\registry-backup-hkcu.reg" 
+    HKCR = "$INSTALLFOLDER\registry-backup-hkcr.reg" 
+}
+foreach ($hive in $regBackupFiles.Keys) {
+    $file = $regBackupFiles[$hive]
+    try {
+        reg export $hive $file /y
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path $file) -or (Get-Item $file).Length -eq 0) {
+            throw "Registry export for $hive failed"
+        }
+    } catch {
+        Write-Warning "Failed to backup registry hive $hive: $_"
+        $ScriptSuccess = $false
+        $ErrorMessages += "Registry backup $hive: $_"
+    }
 }
 # Start customization
 Write-Host ($CR +"This system will customized and minimized") -foregroundcolor $FOREGROUNDCOLOR $CR
