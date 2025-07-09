@@ -1,17 +1,18 @@
-# Display the current workgroup and ask whether it should be changed
+# Automatically join the predefined workgroup if not already joined
 $CurrentWorkgroup = (Get-WmiObject Win32_ComputerSystem).Workgroup
-Write-Host ($CR + "Current workgroup: $CurrentWorkgroup") -foregroundcolor $FOREGROUNDCOLOR
-$confirmation = Read-Host "Do you want to change the workgroup? [y/N]"
-if ($confirmation -eq 'y') {
-    $WORKGROUP = Read-Host "Enter new workgroup"
+$WORKGROUP = 'MYLOCALCHEMIST'
 
-    Write-Host ($CR + "Join to workgroup") -foregroundcolor $FOREGROUNDCOLOR $CR
-    Try {
-        Add-Computer -WorkgroupName $WORKGROUP -ErrorAction Stop
-    } Catch {
-        Write-Warning $Error[0]
-    }
-    Write-Host ("Joined to workgroup $WORKGROUP") -foregroundcolor $FOREGROUNDCOLOR $CR
-} else {
-    Write-Host "Workgroup change skipped." -foregroundcolor $FOREGROUNDCOLOR $CR
+Write-Host ($CR + "Current workgroup: $CurrentWorkgroup") -foregroundcolor $FOREGROUNDCOLOR
+
+if ($CurrentWorkgroup -eq $WORKGROUP) {
+    Write-Host ($CR + "Already joined to workgroup '$WORKGROUP'. Skipping.") -foregroundcolor $FOREGROUNDCOLOR $CR
+    return
 }
+
+Write-Host ($CR + "Joining workgroup '$WORKGROUP'") -foregroundcolor $FOREGROUNDCOLOR $CR
+Try {
+    Add-Computer -WorkgroupName $WORKGROUP -ErrorAction Stop
+} Catch {
+    Write-Warning $Error[0]
+}
+Write-Host ("Joined to workgroup $WORKGROUP") -foregroundcolor $FOREGROUNDCOLOR $CR
