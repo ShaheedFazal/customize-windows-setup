@@ -57,13 +57,6 @@ function Test-Administrator {
     }
 }
 
-# Simple wrapper to highlight interactive prompts
-function Prompt-User {
-    param([string]$Message)
-    Write-Host ""  # ensure prompt appears on a new line
-    Write-Host "[PROMPT] $Message" -ForegroundColor Cyan
-    return Read-Host
-}
 
 # Ensure the temp folder exists so a transcript can be written
 if(!(Test-Path $TEMPFOLDER)) {
@@ -80,10 +73,6 @@ if (-not (Test-Administrator)) {
 # Start logging the console output
 $LogPath = Join-Path $TEMPFOLDER ("customize-windows-client-{0:yyyyMMdd-HHmmss}.log" -f (Get-Date))
 Start-Transcript -Path $LogPath | Out-Null
-# Ask whether to create a restore point and registry backup
-$restoreChoice = Prompt-User "Create a system restore point and backup the registry? [press: y]"
- 
-if ($restoreChoice -eq 'y') {
 
 ## Create System Restore Point
 Write-Host ($CR + "Create system restore point" + $BLANK + $TIME) -foregroundcolor $FOREGROUNDCOLOR $CR
@@ -105,7 +94,6 @@ try {
 } catch {
     Write-Warning "Failed to create restore point: $_"
 }
-}
 
 # Create C:\Temp and C:\Install folders if not exists
 Write-Host ($CR +"Create $TEMPFOLDER and $INSTALLFOLDER folders") -foregroundcolor $FOREGROUNDCOLOR
@@ -116,22 +104,13 @@ If(!(test-path $INSTALLFOLDER)) {
     New-Item -ItemType Directory -Force -Path $INSTALLFOLDER
 }
 
-if ($restoreChoice -eq 'y') {
-## Backup Registry
+# Backup Registry
 Write-Host ($CR +"Create Registry Backup" + $BLANK + $TIME) -foregroundcolor $FOREGROUNDCOLOR $CR
 reg export HKLM C:\Install\registry-backup-hklm.reg /y | Out-Null
 reg export HKCU C:\Install\registry-backup-hkcu.reg /y | Out-Null
 reg export HKCR C:\Install\registry-backup-hkcr.reg /y | Out-Null
-
-}
 # Start customization
 Write-Host ($CR +"This system will customized and minimized") -foregroundcolor $FOREGROUNDCOLOR $CR
-$confirmation = Prompt-User "Are you sure you want to proceed? [press: y]"
-if ($confirmation -ne 'y') {
-    Write-Host "Customization canceled" -ForegroundColor Yellow
-    Stop-Transcript | Out-Null
-    return
-}
 
 # Create list of all PowerShell scripts in the includes folder
 # Only ".ps1" files should be executed. Other file types like xml
@@ -158,12 +137,6 @@ foreach ($Action in $PostTemplateActions) {
     Write-Host " ..."
     & $Action.FullName
 }
-# Restart to apply all changes
-Write-Host ($CR +"This system will restart to apply all changes") -foregroundcolor $FOREGROUNDCOLOR $CR
-$confirmation = Prompt-User "Are you sure you want to proceed restart? [press: y]"
-if ($confirmation -eq 'y') {
-    Stop-Transcript | Out-Null
-    Restart-Computer -ComputerName localhost
-} else {
-    Stop-Transcript | Out-Null
-}
+Write-Host ($CR +"All customizations have been applied") -foregroundcolor $FOREGROUNDCOLOR $CR
+Stop-Transcript | Out-Null
+exit
