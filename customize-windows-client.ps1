@@ -57,13 +57,6 @@ function Test-Administrator {
     }
 }
 
-# Simple wrapper to highlight interactive prompts
-function Prompt-User {
-    param([string]$Message)
-    Write-Host ""  # ensure prompt appears on a new line
-    Write-Host "[PROMPT] $Message" -ForegroundColor Cyan
-    return Read-Host
-}
 
 # Ensure the temp folder exists so a transcript can be written
 if(!(Test-Path $TEMPFOLDER)) {
@@ -80,10 +73,9 @@ if (-not (Test-Administrator)) {
 # Start logging the console output
 $LogPath = Join-Path $TEMPFOLDER ("customize-windows-client-{0:yyyyMMdd-HHmmss}.log" -f (Get-Date))
 Start-Transcript -Path $LogPath | Out-Null
-# Ask whether to create a restore point and registry backup
-$restoreChoice = Prompt-User "Create a system restore point and backup the registry? [press: y]"
- 
-if ($restoreChoice -eq 'y') {
+# Track script success and collect error messages
+$ScriptSuccess = $true
+$ErrorMessages = @()
 
 ## Create System Restore Point
 Write-Host ($CR + "Create system restore point" + $BLANK + $TIME) -foregroundcolor $FOREGROUNDCOLOR $CR
@@ -104,34 +96,47 @@ try {
     Checkpoint-Computer -Description "Before customizations" -RestorePointType MODIFY_SETTINGS | Out-Null
 } catch {
     Write-Warning "Failed to create restore point: $_"
-}
+    $ScriptSuccess = $false
+    $ErrorMessages += "Restore point: $_"
 }
 
 # Create C:\Temp and C:\Install folders if not exists
 Write-Host ($CR +"Create $TEMPFOLDER and $INSTALLFOLDER folders") -foregroundcolor $FOREGROUNDCOLOR
-If(!(test-path $TEMPFOLDER)) {
-    New-Item -ItemType Directory -Force -Path $TEMPFOLDER
-}
-If(!(test-path $INSTALLFOLDER)) {
-    New-Item -ItemType Directory -Force -Path $INSTALLFOLDER
+try {
+    if(!(Test-Path $TEMPFOLDER)) {
+        New-Item -ItemType Directory -Force -Path $TEMPFOLDER | Out-Null
+    }
+    if(!(Test-Path $INSTALLFOLDER)) {
+        New-Item -ItemType Directory -Force -Path $INSTALLFOLDER | Out-Null
+    }
+} catch {
+    Write-Warning "Failed to create folders: $_"
+    $ScriptSuccess = $false
+    $ErrorMessages += "Folders: $_"
 }
 
-if ($restoreChoice -eq 'y') {
-## Backup Registry
+# Backup Registry
 Write-Host ($CR +"Create Registry Backup" + $BLANK + $TIME) -foregroundcolor $FOREGROUNDCOLOR $CR
-reg export HKLM C:\Install\registry-backup-hklm.reg /y | Out-Null
-reg export HKCU C:\Install\registry-backup-hkcu.reg /y | Out-Null
-reg export HKCR C:\Install\registry-backup-hkcr.reg /y | Out-Null
-
+$regBackupFiles = @{ 
+    HKLM = "$INSTALLFOLDER\registry-backup-hklm.reg" 
+    HKCU = "$INSTALLFOLDER\registry-backup-hkcu.reg" 
+    HKCR = "$INSTALLFOLDER\registry-backup-hkcr.reg" 
+}
+foreach ($hive in $regBackupFiles.Keys) {
+    $file = $regBackupFiles[$hive]
+    try {
+        reg export $hive $file /y
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path $file) -or (Get-Item $file).Length -eq 0) {
+            throw "Registry export for $hive failed"
+        }
+    } catch {
+        Write-Warning "Failed to backup registry hive $hive: $_"
+        $ScriptSuccess = $false
+        $ErrorMessages += "Registry backup $hive: $_"
+    }
 }
 # Start customization
 Write-Host ($CR +"This system will customized and minimized") -foregroundcolor $FOREGROUNDCOLOR $CR
-$confirmation = Prompt-User "Are you sure you want to proceed? [press: y]"
-if ($confirmation -ne 'y') {
-    Write-Host "Customization canceled" -ForegroundColor Yellow
-    Stop-Transcript | Out-Null
-    return
-}
 
 # Create list of all PowerShell scripts in the includes folder
 # Only ".ps1" files should be executed. Other file types like xml
@@ -145,7 +150,13 @@ foreach ($Action in $PreTemplateActions) {
     Write-Host "Execute " -NoNewline
     Write-Host ($Action.Name) -ForegroundColor Yellow -NoNewline
     Write-Host " ..."
-    & $Action.FullName
+    try {
+        & $Action.FullName
+    } catch {
+        Write-Warning "Action $($Action.Name) failed: $_"
+        $ScriptSuccess = $false
+        $ErrorMessages += "$($Action.Name): $_"
+    }
 }
 Write-Host ($CR +"All customizations completed for current user") -foregroundcolor $FOREGROUNDCOLOR
 # Skip profile templating as this functionality is currently disabled
@@ -156,14 +167,21 @@ foreach ($Action in $PostTemplateActions) {
     Write-Host "Execute " -NoNewline
     Write-Host ($Action.Name) -ForegroundColor Yellow -NoNewline
     Write-Host " ..."
-    & $Action.FullName
+    try {
+        & $Action.FullName
+    } catch {
+        Write-Warning "Action $($Action.Name) failed: $_"
+        $ScriptSuccess = $false
+        $ErrorMessages += "$($Action.Name): $_"
+    }
 }
-# Restart to apply all changes
-Write-Host ($CR +"This system will restart to apply all changes") -foregroundcolor $FOREGROUNDCOLOR $CR
-$confirmation = Prompt-User "Are you sure you want to proceed restart? [press: y]"
-if ($confirmation -eq 'y') {
-    Stop-Transcript | Out-Null
-    Restart-Computer -ComputerName localhost
+if ($ErrorMessages.Count -eq 0) {
+    Write-Host ($CR +"All customizations have been applied successfully") -foregroundcolor $FOREGROUNDCOLOR $CR
+    $ExitCode = 0
 } else {
-    Stop-Transcript | Out-Null
+    Write-Host ($CR +"Customizations completed with errors:") -ForegroundColor Yellow
+    $ErrorMessages | ForEach-Object { Write-Host " - $_" -ForegroundColor Red }
+    $ExitCode = 1
 }
+Stop-Transcript | Out-Null
+exit $ExitCode
