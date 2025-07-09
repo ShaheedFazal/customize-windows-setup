@@ -69,5 +69,4 @@ $results = foreach ($s in $userScripts) {
 $success = ($results | Where-Object Success).Count
 $total   = $results.Count
 Write-Host "`nCompleted $success of $total user customizations." -ForegroundColor $(if($success -eq $total){'Green'}else{'Yellow'})
-
-Read-Host "`nPress Enter to exit..."
+Write-Host "User customizations complete."
