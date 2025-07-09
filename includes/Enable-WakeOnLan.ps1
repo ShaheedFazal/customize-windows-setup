@@ -21,9 +21,9 @@ Get-NetAdapter | Where-Object {
 
     # Set power management options
     try {
-        powercfg -devicequery wake_from_any | Where-Object { $_ -like "*$adapterName*" } | ForEach-Object {
-            powercfg -devicedisablewake $_
-            powercfg -deviceenablewake $_
+        powercfg.exe -devicequery wake_from_any | Where-Object { $_ -like "*$adapterName*" } | ForEach-Object {
+            powercfg.exe -devicedisablewake $_
+            powercfg.exe -deviceenablewake $_
         }
         Write-Host "[OK] Enabled wake permissions in power management for $adapterName"
     } catch {

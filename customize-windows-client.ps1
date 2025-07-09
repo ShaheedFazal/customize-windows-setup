@@ -125,7 +125,7 @@ $regBackupFiles = @{
 foreach ($hive in $regBackupFiles.Keys) {
     $file = $regBackupFiles[$hive]
     try {
-        reg export $hive $file /y
+        reg.exe export $hive $file /y
         if ($LASTEXITCODE -ne 0 -or -not (Test-Path $file) -or (Get-Item $file).Length -eq 0) {
             throw "Registry export for $hive failed"
         }
