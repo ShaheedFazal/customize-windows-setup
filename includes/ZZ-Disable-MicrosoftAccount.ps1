@@ -1,5 +1,9 @@
 # Disable Microsoft account sign-in prompts and account creation
 
+param(
+    [switch]$Force
+)
+
 # Check if the current profile is associated with a Microsoft account
 $identitiesPath = 'HKCU:\SOFTWARE\Microsoft\IdentityCRL\StoredIdentities'
 $identityFound = Test-Path $identitiesPath
@@ -28,24 +32,21 @@ if ($hasMicrosoftAccount) {
     }
     else {
         Write-Warning 'No additional local accounts were found.'
-        $create = Read-Host 'Would you like to create a local account now? [y/N]'
-        if ($create -eq 'y') {
-            $username = New-LocalUserAccount -AccountType 'Administrator'
-            if ($null -ne $username) { $hasLocalAccount = $true }
+        if (-not $Force) {
+            Write-Warning 'Skipping Microsoft account changes to avoid lockout. Use -Force to override.'
+            return
         }
     }
 
-    $confirmation = Read-Host 'Disable Microsoft account features? [y/N]'
-    if ($confirmation -ne 'y') {
-        Write-Host 'Microsoft account changes skipped.'
-        return
+    if (-not $Force) {
+        Write-Host 'Proceeding to disable Microsoft account features.'
     }
 } else {
-    $confirmation = Read-Host 'No Microsoft account detected. Disable Microsoft account features anyway? [y/N]'
-    if ($confirmation -ne 'y') {
-        Write-Host 'Microsoft account changes skipped.'
+    if (-not $Force) {
+        Write-Host 'No Microsoft account detected. Skipping Microsoft account changes.'
         return
     }
+    Write-Host 'No Microsoft account detected, but -Force specified. Disabling features anyway.'
 }
 
 # Block Microsoft account sign-in prompts
