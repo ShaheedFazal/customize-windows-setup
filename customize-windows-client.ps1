@@ -130,9 +130,9 @@ foreach ($hive in $regBackupFiles.Keys) {
             throw "Registry export for $hive failed"
         }
     } catch {
-        Write-Warning "Failed to backup registry hive $hive: $_"
+        Write-Warning "Failed to backup registry hive ${hive}: $_"
         $ScriptSuccess = $false
-        $ErrorMessages += "Registry backup $hive: $_"
+        $ErrorMessages += "Registry backup ${hive}: $_"
     }
 }
 # Start customization
