@@ -1,1 +1,2 @@
-## Disable guest accountnet user guest /active:no
+## Disable guest account
+net user guest /active:no
