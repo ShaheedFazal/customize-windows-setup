@@ -123,7 +123,7 @@ Open **PowerShell as Administrator** and execute (the script will attempt to sel
 - Disables hibernation to reclaim disk space and prevent hybrid sleep issues
 - Disables Fast Startup for proper Wake-on-LAN functionality
 - Enables Wake-on-LAN on compatible Ethernet adapters
-- Configures smart auto-shutdown after 9 PM when the system is idle for 30 minutes
+- (Optional, disabled by default) smart auto-shutdown after 9 PM when idle for 30 minutes
 
 ### 🎨 Interface & User Experience
 
@@ -198,12 +198,10 @@ The toolkit installs essential applications and sets up automated maintenance:
 
 ### Smart Features
 
-**Intelligent Shutdown System:**
-- Monitors user idle time after 9 PM
-- Initiates shutdown when idle for 30 minutes
- - Sends webhook notification to Zapier before power off
-- Provides 60-second warning before shutdown
-- Checks every 15 minutes for 6 hours (9 PM - 3 AM)
+**Intelligent Shutdown System (optional, disabled by default):**
+- Monitors idle time after 9 PM and shuts down after 30 minutes of inactivity
+- Optionally sends a webhook notification 60 seconds before power off
+- Checks every 15 minutes until 3 AM
 
 ## 🔧 Customisation & Configuration
 
