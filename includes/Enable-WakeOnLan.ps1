@@ -30,5 +30,4 @@ Get-NetAdapter | Where-Object {
         Write-Host "[WARN] Could not configure power settings for $adapterName. $_"
     }
 }
-
 Write-Host "Wake on LAN configuration complete."
