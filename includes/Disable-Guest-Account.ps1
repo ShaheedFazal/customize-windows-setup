@@ -1,2 +1,2 @@
 ## Disable guest account
-net user guest /active:no
+net.exe user guest /active:no
