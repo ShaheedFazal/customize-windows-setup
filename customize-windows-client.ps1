@@ -73,6 +73,9 @@ if (-not (Test-Administrator)) {
 # Start logging the console output
 $LogPath = Join-Path $TEMPFOLDER ("customize-windows-client-{0:yyyyMMdd-HHmmss}.log" -f (Get-Date))
 Start-Transcript -Path $LogPath | Out-Null
+# Track script success and collect error messages
+$ScriptSuccess = $true
+$ErrorMessages = @()
 
 ## Create System Restore Point
 Write-Host ($CR + "Create system restore point" + $BLANK + $TIME) -foregroundcolor $FOREGROUNDCOLOR $CR
@@ -93,22 +96,36 @@ try {
     Checkpoint-Computer -Description "Before customizations" -RestorePointType MODIFY_SETTINGS | Out-Null
 } catch {
     Write-Warning "Failed to create restore point: $_"
+    $ScriptSuccess = $false
+    $ErrorMessages += "Restore point: $_"
 }
 
 # Create C:\Temp and C:\Install folders if not exists
 Write-Host ($CR +"Create $TEMPFOLDER and $INSTALLFOLDER folders") -foregroundcolor $FOREGROUNDCOLOR
-If(!(test-path $TEMPFOLDER)) {
-    New-Item -ItemType Directory -Force -Path $TEMPFOLDER
-}
-If(!(test-path $INSTALLFOLDER)) {
-    New-Item -ItemType Directory -Force -Path $INSTALLFOLDER
+try {
+    if(!(Test-Path $TEMPFOLDER)) {
+        New-Item -ItemType Directory -Force -Path $TEMPFOLDER | Out-Null
+    }
+    if(!(Test-Path $INSTALLFOLDER)) {
+        New-Item -ItemType Directory -Force -Path $INSTALLFOLDER | Out-Null
+    }
+} catch {
+    Write-Warning "Failed to create folders: $_"
+    $ScriptSuccess = $false
+    $ErrorMessages += "Folders: $_"
 }
 
 # Backup Registry
 Write-Host ($CR +"Create Registry Backup" + $BLANK + $TIME) -foregroundcolor $FOREGROUNDCOLOR $CR
-reg export HKLM C:\Install\registry-backup-hklm.reg /y | Out-Null
-reg export HKCU C:\Install\registry-backup-hkcu.reg /y | Out-Null
-reg export HKCR C:\Install\registry-backup-hkcr.reg /y | Out-Null
+try {
+    reg export HKLM C:\Install\registry-backup-hklm.reg /y | Out-Null
+    reg export HKCU C:\Install\registry-backup-hkcu.reg /y | Out-Null
+    reg export HKCR C:\Install\registry-backup-hkcr.reg /y | Out-Null
+} catch {
+    Write-Warning "Failed to create registry backup: $_"
+    $ScriptSuccess = $false
+    $ErrorMessages += "Registry backup: $_"
+}
 # Start customization
 Write-Host ($CR +"This system will customized and minimized") -foregroundcolor $FOREGROUNDCOLOR $CR
 
@@ -124,7 +141,13 @@ foreach ($Action in $PreTemplateActions) {
     Write-Host "Execute " -NoNewline
     Write-Host ($Action.Name) -ForegroundColor Yellow -NoNewline
     Write-Host " ..."
-    & $Action.FullName
+    try {
+        & $Action.FullName
+    } catch {
+        Write-Warning "Action $($Action.Name) failed: $_"
+        $ScriptSuccess = $false
+        $ErrorMessages += "$($Action.Name): $_"
+    }
 }
 Write-Host ($CR +"All customizations completed for current user") -foregroundcolor $FOREGROUNDCOLOR
 # Skip profile templating as this functionality is currently disabled
@@ -135,8 +158,21 @@ foreach ($Action in $PostTemplateActions) {
     Write-Host "Execute " -NoNewline
     Write-Host ($Action.Name) -ForegroundColor Yellow -NoNewline
     Write-Host " ..."
-    & $Action.FullName
+    try {
+        & $Action.FullName
+    } catch {
+        Write-Warning "Action $($Action.Name) failed: $_"
+        $ScriptSuccess = $false
+        $ErrorMessages += "$($Action.Name): $_"
+    }
 }
-Write-Host ($CR +"All customizations have been applied") -foregroundcolor $FOREGROUNDCOLOR $CR
+if ($ErrorMessages.Count -eq 0) {
+    Write-Host ($CR +"All customizations have been applied successfully") -foregroundcolor $FOREGROUNDCOLOR $CR
+    $ExitCode = 0
+} else {
+    Write-Host ($CR +"Customizations completed with errors:") -ForegroundColor Yellow
+    $ErrorMessages | ForEach-Object { Write-Host " - $_" -ForegroundColor Red }
+    $ExitCode = 1
+}
 Stop-Transcript | Out-Null
-exit
+exit $ExitCode
