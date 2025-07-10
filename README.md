@@ -44,6 +44,7 @@ The main script walks through each module in `includes/`, applying changes in al
 - **Application install** – installs common utilities like PowerShell 7, VLC, and other tools via `winget`.
 - **System tweaks** – switches to the High Performance power plan, adjusts Explorer and taskbar settings and applies a custom wallpaper.
 - **Server support** – includes logic for Windows Server editions with appropriate defaults.
+- **Widgets customization** – hides the Widgets icon from the taskbar by writing policy values under `HKLM\SOFTWARE\Microsoft\PolicyManager\default\NewsAndInterests\AllowNewsAndInterests` and `HKLM\SOFTWARE\Policies\Microsoft\Dsh`. On some systems UAC or group policy may block this change; run PowerShell as Administrator or adjust policies if needed.
 
 A full list of scripts can be found in the `includes/` folder. Move any script into `includes/disabled/` to skip it during execution.
 
