@@ -52,9 +52,9 @@ A full list of scripts can be found in the `includes/` folder. Move any script i
 customize-windows-setup/
 ├── customize-windows-client.ps1   # Main orchestrator
 ├── download-repo.ps1              # Helper to fetch the repo
-├── apply-user-customizations.ps1  # Example script for HKCU actions only
 ├── includes/                      # Modular feature scripts
 │   └── disabled/                  # Scripts that are not executed
+│       └── apply-user-customizations.ps1  # Example HKCU-only script (disabled)
 ├── wallpaper/                     # Wallpaper assets
 └── HKCU-to-HKLM-Migration.md      # Notes about policy changes
 ```
