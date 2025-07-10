@@ -60,7 +60,7 @@ Open **PowerShell as Administrator** and execute (the script will attempt to sel
 - Blocks feedback collection and user experience improvement programmes
 
 **Microsoft Account & Authentication:**
-- Intelligently blocks Microsoft account sign-in prompts with safety checks
+- Always blocks Microsoft account sign-in prompts to prevent accidental account creation (safety checks run if an account is detected)
 - Disables Windows Hello for Business (with local account verification)
 - Prevents Microsoft 365 promotional notifications
 - Offers guided local account creation for safety
@@ -68,7 +68,7 @@ Open **PowerShell as Administrator** and execute (the script will attempt to sel
 ### 🛡️ Privacy & Security Enhancements
 - **Disables telemetry and data collection** across Windows components
 - **Removes advertising ID** and content suggestions
-- **Blocks Microsoft account sign-in prompts** (with safety checks)
+- **Blocks Microsoft account sign-in prompts** even when no account is present
 - **Enables BitLocker encryption** with automatic key backup
 - **Configures Windows Defender** with optimal settings
 - **Enables SmartScreen (App & Browser Control)** for safer downloads
@@ -268,6 +268,7 @@ powershell -ExecutionPolicy Bypass .\customize-windows-client.ps1
 - Toolkit detects existing Microsoft accounts
 - Prompts for local account creation before proceeding
 - Warns about potential lockout scenarios
+- Disables Microsoft account sign-in even when no Microsoft account is present
 
 - **Parsing Errors After Manual Extraction:**
   - Some third-party unzip tools can corrupt PowerShell files
