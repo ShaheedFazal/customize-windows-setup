@@ -90,6 +90,35 @@ if ($onedriveInstalled) {
         }
     }
 
+    # Remove Start Menu shortcuts created by OneDrive
+    Write-Host "[INFO] Cleaning up OneDrive Start Menu shortcuts..."
+
+    $commonStartMenu = Join-Path $env:ProgramData 'Microsoft\\Windows\\Start Menu\\Programs'
+    if (Test-Path $commonStartMenu) {
+        Get-ChildItem -Path $commonStartMenu -Filter 'OneDrive*.lnk' -ErrorAction SilentlyContinue | ForEach-Object {
+            try {
+                Remove-Item -Path $_.FullName -Force -ErrorAction Stop
+                Write-Host "[OK] Removed shortcut: $($_.FullName)" -ForegroundColor Green
+            } catch {
+                Write-Host "[WARN] Could not remove shortcut: $($_.FullName) - $_" -ForegroundColor Yellow
+            }
+        }
+    }
+
+    foreach ($profile in $profiles) {
+        $userStartMenu = Join-Path $profile.FullName 'AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs'
+        if (Test-Path $userStartMenu) {
+            Get-ChildItem -Path $userStartMenu -Filter 'OneDrive*.lnk' -ErrorAction SilentlyContinue | ForEach-Object {
+                try {
+                    Remove-Item -Path $_.FullName -Force -ErrorAction Stop
+                    Write-Host "[OK] Removed user shortcut: $($_.FullName)" -ForegroundColor Green
+                } catch {
+                    Write-Host "[WARN] Could not remove user shortcut: $($_.FullName) - $_" -ForegroundColor Yellow
+                }
+            }
+        }
+    }
+
     # Clean up registry shell extensions
     if (-not (Get-PSDrive -Name "HKCR" -ErrorAction SilentlyContinue)) {
         New-PSDrive -Name HKCR -PSProvider Registry -Root HKEY_CLASSES_ROOT -ErrorAction SilentlyContinue | Out-Null
