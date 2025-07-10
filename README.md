@@ -131,7 +131,7 @@ Open **PowerShell as Administrator** and execute (the script will attempt to sel
 **Taskbar & Start Menu Optimisation:**
 - Hides search box, Task View, and People icons
 - Shows small taskbar icons for space efficiency
-- Displays all system tray icons for better visibility
+- Hides system tray icons for a cleaner notification area
 - Removes recently and frequently used items from Explorer
 
 **File Explorer Enhancements:**
