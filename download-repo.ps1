@@ -35,10 +35,13 @@ if ($executionPolicy -eq 'Restricted') {
 
 # Choose a sensible base path when the script is invoked via a one-liner.
 # A direct `iex` call often starts in the Windows system directory, so
-# default to the user's Downloads folder in that case.
+# default to C:\Temp in that case.
 $basePath = if ($PSScriptRoot) { $PSScriptRoot } else { (Get-Location).Path }
 if ($basePath -like "$env:windir*") {
-    $basePath = Join-Path $env:USERPROFILE 'Downloads'
+    $basePath = 'C:\\Temp'
+}
+if (!(Test-Path $basePath)) {
+    New-Item -ItemType Directory -Force -Path $basePath | Out-Null
 }
 
 # Path to store the downloaded zip

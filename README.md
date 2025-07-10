@@ -25,7 +25,7 @@ The toolkit includes automatic restore point creation and registry backup, but t
 Open **PowerShell as Administrator** and execute (the script will attempt to self-elevate if you forget):
 
 ```powershell
- Set-ExecutionPolicy Bypass -Scope Process -Force; iwr -useb https://raw.githubusercontent.com/ShaheedFazal/customize-windows-setup/main/download-repo.ps1 | iex; & "$env:USERPROFILE\Downloads\customize-windows-setup\customize-windows-setup-main\customize-windows-client.ps1"
+ Set-ExecutionPolicy Bypass -Scope Process -Force; iwr -useb https://raw.githubusercontent.com/ShaheedFazal/customize-windows-setup/main/download-repo.ps1 | iex; & "C:\Temp\customize-windows-setup\customize-windows-setup-main\customize-windows-client.ps1"
 ```
 
 ### Method 2: Manual Installation
@@ -37,13 +37,13 @@ Open **PowerShell as Administrator** and execute (the script will attempt to sel
    ```
 3. **Download repository:**
    ```powershell
-   $downloadPath = Join-Path $env:USERPROFILE 'Downloads'
+   $downloadPath = 'C:\\Temp'
    iwr -Uri 'https://raw.githubusercontent.com/ShaheedFazal/customize-windows-setup/main/download-repo.ps1' -OutFile (Join-Path $downloadPath 'download-repo.ps1')
    & "$downloadPath\download-repo.ps1"
    ```
 4. **Execute the toolkit:**
    ```powershell
-   cd "$env:USERPROFILE\Downloads\customize-windows-setup\customize-windows-setup-main"
+   cd "C:\\Temp\\customize-windows-setup\\customize-windows-setup-main"
    .\customize-windows-client.ps1
    ```
    The script runs **interactively** and will pause for user input at several steps.
@@ -99,6 +99,7 @@ Open **PowerShell as Administrator** and execute (the script will attempt to sel
 - Complete OneDrive uninstallation with registry cleanup
 - Removes OneDrive from File Explorer integration
 - Cleans up leftover folders and shortcuts
+- Moves each user's OneDrive files into their Documents folder before removal
 - Alternative: OneDrive disable-only option available
 
 ### ⚙️ System Optimisation & Performance

@@ -36,15 +36,50 @@ if ($onedriveInstalled) {
     Get-Process -Name "explorer" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
     Start-Sleep -Seconds 2
 
-    # Clean up OneDrive folders
-    $foldersToRemove = @(
-        "$env:USERPROFILE\OneDrive",
-        "$env:LOCALAPPDATA\Microsoft\OneDrive", 
+
+    # Clean up OneDrive folders for every user profile
+    $profileRoot = Join-Path $env:SystemDrive 'Users'
+    $profiles = Get-ChildItem -Path $profileRoot -Directory -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -notin @('Public','Default','Default User','All Users') }
+
+    foreach ($profile in $profiles) {
+        $oneDriveDir = Join-Path $profile.FullName 'OneDrive'
+        $appDataDir  = Join-Path $profile.FullName 'AppData\Local\Microsoft\OneDrive'
+
+        if (Test-Path $oneDriveDir) {
+            $docsDir = Join-Path $profile.FullName 'Documents'
+            if (!(Test-Path $docsDir)) {
+                New-Item -ItemType Directory -Path $docsDir -Force | Out-Null
+            }
+            try {
+                Get-ChildItem -Path $oneDriveDir -Force | ForEach-Object {
+                    Move-Item -Path $_.FullName -Destination $docsDir -Force -ErrorAction Stop
+                }
+                Write-Host "[OK] Moved files from $oneDriveDir to $docsDir" -ForegroundColor Green
+            } catch {
+                Write-Host "[WARN] Failed to move files from $oneDriveDir - $_" -ForegroundColor Yellow
+            }
+        }
+
+        $userFolders = @($oneDriveDir, $appDataDir)
+
+        foreach ($folder in $userFolders) {
+            if (Test-Path $folder) {
+                try {
+                    Remove-Item -Path $folder -Force -Recurse -ErrorAction Stop
+                    Write-Host "[OK] Removed folder: $folder" -ForegroundColor Green
+                } catch {
+                    Write-Host "[WARN] Could not remove folder: $folder - $_" -ForegroundColor Yellow
+                }
+            }
+        }
+    }
+    $commonFolders = @(
         "$env:PROGRAMDATA\Microsoft OneDrive",
         "$env:SYSTEMDRIVE\OneDriveTemp"
     )
 
-    foreach ($folder in $foldersToRemove) {
+    foreach ($folder in $commonFolders) {
         if (Test-Path $folder) {
             try {
                 Remove-Item -Path $folder -Force -Recurse -ErrorAction Stop
