@@ -129,7 +129,7 @@ Open **PowerShell as Administrator** and execute (the script will attempt to sel
 ### 🎨 Interface & User Experience
 
 **Taskbar & Start Menu Optimisation:**
-- Hides search box, Task View, and People icons
+- Hides search box, People icons, and Widgets
 - Shows small taskbar icons for space efficiency
 - Hides system tray icons for a cleaner notification area
 - Removes recently and frequently used items from Explorer
