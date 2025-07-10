@@ -43,10 +43,10 @@ if ($hasMicrosoftAccount) {
     }
 } else {
     if (-not $Force) {
-        Write-Host 'No Microsoft account detected. Skipping Microsoft account changes.'
-        return
+        Write-Host 'No Microsoft account detected. Disabling sign-in features to prevent accidental account addition.'
+    } else {
+        Write-Host 'No Microsoft account detected, but -Force specified. Disabling features anyway.'
     }
-    Write-Host 'No Microsoft account detected, but -Force specified. Disabling features anyway.'
 }
 
 # Block Microsoft account sign-in prompts
