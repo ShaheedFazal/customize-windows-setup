@@ -129,7 +129,7 @@ Open **PowerShell as Administrator** and execute (the script will attempt to sel
 ### 🎨 Interface & User Experience
 
 **Taskbar & Start Menu Optimisation:**
-- Hides search box and People icons (Task View optional, in disabled folder)
+- Hides People icons (search box and Task View optional; scripts in disabled folder)
 - Shows small taskbar icons for space efficiency
 - Displays all system tray icons for better visibility (optional, in disabled folder)
 - Removes recently and frequently used items from Explorer
