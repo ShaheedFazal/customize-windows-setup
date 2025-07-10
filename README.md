@@ -14,6 +14,7 @@ These scripts make extensive changes to the operating system. Before running the
 - **Review the scripts** in the `includes` directory to understand what will change.
 - **Test on a non-production machine** whenever possible.
 - **Run PowerShell as Administrator** to ensure all steps succeed.
+- **System restore points** are limited by the `SystemRestorePointCreationFrequency` registry value (24 hours by default). The script skips creating a new point if a recent one already exists.
 
 ## Getting Started
 
