@@ -5,5 +5,5 @@
     $currPlan = $(powercfg -getactivescheme).split()[3]
     if ($currPlan -ne $highPerf) {powercfg -setactive $highPerf}
 } Catch {
-    Write-Warning -Message "Unable to set power plan to $POWERMANAGEMENT" -foregroundcolor $foregroundColor2
+    Write-Warning -Message "Unable to set power plan to $POWERMANAGEMENT" -foregroundcolor $FOREGROUNDCOLOR
 }
