@@ -93,7 +93,23 @@ try {
             }
         }
     }
-    Checkpoint-Computer -Description "Before customizations" -RestorePointType MODIFY_SETTINGS | Out-Null
+    $srRegPath = 'HKLM:\Software\Microsoft\Windows NT\CurrentVersion\SystemRestore'
+    $freq = (Get-ItemProperty -Path $srRegPath -Name SystemRestorePointCreationFrequency -ErrorAction SilentlyContinue).SystemRestorePointCreationFrequency
+    if (-not $freq) { $freq = 0 }
+    $skipRestore = $false
+    if ($freq -gt 0) {
+        $last = Get-ComputerRestorePoint | Sort-Object -Property CreationTime -Descending | Select-Object -First 1
+        if ($last) {
+            $elapsed = (New-TimeSpan -Start $last.CreationTime -End (Get-Date)).TotalMinutes
+            if ($elapsed -lt $freq) {
+                Write-Host "[INFO] Last restore point created $([math]::Round($elapsed)) minutes ago. Skipping new restore point." -ForegroundColor Yellow
+                $skipRestore = $true
+            }
+        }
+    }
+    if (-not $skipRestore) {
+        Checkpoint-Computer -Description "Before customizations" -RestorePointType MODIFY_SETTINGS | Out-Null
+    }
 } catch {
     Write-Warning "Failed to create restore point: $_"
     $ScriptSuccess = $false
