@@ -1,11 +1,46 @@
-# Account lockout policy
+# Configure local account lockout policy
+#
+# On a domain-joined machine this affects only the local SAM database. Domain
+# controllers or policies managed through Active Directory should use
+# `net accounts /domain` or Group Policy instead.
+#
+# If the lockout threshold is not set first, subsequent commands may return
+# "System error 87" indicating an invalid parameter.
 
-# Number of failed login attempts before the account is locked
-net.exe accounts /lockoutthreshold:5
+$threshold = 5  # failed attempts before lockout
+$duration  = 30 # lockout duration in minutes
+$window    = 30 # timeframe in which failed attempts are counted
 
-# Duration (in minutes) that the account remains locked out
-net.exe accounts /lockoutduration:30
+try {
+    $output = net.exe accounts /lockoutthreshold:$threshold 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warning "Failed to set lockout threshold: $output"
+        return
+    }
+    Write-Host "[OK] Lockout threshold set to $threshold attempts." -ForegroundColor Green
+} catch {
+    Write-Warning "Error configuring lockout threshold: $_"
+    return
+}
 
-# Time window (in minutes) during which failed login attempts are counted
-# If 5 failed attempts occur within this 30-minute window, the account is locked
-net.exe accounts /lockoutwindow:30
+try {
+    $output = net.exe accounts /lockoutduration:$duration 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warning "Failed to set lockout duration: $output"
+    } else {
+        Write-Host "[OK] Lockout duration set to $duration minutes." -ForegroundColor Green
+    }
+} catch {
+    Write-Warning "Error configuring lockout duration: $_"
+}
+
+try {
+    $output = net.exe accounts /lockoutwindow:$window 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warning "Failed to set lockout window: $output"
+    } else {
+        Write-Host "[OK] Lockout window set to $window minutes." -ForegroundColor Green
+    }
+} catch {
+    Write-Warning "Error configuring lockout window: $_"
+}
