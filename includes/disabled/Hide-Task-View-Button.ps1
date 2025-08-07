@@ -1,2 +1,2 @@
-# Hide Task View button
-Set-RegistryValue -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "ShowTaskViewButton" -Value 0 -Type "DWord" -Force
+# Hide Task View button for all users via policy
+Set-RegistryValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer" -Name "ShowTaskViewButton" -Value 0 -Type "DWord" -Force
