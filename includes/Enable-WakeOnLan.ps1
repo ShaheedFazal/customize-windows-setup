@@ -55,8 +55,8 @@ if ($eligibleAdapters.Count -eq 0) {
                         $currentValue = $prop.DisplayValue
                         Write-Host "[INFO] Current value for '$($prop.DisplayName)': $currentValue" -ForegroundColor Gray
                         
-                        # Common enabled values in multiple languages
-                        $enabledValues = @("Enabled", "On", "1", "True", "Aktiviert", "Ein", "Oui", "Sí", "はい", "да")
+                        # Common enabled values - prioritize numeric values first for universal compatibility
+                        $enabledValues = @("1", "0x1", "Enabled", "On", "True", "Aktiviert", "Ein", "Oui", "Sí", "はい", "да")
                         
                         # Try each enabled value until one works
                         $propertyEnabled = $false
@@ -110,9 +110,6 @@ if ($eligibleAdapters.Count -eq 0) {
 
         # Configure Windows power management to allow this device to wake the computer
         try {
-            # Get the device instance path for power configuration
-            $deviceInfo = Get-NetAdapter -Name $adapterName | Get-NetAdapterHardwareInfo -ErrorAction SilentlyContinue
-            
             # Enable wake capability via registry (more reliable than powercfg for some adapters)
             $regPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e972-e325-11ce-bfc1-08002be10318}"
             $subKeys = Get-ChildItem -Path $regPath -ErrorAction SilentlyContinue
@@ -121,11 +118,17 @@ if ($eligibleAdapters.Count -eq 0) {
                 try {
                     $adapterKey = Get-ItemProperty -Path $subKey.PSPath -ErrorAction SilentlyContinue
                     if ($adapterKey -and ($adapterKey.DriverDesc -eq $adapterDesc -or $adapterKey.DriverDesc -like "*$($adapterName)*")) {
-                        # Enable Wake on Magic Packet in registry
-                        Set-ItemProperty -Path $subKey.PSPath -Name "*WakeOnMagicPacket" -Value "1" -ErrorAction SilentlyContinue
-                        Set-ItemProperty -Path $subKey.PSPath -Name "WakeOnLink" -Value "1" -ErrorAction SilentlyContinue
-                        Set-ItemProperty -Path $subKey.PSPath -Name "PMWiFiRekeyOffload" -Value "1" -ErrorAction SilentlyContinue
-                        Write-Host "[OK] Configured registry wake settings for $adapterName" -ForegroundColor Green
+                        # Enable Wake on Magic Packet in registry using numeric values (universal)
+                        Set-ItemProperty -Path $subKey.PSPath -Name "*WakeOnMagicPacket" -Value 1 -Type DWord -ErrorAction SilentlyContinue
+                        Set-ItemProperty -Path $subKey.PSPath -Name "WakeOnLink" -Value 1 -Type DWord -ErrorAction SilentlyContinue
+                        Set-ItemProperty -Path $subKey.PSPath -Name "PMWiFiRekeyOffload" -Value 1 -Type DWord -ErrorAction SilentlyContinue
+                        
+                        # Try additional common wake properties with numeric values
+                        Set-ItemProperty -Path $subKey.PSPath -Name "*WakeOnPattern" -Value 1 -Type DWord -ErrorAction SilentlyContinue
+                        Set-ItemProperty -Path $subKey.PSPath -Name "EnableWakeOnLan" -Value 1 -Type DWord -ErrorAction SilentlyContinue
+                        Set-ItemProperty -Path $subKey.PSPath -Name "WolShutdownLinkSpeed" -Value 2 -Type DWord -ErrorAction SilentlyContinue # 2 = No speed reduction
+                        
+                        Write-Host "[OK] Configured registry wake settings for $adapterName (using numeric values)" -ForegroundColor Green
                         break
                     }
                 } catch {
