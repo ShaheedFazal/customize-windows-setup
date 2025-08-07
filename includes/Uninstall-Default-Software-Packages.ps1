@@ -27,40 +27,75 @@ function Uninstall-PackageIfPresent {
     
     Write-Host "[REMOVING] $Identifier..." -NoNewline
     $removedCount = 0
+    $startTime = Get-Date
 
-    # Remove installed packages for current user
-    $packages = Get-AppxPackage $Identifier -ErrorAction SilentlyContinue
-    foreach ($package in $packages) {
-        try {
-            $package | Remove-AppxPackage -ErrorAction Stop
-            $removedCount++
-        } catch {
-            Write-Log "Failed to remove AppX $Identifier : $_"
-        }
-    }
-
-    # Remove provisioned packages (for new users) using pre-loaded list
-    if ($null -ne $ProvisionedPackages) {
-        $provPackages = $ProvisionedPackages | Where-Object DisplayName -like $Identifier
-        foreach ($p in $provPackages) {
-            if ($p.InstallLocation -and (Test-Path $p.InstallLocation)) {
-                try {
-                    $p | Remove-AppxProvisionedPackage -Online -ErrorAction Stop
+    try {
+        # Remove installed packages for current user with timeout
+        $packages = Get-AppxPackage $Identifier -ErrorAction SilentlyContinue
+        foreach ($package in $packages) {
+            try {
+                $job = Start-Job -ScriptBlock {
+                    param($pkg)
+                    $pkg | Remove-AppxPackage -ErrorAction Stop
+                } -ArgumentList $package
+                
+                if (Wait-Job $job -Timeout 30) {
+                    Receive-Job $job | Out-Null
                     $removedCount++
+                } else {
+                    Remove-Job $job -Force
+                    Write-Log "Timeout removing AppX package: $Identifier"
                 }
-                catch [System.Runtime.InteropServices.COMException] {
-                    if ($_.Exception.HResult -ne -2147024893) {
-                        Write-Log "Failed to remove provisioned package $Identifier : $_"
+            } catch {
+                Write-Log "Failed to remove AppX $Identifier : $_"
+            }
+        }
+
+        # Remove provisioned packages (for new users) using pre-loaded list
+        if ($null -ne $ProvisionedPackages) {
+            $provPackages = $ProvisionedPackages | Where-Object DisplayName -like $Identifier
+            foreach ($p in $provPackages) {
+                # Skip if we've been working on this package too long
+                $elapsed = (Get-Date) - $startTime
+                if ($elapsed.TotalSeconds -gt 60) {
+                    Write-Log "Skipping provisioned package removal for $Identifier due to timeout"
+                    break
+                }
+                
+                if ($p.InstallLocation -and (Test-Path $p.InstallLocation)) {
+                    try {
+                        $job = Start-Job -ScriptBlock {
+                            param($pkg)
+                            $pkg | Remove-AppxProvisionedPackage -Online -ErrorAction Stop
+                        } -ArgumentList $p
+                        
+                        if (Wait-Job $job -Timeout 30) {
+                            Receive-Job $job | Out-Null
+                            $removedCount++
+                        } else {
+                            Remove-Job $job -Force
+                            Write-Log "Timeout removing provisioned package: $Identifier"
+                        }
+                    }
+                    catch [System.Runtime.InteropServices.COMException] {
+                        if ($_.Exception.HResult -ne -2147024893) {
+                            Write-Log "Failed to remove provisioned package $Identifier : $_"
+                        }
                     }
                 }
             }
         }
+    } catch {
+        Write-Log "General error processing package $Identifier : $_"
     }
     
+    $totalElapsed = ((Get-Date) - $startTime).TotalSeconds
     if ($removedCount -gt 0) {
-        Write-Host " REMOVED ($removedCount packages)" -ForegroundColor Green
+        Write-Host " REMOVED ($removedCount packages, $([math]::Round($totalElapsed,1))s)" -ForegroundColor Green
+    } elseif ($totalElapsed -gt 30) {
+        Write-Host " TIMEOUT ($([math]::Round($totalElapsed,1))s)" -ForegroundColor Yellow
     } else {
-        Write-Host " NOT FOUND" -ForegroundColor Gray
+        Write-Host " NOT FOUND ($([math]::Round($totalElapsed,1))s)" -ForegroundColor Gray
     }
 }
 
