@@ -3,7 +3,9 @@
 PowerShell post-installation script to minimize and customize Windows operating systems
  
 .Description
-This post-installation script is for minimize and customize a Windows Client.
+This post-installation script minimizes and customizes a Windows client and
+applies settings for all existing user profiles and the default template for
+new accounts.
  
 .Notes
 File Name:      customize-windows-client.ps1
@@ -20,9 +22,7 @@ https://github.com/filipnet/customize-windows-client
 
 # Parameters
 [CmdletBinding()]
-param(
-    [switch]$AllUsers
-)
+param()
 
 # Variables
 $DRIVELABELSYS = "OS"
@@ -159,7 +159,7 @@ foreach ($hive in $regBackupFiles.Keys) {
     }
 }
 
-# Backup all loaded user hives
+# Backup all loaded user hives (excluding system accounts)
 $defaultHiveKey = 'HKU\\DefaultUser'
 $defaultProfilePath = Join-Path $env:SystemDrive 'Users\\Default\\NTUSER.DAT'
 $defaultHiveLoaded = $false
@@ -174,7 +174,11 @@ if (-not (Test-Path "Registry::$defaultHiveKey") -and (Test-Path $defaultProfile
 
 $hkuBackupDir = Join-Path $INSTALLFOLDER 'registry-backup-hku'
 if (!(Test-Path $hkuBackupDir)) { New-Item -ItemType Directory -Path $hkuBackupDir -Force | Out-Null }
-$userHives = Get-ChildItem Registry::HKEY_USERS | Where-Object { $_.PSChildName -notmatch '_Classes$' }
+$userHives = Get-ChildItem Registry::HKEY_USERS | Where-Object {
+    $_.PSChildName -notmatch '_Classes$' -and
+    $_.PSChildName -ne '.DEFAULT' -and
+    $_.PSChildName -notmatch '^S-1-5-(18|19|20)$'
+}
 foreach ($hive in $userHives) {
     $sid = $hive.PSChildName
     $file = Join-Path $hkuBackupDir ("registry-backup-hku-$sid.reg")
@@ -238,51 +242,50 @@ function Invoke-Customizations {
     }
 }
 
-# Run customizations for current user (and system-wide policies)
+# Run customizations for the current user (system-wide changes run here as well)
 Invoke-Customizations -UserLabel 'current user'
 
-if ($AllUsers) {
-    $currentSid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
-    $defaultHiveKey = 'HKU\\DefaultUser'
-    $defaultProfilePath = Join-Path $env:SystemDrive 'Users\\Default\\NTUSER.DAT'
-    $defaultHiveLoaded = $false
-    if (-not (Test-Path "Registry::$defaultHiveKey") -and (Test-Path $defaultProfilePath)) {
-        try {
-            reg.exe load $defaultHiveKey $defaultProfilePath | Out-Null
-            if ($LASTEXITCODE -eq 0) { $defaultHiveLoaded = $true }
-        } catch {
-            Write-Warning "Failed to load default user hive: $_"
-        }
+# Process all other loaded user profiles and the default profile for new accounts
+$currentSid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+$defaultHiveKey = 'HKU\\DefaultUser'
+$defaultProfilePath = Join-Path $env:SystemDrive 'Users\\Default\\NTUSER.DAT'
+$defaultHiveLoaded = $false
+if (-not (Test-Path "Registry::$defaultHiveKey") -and (Test-Path $defaultProfilePath)) {
+    try {
+        reg.exe load $defaultHiveKey $defaultProfilePath | Out-Null
+        if ($LASTEXITCODE -eq 0) { $defaultHiveLoaded = $true }
+    } catch {
+        Write-Warning "Failed to load default user hive: $_"
     }
+}
 
-    $userHives = Get-ChildItem Registry::HKEY_USERS | Where-Object {
-        $_.PSChildName -notmatch '_Classes$' -and
-        $_.PSChildName -ne '.DEFAULT' -and
-        $_.PSChildName -notmatch '^S-1-5-(18|19|20)$' -and
-        $_.PSChildName -ne $currentSid
-    }
-    foreach ($hive in $userHives) {
-        $sid = $hive.PSChildName
-        Write-Host ($CR +"Applying user-level customizations for hive $sid") -ForegroundColor $FOREGROUNDCOLOR
-        try {
-            Remove-PSDrive -Name HKCU -Force
-            New-PSDrive -Name HKCU -PSProvider Registry -Root $hive.Name | Out-Null
-            $profilePath = (Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\$sid" -Name ProfileImagePath -ErrorAction SilentlyContinue).ProfileImagePath
-            if (-not $profilePath -and $sid -eq 'DefaultUser') {
-                $profilePath = Join-Path $env:SystemDrive 'Users\\Default'
-            }
-            $oldProfile = $env:USERPROFILE
-            if ($profilePath) { $env:USERPROFILE = $profilePath }
-            Invoke-Customizations -UserLabel $sid
-            if ($profilePath) { $env:USERPROFILE = $oldProfile }
-        } finally {
-            Remove-PSDrive -Name HKCU -Force
-            New-PSDrive -Name HKCU -PSProvider Registry -Root 'HKEY_CURRENT_USER' | Out-Null
+$userHives = Get-ChildItem Registry::HKEY_USERS | Where-Object {
+    $_.PSChildName -notmatch '_Classes$' -and
+    $_.PSChildName -ne '.DEFAULT' -and
+    $_.PSChildName -notmatch '^S-1-5-(18|19|20)$' -and
+    $_.PSChildName -ne $currentSid
+}
+foreach ($hive in $userHives) {
+    $sid = $hive.PSChildName
+    Write-Host ($CR +"Applying user-level customizations for hive $sid") -ForegroundColor $FOREGROUNDCOLOR
+    try {
+        Remove-PSDrive -Name HKCU -Force
+        New-PSDrive -Name HKCU -PSProvider Registry -Root $hive.Name | Out-Null
+        $profilePath = (Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\$sid" -Name ProfileImagePath -ErrorAction SilentlyContinue).ProfileImagePath
+        if (-not $profilePath -and $sid -eq 'DefaultUser') {
+            $profilePath = Join-Path $env:SystemDrive 'Users\\Default'
         }
+        $oldProfile = $env:USERPROFILE
+        if ($profilePath) { $env:USERPROFILE = $profilePath }
+        Invoke-Customizations -UserLabel $sid
+        if ($profilePath) { $env:USERPROFILE = $oldProfile }
+    } finally {
+        Remove-PSDrive -Name HKCU -Force
+        New-PSDrive -Name HKCU -PSProvider Registry -Root 'HKEY_CURRENT_USER' | Out-Null
     }
-    if ($defaultHiveLoaded) {
-        try { reg.exe unload $defaultHiveKey | Out-Null } catch { Write-Warning "Failed to unload default user hive: $_" }
-    }
+}
+if ($defaultHiveLoaded) {
+    try { reg.exe unload $defaultHiveKey | Out-Null } catch { Write-Warning "Failed to unload default user hive: $_" }
 }
 if ($ErrorMessages.Count -eq 0) {
     Write-Host ($CR +"All customizations have been applied successfully") -foregroundcolor $FOREGROUNDCOLOR $CR
