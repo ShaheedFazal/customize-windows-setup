@@ -6,14 +6,15 @@ Write-Host "[INFO] Configuring Wake on LAN..."
 $allAdapters = Get-NetAdapter
 Write-Host "[INFO] Found $($allAdapters.Count) total network adapters"
 
-# Filter for physical network adapters (Ethernet, WiFi, etc.)
+# Filter for physical network adapters using a more universal approach
 $eligibleAdapters = Get-NetAdapter | Where-Object {
-    # Include physical adapters that are Ethernet-based or WiFi
-    ($_.InterfaceDescription -match "Ethernet|Gigabit|Fast Ethernet|WiFi|Wireless|802.11") -and
     # Must be a hardware interface (not virtual)
     $_.HardwareInterface -eq $true -and
-    # Exclude virtual switches, VPN adapters, etc.
-    $_.InterfaceDescription -notmatch "Virtual|VPN|TAP|Loopback|Teredo|6to4"
+    # Exclude known virtual/software adapters by description patterns
+    $_.InterfaceDescription -notmatch "Virtual|VPN|TAP|Loopback|Teredo|6to4|Fortinet|Hyper-V|VMware|Bluetooth|Tunnel" -and
+    # Only include adapters that can potentially support Wake on LAN (have advanced properties)
+    (Get-NetAdapterAdvancedProperty -Name $_.Name -ErrorAction SilentlyContinue | 
+     Where-Object { $_.DisplayName -match "Wake|Power" }) -ne $null
 }
 
 Write-Host "[INFO] Found $($eligibleAdapters.Count) eligible physical network adapters"
