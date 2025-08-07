@@ -104,6 +104,7 @@ customize-windows-setup/
 - **BitLocker**: Enables drive encryption (where supported)
 - **Account Security**: Configures user account policies
 - **Network Security**: Hardens network and firewall settings
+- **Wake on LAN**: Configures network adapters for remote wake capability (with multi-language support)
 
 ## 📁 Script Categories
 
@@ -127,6 +128,9 @@ customize-windows-setup/
 ### Application Management
 - `Uninstall-Default-Software-Packages.ps1` - Removes bloatware
 - `Uninstall-OneDrive.ps1` - Complete OneDrive removal
+
+### Network & Hardware Scripts  
+- `Enable-WakeOnLan.ps1` - Configures Wake on LAN with international language support
 
 ### Finalization Scripts (ZZZ- prefix)
 - `ZZZ-Set-Wallpaper.ps1` - Applies custom wallpaper system-wide

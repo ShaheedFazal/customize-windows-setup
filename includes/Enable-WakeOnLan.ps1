@@ -51,19 +51,55 @@ if ($eligibleAdapters.Count -eq 0) {
                 
                 if ($properties) {
                     foreach ($prop in $properties) {
-                        try {
-                            Set-NetAdapterAdvancedProperty -Name $adapterName -DisplayName $prop.DisplayName -DisplayValue "Enabled" -NoRestart -ErrorAction Stop
-                            Write-Host "[OK] Enabled '$($prop.DisplayName)' on $adapterName" -ForegroundColor Green
-                            $wakeEnabled = $true
-                        } catch {
-                            # Try alternative values
+                        # Get current value for comparison and available options
+                        $currentValue = $prop.DisplayValue
+                        Write-Host "[INFO] Current value for '$($prop.DisplayName)': $currentValue" -ForegroundColor Gray
+                        
+                        # Common enabled values in multiple languages
+                        $enabledValues = @("Enabled", "On", "1", "True", "Aktiviert", "Ein", "Oui", "Sí", "はい", "да")
+                        
+                        # Try each enabled value until one works
+                        $propertyEnabled = $false
+                        foreach ($enableValue in $enabledValues) {
                             try {
-                                Set-NetAdapterAdvancedProperty -Name $adapterName -DisplayName $prop.DisplayName -DisplayValue "On" -NoRestart -ErrorAction Stop
-                                Write-Host "[OK] Enabled '$($prop.DisplayName)' on $adapterName (using 'On')" -ForegroundColor Green
+                                Set-NetAdapterAdvancedProperty -Name $adapterName -DisplayName $prop.DisplayName -DisplayValue $enableValue -NoRestart -ErrorAction Stop
+                                Write-Host "[OK] Enabled '$($prop.DisplayName)' on $adapterName (using '$enableValue')" -ForegroundColor Green
                                 $wakeEnabled = $true
+                                $propertyEnabled = $true
+                                break
                             } catch {
-                                Write-Host "[WARN] Could not set '$($prop.DisplayName)' on $adapterName" -ForegroundColor Yellow
+                                # Continue trying other values
+                                continue
                             }
+                        }
+                        
+                        if (-not $propertyEnabled) {
+                            # Get valid values if available
+                            try {
+                                $validValues = Get-NetAdapterAdvancedProperty -Name $adapterName -DisplayName $prop.DisplayName -ErrorAction SilentlyContinue | 
+                                              Select-Object -ExpandProperty ValidDisplayValues -ErrorAction SilentlyContinue
+                                if ($validValues) {
+                                    Write-Host "[INFO] Valid values for '$($prop.DisplayName)': $($validValues -join ', ')" -ForegroundColor Gray
+                                    # Try to find an enabled-like value from valid options
+                                    $enabledOption = $validValues | Where-Object { $_ -in $enabledValues } | Select-Object -First 1
+                                    if ($enabledOption) {
+                                        try {
+                                            Set-NetAdapterAdvancedProperty -Name $adapterName -DisplayName $prop.DisplayName -DisplayValue $enabledOption -NoRestart -ErrorAction Stop
+                                            Write-Host "[OK] Enabled '$($prop.DisplayName)' on $adapterName (using valid option '$enabledOption')" -ForegroundColor Green
+                                            $wakeEnabled = $true
+                                            $propertyEnabled = $true
+                                        } catch {
+                                            Write-Host "[WARN] Failed to set '$($prop.DisplayName)' to '$enabledOption'" -ForegroundColor Yellow
+                                        }
+                                    }
+                                }
+                            } catch {
+                                Write-Host "[WARN] Could not determine valid values for '$($prop.DisplayName)'" -ForegroundColor Yellow
+                            }
+                        }
+                        
+                        if (-not $propertyEnabled) {
+                            Write-Host "[WARN] Could not enable '$($prop.DisplayName)' on $adapterName" -ForegroundColor Yellow
                         }
                     }
                 }
