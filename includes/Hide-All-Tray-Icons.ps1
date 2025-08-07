@@ -1,2 +1,2 @@
 # Hide all tray icons
-Set-RegistryValue -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer" -Name "EnableAutoTray" -Value 1 -Type "DWord" -Force
+Set-RegistryValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer" -Name "EnableAutoTray" -Value 1 -Type "DWord" -Force
