@@ -1,16 +1,10 @@
-# Create a custom folder for Photos screen saver images and set screen saver timeout
+# Configure the default Windows screen saver, enforce a 15 minute timeout, and require a password on resume
 
-$ScreenSaverFolder = "C:\\Screensaver"
-if (!(Test-Path $ScreenSaverFolder)) {
-    New-Item -ItemType Directory -Path $ScreenSaverFolder | Out-Null
-}
+$screenSaver = "$env:windir\System32\scrnsave.scr"
+$desktopPolicy = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Control Panel\Desktop"
 
-$photoScr = "$env:windir\System32\PhotoScreensaver.scr"
-
-Set-RegistryValue -Path "HKCU:\Control Panel\Desktop" -Name "ScreenSaveActive" -Value "1" -Type "String"
-Set-RegistryValue -Path "HKCU:\Control Panel\Desktop" -Name "ScreenSaveTimeOut" -Value "600" -Type "String"
-Set-RegistryValue -Path "HKCU:\Control Panel\Desktop" -Name "SCRNSAVE.EXE" -Value $photoScr -Type "String"
-
-$photosKey = "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Screensavers\Photos"
-Set-RegistryValue -Path $photosKey -Name "ImageDirectory" -Value $ScreenSaverFolder -Type "String"
+Set-RegistryValue -Path $desktopPolicy -Name "ScreenSaveActive" -Value "1" -Type "String"
+Set-RegistryValue -Path $desktopPolicy -Name "ScreenSaveTimeOut" -Value "900" -Type "String"
+Set-RegistryValue -Path $desktopPolicy -Name "SCRNSAVE.EXE" -Value $screenSaver -Type "String"
+Set-RegistryValue -Path $desktopPolicy -Name "ScreenSaverIsSecure" -Value "1" -Type "String"
 
