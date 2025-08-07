@@ -57,3 +57,9 @@ accounts.
 - **New:** `HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer\SearchBoxTaskbarMode = 0`
 - **Impact:** ensures the taskbar search box stays hidden system-wide.
 - **Rollback:** delete the HKLM policy value or set it to `1` or `2` to restore the search icon or box.
+
+## Disable-Autorun.ps1
+- **Old:** `HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer\NoDriveTypeAutoRun = 255`
+- **New:** `HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer\NoDriveTypeAutoRun = 255`
+- **Impact:** disables Autorun for all drives across every user account.
+- **Rollback:** re-create the HKCU value or adjust the HKLM setting to re-enable Autorun.
