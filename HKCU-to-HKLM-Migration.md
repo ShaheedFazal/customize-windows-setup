@@ -57,3 +57,11 @@ accounts.
 - **New:** `HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer\SearchBoxTaskbarMode = 0`
 - **Impact:** ensures the taskbar search box stays hidden system-wide.
 - **Rollback:** delete the HKLM policy value or set it to `1` or `2` to restore the search icon or box.
+
+## Enable-NumLock.ps1
+- **Old:** `HKCU:\Control Panel\Keyboard\InitialKeyboardIndicators = 2` and `HKEY_USERS\.DEFAULT\Control Panel\Keyboard\InitialKeyboardIndicators = 2`
+- **New:** `HKLM:\SOFTWARE\Policies\Microsoft\Control Panel\Keyboard\InitialKeyboardIndicators = 2` when the administrative template is present. Otherwise, the value is set across all loaded user hives.
+- **Safe because:** the policy key is part of Windows administrative templates and enforces consistent behaviour.
+- **Impact:** Num Lock starts enabled for every user account without per-user overrides once policy enforcement is available.
+- **Rollback:** remove the HKLM policy value and reset individual user hive settings as needed.
+
