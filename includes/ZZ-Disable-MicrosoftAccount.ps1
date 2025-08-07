@@ -4,10 +4,17 @@ param(
     [switch]$Force
 )
 
-# Determine if the current profile is associated with a Microsoft account.
-# Microsoft accounts show the domain value "MicrosoftAccount" instead of the computer name.
+# Check if the current profile is associated with a Microsoft account
+$identitiesPath = 'HKCU:\SOFTWARE\Microsoft\IdentityCRL\StoredIdentities'
+$identityFound = Test-Path $identitiesPath
+
+# Determine the domain for the current user. Microsoft accounts show the domain
+# value "MicrosoftAccount" instead of the computer name.
 $currentUser = Get-CimInstance Win32_UserAccount -Filter "Name='$env:USERNAME'" -ErrorAction SilentlyContinue
-$hasMicrosoftAccount = $currentUser -and $currentUser.Domain -eq 'MicrosoftAccount'
+$domainIsMicrosoft = $currentUser -and $currentUser.Domain -eq 'MicrosoftAccount'
+
+# Consider the user a Microsoft account if either the registry or domain check matches
+$hasMicrosoftAccount = $identityFound -or $domainIsMicrosoft
 
 # Detect if any enabled local accounts exist besides the built-ins
 $acctInfo = Get-LocalAccountCount
