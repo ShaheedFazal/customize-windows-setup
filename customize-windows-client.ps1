@@ -160,7 +160,7 @@ foreach ($hive in $regBackupFiles.Keys) {
 }
 
 # Backup all loaded user hives (excluding system accounts)
-$defaultHiveKey = 'HKU\\DefaultUser'
+$defaultHiveKey = 'HKU\DefaultUser'
 $defaultProfilePath = Join-Path $env:SystemDrive 'Users\\Default\\NTUSER.DAT'
 $defaultHiveLoaded = $false
 if (-not (Test-Path "Registry::$defaultHiveKey") -and (Test-Path $defaultProfilePath)) {
@@ -183,14 +183,14 @@ foreach ($hive in $userHives) {
     $sid = $hive.PSChildName
     $file = Join-Path $hkuBackupDir ("registry-backup-hku-$sid.reg")
     try {
-        reg.exe export "HKU\\$sid" $file /y
+        reg.exe export "HKU\$sid" $file /y
         if ($LASTEXITCODE -ne 0 -or -not (Test-Path $file) -or (Get-Item $file).Length -eq 0) {
-            throw "Registry export for HKU\\$sid failed"
+            throw "Registry export for HKU\$sid failed"
         }
     } catch {
-        Write-Warning "Failed to backup registry hive HKU\\${sid}: $_"
+        Write-Warning "Failed to backup registry hive HKU\${sid}: $_"
         $ScriptSuccess = $false
-        $ErrorMessages += "Registry backup HKU\\${sid}: $_"
+        $ErrorMessages += "Registry backup HKU\${sid}: $_"
     }
 }
 
@@ -247,7 +247,7 @@ Invoke-Customizations -UserLabel 'current user'
 
 # Process all other loaded user profiles and the default profile for new accounts
 $currentSid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
-$defaultHiveKey = 'HKU\\DefaultUser'
+$defaultHiveKey = 'HKU\DefaultUser'
 $defaultProfilePath = Join-Path $env:SystemDrive 'Users\\Default\\NTUSER.DAT'
 $defaultHiveLoaded = $false
 if (-not (Test-Path "Registry::$defaultHiveKey") -and (Test-Path $defaultProfilePath)) {
