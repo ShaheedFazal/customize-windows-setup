@@ -87,7 +87,7 @@ customize-windows-setup/
 - **OneDrive Removal**: Complete OneDrive uninstallation (optional)
 
 ### Performance Optimization
-- **Power Management**: Sets High Performance power plan
+- **Power Management**: Sets High Performance power plan with integrated 15-minute screen lock
 - **Fast Startup**: Disables problematic Fast Startup feature
 - **Hibernation**: Disables hibernation to save disk space
 - **Visual Effects**: Optimizes animations and visual effects
@@ -99,6 +99,7 @@ customize-windows-setup/
 - **Custom Wallpaper**: Applies consistent wallpaper across all users
 
 ### Security Enhancements
+- **Automatic Screen Lock**: 15-minute display timeout with password protection
 - **Windows Defender**: Optimizes antivirus settings
 - **BitLocker**: Enables drive encryption (where supported)
 - **Account Security**: Configures user account policies
@@ -110,7 +111,7 @@ customize-windows-setup/
 - `Configure-Clipboard.ps1` - Clipboard history and cross-device sync
 - `Disable-FastStartup.ps1` - Removes Fast Startup for stability
 - `Disable-Hibernation.ps1` - Disables hibernation mode
-- `Set-PowerManagement-HighPerformance.ps1` - Optimizes power settings
+- `Set-PowerManagement-HighPerformance.ps1` - High Performance power plan with 15-minute screen lock
 
 ### Privacy Scripts
 - `Disable-Cortana.ps1` - Removes voice assistant features
@@ -129,6 +130,8 @@ customize-windows-setup/
 
 ### Finalization Scripts (ZZZ- prefix)
 - `ZZZ-Set-Wallpaper.ps1` - Applies custom wallpaper system-wide
+
+**Note**: Screen lock functionality is integrated into `Set-PowerManagement-HighPerformance.ps1` rather than using a separate screensaver script, providing a consolidated approach to power management and security.
 
 ## 🛡️ Security Features
 
