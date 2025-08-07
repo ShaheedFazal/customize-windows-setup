@@ -17,7 +17,13 @@ Requires:       PowerShell 5.1 or above + RunAsAdministrator
 .LINK
 https://github.com/filipnet/customize-windows-client
 #>
- 
+
+# Parameters
+[CmdletBinding()]
+param(
+    [switch]$AllUsers
+)
+
 # Variables
 $DRIVELABELSYS = "OS"
 $TEMPFOLDER = "C:\Temp"
@@ -133,10 +139,11 @@ try {
 
 # Backup Registry
 Write-Host ($CR +"Create Registry Backup" + $BLANK + $TIME) -foregroundcolor $FOREGROUNDCOLOR $CR
-$regBackupFiles = @{ 
-    HKLM = "$INSTALLFOLDER\registry-backup-hklm.reg" 
-    HKCU = "$INSTALLFOLDER\registry-backup-hkcu.reg" 
-    HKCR = "$INSTALLFOLDER\registry-backup-hkcr.reg" 
+
+# Backup core hives
+$regBackupFiles = @{
+    HKLM = "$INSTALLFOLDER\registry-backup-hklm.reg"
+    HKCR = "$INSTALLFOLDER\registry-backup-hkcr.reg"
 }
 foreach ($hive in $regBackupFiles.Keys) {
     $file = $regBackupFiles[$hive]
@@ -151,6 +158,41 @@ foreach ($hive in $regBackupFiles.Keys) {
         $ErrorMessages += "Registry backup ${hive}: $_"
     }
 }
+
+# Backup all loaded user hives
+$defaultHiveKey = 'HKU\\DefaultUser'
+$defaultProfilePath = Join-Path $env:SystemDrive 'Users\\Default\\NTUSER.DAT'
+$defaultHiveLoaded = $false
+if (-not (Test-Path "Registry::$defaultHiveKey") -and (Test-Path $defaultProfilePath)) {
+    try {
+        reg.exe load $defaultHiveKey $defaultProfilePath | Out-Null
+        if ($LASTEXITCODE -eq 0) { $defaultHiveLoaded = $true }
+    } catch {
+        Write-Warning "Failed to load default user hive for backup: $_"
+    }
+}
+
+$hkuBackupDir = Join-Path $INSTALLFOLDER 'registry-backup-hku'
+if (!(Test-Path $hkuBackupDir)) { New-Item -ItemType Directory -Path $hkuBackupDir -Force | Out-Null }
+$userHives = Get-ChildItem Registry::HKEY_USERS | Where-Object { $_.PSChildName -notmatch '_Classes$' }
+foreach ($hive in $userHives) {
+    $sid = $hive.PSChildName
+    $file = Join-Path $hkuBackupDir ("registry-backup-hku-$sid.reg")
+    try {
+        reg.exe export "HKU\\$sid" $file /y
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path $file) -or (Get-Item $file).Length -eq 0) {
+            throw "Registry export for HKU\\$sid failed"
+        }
+    } catch {
+        Write-Warning "Failed to backup registry hive HKU\\$sid: $_"
+        $ScriptSuccess = $false
+        $ErrorMessages += "Registry backup HKU\\$sid: $_"
+    }
+}
+
+if ($defaultHiveLoaded) {
+    try { reg.exe unload $defaultHiveKey | Out-Null } catch { Write-Warning "Failed to unload default user hive: $_" }
+}
 # Start customization
 Write-Host ($CR +"This system will customized and minimized") -foregroundcolor $FOREGROUNDCOLOR $CR
 
@@ -160,35 +202,86 @@ Write-Host ($CR +"This system will customized and minimized") -foregroundcolor $
 $AllActions = Get-ChildItem -Path $IncludesPath -Filter '*.ps1' -File |
     Sort-Object -Property Name
 
-# Files prefixed with ZZZ should run after default profile templating
-$PreTemplateActions = $AllActions | Where-Object { $_.Name -notlike 'ZZZ-*' }
-foreach ($Action in $PreTemplateActions) {
-    Write-Host "Execute " -NoNewline
-    Write-Host ($Action.Name) -ForegroundColor Yellow -NoNewline
-    Write-Host " ..."
-    try {
-        & $Action.FullName
-    } catch {
-        Write-Warning "Action $($Action.Name) failed: $_"
-        $ScriptSuccess = $false
-        $ErrorMessages += "$($Action.Name): $_"
+function Invoke-Customizations {
+    param([string]$UserLabel)
+
+    # Files prefixed with ZZZ should run after default profile templating
+    $PreTemplateActions = $AllActions | Where-Object { $_.Name -notlike 'ZZZ-*' }
+    foreach ($Action in $PreTemplateActions) {
+        Write-Host "Execute " -NoNewline
+        Write-Host ($Action.Name) -ForegroundColor Yellow -NoNewline
+        Write-Host " ..."
+        try {
+            & $Action.FullName
+        } catch {
+            Write-Warning "Action $($Action.Name) failed: $_"
+            $ScriptSuccess = $false
+            $ErrorMessages += "$($Action.Name): $_"
+        }
+    }
+    Write-Host ($CR +"All customizations completed for $UserLabel") -foregroundcolor $FOREGROUNDCOLOR
+    # Skip profile templating as this functionality is currently disabled
+
+    # Execute actions that should run after default profile templating
+    $PostTemplateActions = $AllActions | Where-Object { $_.Name -like 'ZZZ-*' }
+    foreach ($Action in $PostTemplateActions) {
+        Write-Host "Execute " -NoNewline
+        Write-Host ($Action.Name) -ForegroundColor Yellow -NoNewline
+        Write-Host " ..."
+        try {
+            & $Action.FullName
+        } catch {
+            Write-Warning "Action $($Action.Name) failed: $_"
+            $ScriptSuccess = $false
+            $ErrorMessages += "$($Action.Name): $_"
+        }
     }
 }
-Write-Host ($CR +"All customizations completed for current user") -foregroundcolor $FOREGROUNDCOLOR
-# Skip profile templating as this functionality is currently disabled
 
-# Execute actions that should run after default profile templating
-$PostTemplateActions = $AllActions | Where-Object { $_.Name -like 'ZZZ-*' }
-foreach ($Action in $PostTemplateActions) {
-    Write-Host "Execute " -NoNewline
-    Write-Host ($Action.Name) -ForegroundColor Yellow -NoNewline
-    Write-Host " ..."
-    try {
-        & $Action.FullName
-    } catch {
-        Write-Warning "Action $($Action.Name) failed: $_"
-        $ScriptSuccess = $false
-        $ErrorMessages += "$($Action.Name): $_"
+# Run customizations for current user (and system-wide policies)
+Invoke-Customizations -UserLabel 'current user'
+
+if ($AllUsers) {
+    $currentSid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+    $defaultHiveKey = 'HKU\\DefaultUser'
+    $defaultProfilePath = Join-Path $env:SystemDrive 'Users\\Default\\NTUSER.DAT'
+    $defaultHiveLoaded = $false
+    if (-not (Test-Path "Registry::$defaultHiveKey") -and (Test-Path $defaultProfilePath)) {
+        try {
+            reg.exe load $defaultHiveKey $defaultProfilePath | Out-Null
+            if ($LASTEXITCODE -eq 0) { $defaultHiveLoaded = $true }
+        } catch {
+            Write-Warning "Failed to load default user hive: $_"
+        }
+    }
+
+    $userHives = Get-ChildItem Registry::HKEY_USERS | Where-Object {
+        $_.PSChildName -notmatch '_Classes$' -and
+        $_.PSChildName -ne '.DEFAULT' -and
+        $_.PSChildName -notmatch '^S-1-5-(18|19|20)$' -and
+        $_.PSChildName -ne $currentSid
+    }
+    foreach ($hive in $userHives) {
+        $sid = $hive.PSChildName
+        Write-Host ($CR +"Applying user-level customizations for hive $sid") -ForegroundColor $FOREGROUNDCOLOR
+        try {
+            Remove-PSDrive -Name HKCU -Force
+            New-PSDrive -Name HKCU -PSProvider Registry -Root $hive.Name | Out-Null
+            $profilePath = (Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\$sid" -Name ProfileImagePath -ErrorAction SilentlyContinue).ProfileImagePath
+            if (-not $profilePath -and $sid -eq 'DefaultUser') {
+                $profilePath = Join-Path $env:SystemDrive 'Users\\Default'
+            }
+            $oldProfile = $env:USERPROFILE
+            if ($profilePath) { $env:USERPROFILE = $profilePath }
+            Invoke-Customizations -UserLabel $sid
+            if ($profilePath) { $env:USERPROFILE = $oldProfile }
+        } finally {
+            Remove-PSDrive -Name HKCU -Force
+            New-PSDrive -Name HKCU -PSProvider Registry -Root 'HKEY_CURRENT_USER' | Out-Null
+        }
+    }
+    if ($defaultHiveLoaded) {
+        try { reg.exe unload $defaultHiveKey | Out-Null } catch { Write-Warning "Failed to unload default user hive: $_" }
     }
 }
 if ($ErrorMessages.Count -eq 0) {
