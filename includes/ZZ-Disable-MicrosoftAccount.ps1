@@ -56,8 +56,8 @@ Set-RegistryValue -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policie
 # Disable Microsoft account creation
 Set-RegistryValue -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" -Name "BlockUserFromCreatingAccounts" -Value 1 -Type "DWord" -Force
 
-# Disable Microsoft 365 promotional notifications
-Set-RegistryValue -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement" -Name "ScoobeSystemSettingEnabled" -Value 0 -Type "DWord" -Force
+# Disable Microsoft 365 promotional notifications for all users
+Set-RegistryValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CurrentVersion\UserProfileEngagement" -Name "ScoobeSystemSettingEnabled" -Value 0 -Type "DWord" -Force
 
 # Disable Windows Hello for Business sign-in
 Write-Host 'Disabling Windows Hello for Business...'
