@@ -38,7 +38,7 @@ accounts.
 - **Rollback:** remove the registry values to restore default behaviour.
 
 ## Configure-Clipboard.ps1
-- **Old:** `HKCU:\Software\Microsoft\Clipboard\EnableCloudClipboard = 0`
+- **Old:** `HKCU:\Software\Microsoft\Clipboard\EnableClipboardHistory = 1`
 - **New:** HKLM policies under `HKLM:\SOFTWARE\Policies\Microsoft\Windows\System`
   setting `AllowClipboardHistory = 1` and `AllowCrossDeviceClipboard = 0`.
 - **Impact:** clipboard history remains available while cross device sync is disabled for all users.
@@ -63,3 +63,18 @@ accounts.
 - **New:** `HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer\ShowTaskViewButton = 0`
 - **Impact:** hides the Task View button on the taskbar for all users.
 - **Rollback:** delete the policy value or set it to `1` to show the button again.
+
+## Hide-User-Folder-From-Desktop.ps1
+- **Old:** Deleted `{59031a47-3f72-44a7-89c5-5595fe6b30ee}` under `HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\ClassicStartMenu`
+- **Old:** Deleted `{59031a47-3f72-44a7-89c5-5595fe6b30ee}` under `HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel`
+- **New:** `HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer\HideDesktopIcons\ClassicStartMenu\{59031a47-3f72-44a7-89c5-5595fe6b30ee} = 1`
+- **New:** `HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer\HideDesktopIcons\NewStartPanel\{59031a47-3f72-44a7-89c5-5595fe6b30ee} = 1`
+- **Impact:** hides the User Folder icon on the desktop for all users.
+- **Rollback:** remove the HKLM values or set them to `0` to show the icon again.
+
+## Enable-NumLock.ps1
+- **Old:** `HKCU:\Control Panel\Keyboard\InitialKeyboardIndicators = 2` and `HKEY_USERS\.DEFAULT\Control Panel\Keyboard\InitialKeyboardIndicators = 2`
+- **New:** `HKLM:\SOFTWARE\Policies\Microsoft\Control Panel\Keyboard\InitialKeyboardIndicators = 2` when the administrative template is present. Otherwise, the value is set across all loaded user hives.
+- **Safe because:** the policy key is part of Windows administrative templates and enforces consistent behaviour.
+- **Impact:** Num Lock starts enabled for every user account without per-user overrides once policy enforcement is available.
+- **Rollback:** remove the HKLM policy value and reset individual user hive settings as needed.

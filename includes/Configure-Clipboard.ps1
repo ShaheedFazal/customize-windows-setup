@@ -1,11 +1,7 @@
 # Configure Clipboard Settings
 
-# Enable Clipboard History (Win + V)
-Write-Host "Enabling Clipboard History..."
-Set-RegistryValue -Path "HKCU:\Software\Microsoft\Clipboard" -Name "EnableClipboardHistory" -Value 1 -Type "DWord" -Force
-
-# Disable Clipboard Sync Across Devices
-Write-Host "Disabling Clipboard Sync Across Devices..."
+# Enable clipboard history and disable cross-device sync for all users
+Write-Host "Configuring clipboard policy..."
 try {
     $systemPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System"
     if (!(Test-Path $systemPath)) {
