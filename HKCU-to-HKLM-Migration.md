@@ -58,8 +58,8 @@ accounts.
 - **Impact:** ensures the taskbar search box stays hidden system-wide.
 - **Rollback:** delete the HKLM policy value or set it to `1` or `2` to restore the search icon or box.
 
-## Show-Known-File-Extensions.ps1
-- **Old:** `HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced\HideFileExt = 0`
-- **New:** `HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer\HideFileExt = 0`
-- **Impact:** forces file extensions to remain visible for all users.
-- **Rollback:** delete the HKLM policy value and re-create per-user preferences if needed.
+## Show-Small-Icons-in-Taskbar.ps1
+- **Old:** `HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarSmallIcons = 1`
+- **New:** `HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer\TaskbarSmallIcons = 1`
+- **Impact:** enforces small taskbar icons for every account without per-user overrides.
+- **Rollback:** remove the HKLM policy value or set it to `0` to restore default icon size.

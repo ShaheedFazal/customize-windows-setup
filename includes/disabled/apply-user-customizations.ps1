@@ -32,7 +32,6 @@ $userScripts = @(
     @{ Script = 'Hide-Widgets-Icon.ps1';             Description = 'Hide Widgets icon from taskbar' },
     @{ Script = 'Hide-User-Folder-From-Desktop.ps1'; Description = 'Hide User Folder icon from desktop' },
     @{ Script = 'Hide-All-Tray-Icons.ps1';           Description = 'Hide all system tray icons' },
-    @{ Script = 'Show-Small-Icons-in-Taskbar.ps1';   Description = 'Use small taskbar icons' },
     @{ Script = 'Set-Control-Panel-View-to-Small-Icons.ps1'; Description = 'Set Control Panel to small icons' },
     @{ Script = 'ZZ-Set-Wallpaper.ps1';    Description = 'Set Wallpaper' }
 )
