@@ -38,7 +38,7 @@ accounts.
 - **Rollback:** remove the registry values to restore default behaviour.
 
 ## Configure-Clipboard.ps1
-- **Old:** `HKCU:\Software\Microsoft\Clipboard\EnableCloudClipboard = 0`
+- **Old:** `HKCU:\Software\Microsoft\Clipboard\EnableClipboardHistory = 1`
 - **New:** HKLM policies under `HKLM:\SOFTWARE\Policies\Microsoft\Windows\System`
   setting `AllowClipboardHistory = 1` and `AllowCrossDeviceClipboard = 0`.
 - **Impact:** clipboard history remains available while cross device sync is disabled for all users.
