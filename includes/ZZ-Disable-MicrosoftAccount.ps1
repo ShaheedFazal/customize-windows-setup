@@ -4,17 +4,10 @@ param(
     [switch]$Force
 )
 
-# Check if the current profile is associated with a Microsoft account
-$identitiesPath = 'HKCU:\SOFTWARE\Microsoft\IdentityCRL\StoredIdentities'
-$identityFound = Test-Path $identitiesPath
-
-# Determine the domain for the current user. Microsoft accounts show the domain
-# value "MicrosoftAccount" instead of the computer name.
+# Determine if the current profile is associated with a Microsoft account.
+# Microsoft accounts show the domain value "MicrosoftAccount" instead of the computer name.
 $currentUser = Get-CimInstance Win32_UserAccount -Filter "Name='$env:USERNAME'" -ErrorAction SilentlyContinue
-$domainIsMicrosoft = $currentUser -and $currentUser.Domain -eq 'MicrosoftAccount'
-
-# Consider the user a Microsoft account if either the registry or domain check matches
-$hasMicrosoftAccount = $identityFound -or $domainIsMicrosoft
+$hasMicrosoftAccount = $currentUser -and $currentUser.Domain -eq 'MicrosoftAccount'
 
 # Detect if any enabled local accounts exist besides the built-ins
 $acctInfo = Get-LocalAccountCount
@@ -56,8 +49,8 @@ Set-RegistryValue -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policie
 # Disable Microsoft account creation
 Set-RegistryValue -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" -Name "BlockUserFromCreatingAccounts" -Value 1 -Type "DWord" -Force
 
-# Disable Microsoft 365 promotional notifications
-Set-RegistryValue -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement" -Name "ScoobeSystemSettingEnabled" -Value 0 -Type "DWord" -Force
+# Disable Microsoft 365 promotional notifications for all users
+Set-RegistryValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CurrentVersion\UserProfileEngagement" -Name "ScoobeSystemSettingEnabled" -Value 0 -Type "DWord" -Force
 
 # Disable Windows Hello for Business sign-in
 Write-Host 'Disabling Windows Hello for Business...'
