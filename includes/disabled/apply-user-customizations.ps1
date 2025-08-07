@@ -27,7 +27,7 @@ Write-Host "Privileges: $(if($IsAdmin){'Administrator'}else{'Standard User'})" -
 
 # List of validated user-level scripts
 $userScripts = @(
-    @{ Script = 'Hide-Recently-Shortcuts.ps1';       Description = 'Hide recently used shortcuts' },
+    @{ Script = 'Show-Recently-Shortcuts.ps1';       Description = 'Show recently used shortcuts' },
     @{ Script = 'Hide-People-Icon-Taskbar.ps1';      Description = 'Hide People icon from taskbar' },
     @{ Script = 'Hide-Widgets-Icon.ps1';             Description = 'Hide Widgets icon from taskbar' },
     @{ Script = 'Hide-User-Folder-From-Desktop.ps1'; Description = 'Hide User Folder icon from desktop' },
