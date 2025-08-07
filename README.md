@@ -152,6 +152,14 @@ The toolkit uses **HKLM (Local Machine)** policies instead of **HKCU (Current Us
 - Modify `customize-windows-client.ps1` variables for different configurations
 - Edit individual scripts for custom behaviors
 
+**⚠️ Important**: Scripts in the `disabled/` folder require careful review before enabling. These scripts may contain:
+- Outdated or untested functionality
+- Settings that conflict with active scripts
+- Enterprise-specific configurations not suitable for all environments
+- Features that have been disabled for compatibility reasons
+
+Always test disabled scripts in a virtual machine or isolated environment before moving them to the active `includes/` folder.
+
 ### Adding New Features
 1. Create new `.ps1` script in `includes/`
 2. Use `Shared-Functions.ps1` utilities for consistency
