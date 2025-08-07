@@ -1,3 +1,2 @@
 Place your `wallpaper.png` image in this directory.
-Run `ZZZ-Set-Wallpaper.ps1` to copy the image to `C:\wallpaper` and apply it for the current user.
-
+`Set-DefaultWallpaper.ps1` copies it to `C:\wallpaper` and configures the default profile. The script also writes policy values under `HKLM\SOFTWARE\Policies\Microsoft\Windows\Personalization` to enforce the wallpaper for all users.
