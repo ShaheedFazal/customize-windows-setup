@@ -2,32 +2,109 @@
 
 Write-Host "[INFO] Configuring Wake on LAN..."
 
-# Filter for physical, active Ethernet adapters only
-Get-NetAdapter | Where-Object {
-    $_.InterfaceDescription -match "Ethernet" -and
-    $_.Status -eq "Up" -and
-    $_.HardwareInterface -eq $true
-} | ForEach-Object {
-    $adapterName = $_.Name
-    Write-Host "Processing adapter: $adapterName"
+# Get all network adapters and show what we found
+$allAdapters = Get-NetAdapter
+Write-Host "[INFO] Found $($allAdapters.Count) total network adapters"
 
-    # Enable "Wake on Magic Packet"
-    try {
-        Set-NetAdapterAdvancedProperty -Name $adapterName -DisplayName "Wake on Magic Packet" -DisplayValue "Enabled" -NoRestart -ErrorAction Stop
-        Write-Host "[OK] Enabled Wake on Magic Packet on $adapterName"
-    } catch {
-        Write-Host "[WARN] Could not set Wake on Magic Packet on $adapterName. $_"
+# Filter for physical network adapters (Ethernet, WiFi, etc.)
+$eligibleAdapters = Get-NetAdapter | Where-Object {
+    # Include physical adapters that are Ethernet-based or WiFi
+    ($_.InterfaceDescription -match "Ethernet|Gigabit|Fast Ethernet|WiFi|Wireless|802.11") -and
+    # Must be a hardware interface (not virtual)
+    $_.HardwareInterface -eq $true -and
+    # Exclude virtual switches, VPN adapters, etc.
+    $_.InterfaceDescription -notmatch "Virtual|VPN|TAP|Loopback|Teredo|6to4"
+}
+
+Write-Host "[INFO] Found $($eligibleAdapters.Count) eligible physical network adapters"
+
+if ($eligibleAdapters.Count -eq 0) {
+    Write-Host "[WARN] No eligible network adapters found for Wake on LAN configuration"
+    Write-Host "[INFO] Adapter types found:"
+    $allAdapters | ForEach-Object {
+        Write-Host "  - $($_.Name): $($_.InterfaceDescription) (Status: $($_.Status), Hardware: $($_.HardwareInterface))"
     }
+} else {
+    $eligibleAdapters | ForEach-Object {
+        $adapterName = $_.Name
+        $adapterDesc = $_.InterfaceDescription
+        $adapterStatus = $_.Status
+        
+        Write-Host "[PROCESSING] $adapterName ($adapterDesc) - Status: $adapterStatus" -ForegroundColor Cyan
 
-    # Set power management options
-    try {
-        powercfg.exe -devicequery wake_from_any | Where-Object { $_ -like "*$adapterName*" } | ForEach-Object {
-            powercfg.exe -devicedisablewake $_
-            powercfg.exe -deviceenablewake $_
+        # Try to enable Wake on Magic Packet using multiple possible property names
+        $wakeEnabled = $false
+        $possibleWakeProperties = @(
+            "Wake on Magic Packet",
+            "*Wake*Magic*",
+            "Wake on Pattern Match",
+            "*Wake*",
+            "WakeOnMagicPacket"
+        )
+
+        foreach ($wakeProp in $possibleWakeProperties) {
+            try {
+                # Try to find and set the wake property
+                $properties = Get-NetAdapterAdvancedProperty -Name $adapterName -ErrorAction SilentlyContinue | 
+                              Where-Object { $_.DisplayName -like $wakeProp }
+                
+                if ($properties) {
+                    foreach ($prop in $properties) {
+                        try {
+                            Set-NetAdapterAdvancedProperty -Name $adapterName -DisplayName $prop.DisplayName -DisplayValue "Enabled" -NoRestart -ErrorAction Stop
+                            Write-Host "[OK] Enabled '$($prop.DisplayName)' on $adapterName" -ForegroundColor Green
+                            $wakeEnabled = $true
+                        } catch {
+                            # Try alternative values
+                            try {
+                                Set-NetAdapterAdvancedProperty -Name $adapterName -DisplayName $prop.DisplayName -DisplayValue "On" -NoRestart -ErrorAction Stop
+                                Write-Host "[OK] Enabled '$($prop.DisplayName)' on $adapterName (using 'On')" -ForegroundColor Green
+                                $wakeEnabled = $true
+                            } catch {
+                                Write-Host "[WARN] Could not set '$($prop.DisplayName)' on $adapterName" -ForegroundColor Yellow
+                            }
+                        }
+                    }
+                }
+            } catch {
+                continue
+            }
         }
-        Write-Host "[OK] Enabled wake permissions in power management for $adapterName"
-    } catch {
-        Write-Host "[WARN] Could not configure power settings for $adapterName. $_"
+
+        # Configure Windows power management to allow this device to wake the computer
+        try {
+            # Get the device instance path for power configuration
+            $deviceInfo = Get-NetAdapter -Name $adapterName | Get-NetAdapterHardwareInfo -ErrorAction SilentlyContinue
+            
+            # Enable wake capability via registry (more reliable than powercfg for some adapters)
+            $regPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e972-e325-11ce-bfc1-08002be10318}"
+            $subKeys = Get-ChildItem -Path $regPath -ErrorAction SilentlyContinue
+            
+            foreach ($subKey in $subKeys) {
+                try {
+                    $adapterKey = Get-ItemProperty -Path $subKey.PSPath -ErrorAction SilentlyContinue
+                    if ($adapterKey -and ($adapterKey.DriverDesc -eq $adapterDesc -or $adapterKey.DriverDesc -like "*$($adapterName)*")) {
+                        # Enable Wake on Magic Packet in registry
+                        Set-ItemProperty -Path $subKey.PSPath -Name "*WakeOnMagicPacket" -Value "1" -ErrorAction SilentlyContinue
+                        Set-ItemProperty -Path $subKey.PSPath -Name "WakeOnLink" -Value "1" -ErrorAction SilentlyContinue
+                        Set-ItemProperty -Path $subKey.PSPath -Name "PMWiFiRekeyOffload" -Value "1" -ErrorAction SilentlyContinue
+                        Write-Host "[OK] Configured registry wake settings for $adapterName" -ForegroundColor Green
+                        break
+                    }
+                } catch {
+                    continue
+                }
+            }
+        } catch {
+            Write-Host "[WARN] Could not configure registry wake settings for $adapterName" -ForegroundColor Yellow
+        }
+
+        if ($wakeEnabled) {
+            Write-Host "[SUCCESS] Wake on LAN configured for $adapterName" -ForegroundColor Green
+        } else {
+            Write-Host "[WARN] Wake on LAN may not be fully supported on $adapterName" -ForegroundColor Yellow
+        }
     }
 }
-Write-Host "Wake on LAN configuration complete."
+
+Write-Host "[INFO] Wake on LAN configuration complete." -ForegroundColor Cyan
