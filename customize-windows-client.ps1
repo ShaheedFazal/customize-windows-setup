@@ -188,9 +188,9 @@ foreach ($hive in $userHives) {
             throw "Registry export for HKU\\$sid failed"
         }
     } catch {
-        Write-Warning "Failed to backup registry hive HKU\\$sid: $_"
+        Write-Warning "Failed to backup registry hive HKU\\${sid}: $_"
         $ScriptSuccess = $false
-        $ErrorMessages += "Registry backup HKU\\$sid: $_"
+        $ErrorMessages += "Registry backup HKU\\${sid}: $_"
     }
 }
 
