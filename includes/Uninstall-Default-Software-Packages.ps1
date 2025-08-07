@@ -7,11 +7,11 @@ Write-Host "[INFO] Loading provisioned package list..."
 $ProvisionedPackages = $null
 try {
     $job = Start-Job -ScriptBlock { Get-AppxProvisionedPackage -Online -ErrorAction Stop }
-    if (Wait-Job $job -Timeout 30) {
+    if (Wait-Job $job -Timeout 120) {
         $ProvisionedPackages = Receive-Job $job
         Write-Host "[OK] Loaded $($ProvisionedPackages.Count) provisioned packages"
     } else {
-        Write-Host "[WARN] Timeout loading provisioned packages - will skip provisioned package removal"
+        Write-Host "[WARN] Timeout after 2 minutes loading provisioned packages - will skip provisioned package removal"
         Remove-Job $job -Force
     }
 } catch {
