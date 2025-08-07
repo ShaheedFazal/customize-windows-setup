@@ -57,3 +57,11 @@ accounts.
 - **New:** `HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer\SearchBoxTaskbarMode = 0`
 - **Impact:** ensures the taskbar search box stays hidden system-wide.
 - **Rollback:** delete the HKLM policy value or set it to `1` or `2` to restore the search icon or box.
+
+## Hide-User-Folder-From-Desktop.ps1
+- **Old:** Deleted `{59031a47-3f72-44a7-89c5-5595fe6b30ee}` under `HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\ClassicStartMenu`
+- **Old:** Deleted `{59031a47-3f72-44a7-89c5-5595fe6b30ee}` under `HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel`
+- **New:** `HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer\HideDesktopIcons\ClassicStartMenu\{59031a47-3f72-44a7-89c5-5595fe6b30ee} = 1`
+- **New:** `HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer\HideDesktopIcons\NewStartPanel\{59031a47-3f72-44a7-89c5-5595fe6b30ee} = 1`
+- **Impact:** hides the User Folder icon on the desktop for all users.
+- **Rollback:** remove the HKLM values or set them to `0` to show the icon again.
