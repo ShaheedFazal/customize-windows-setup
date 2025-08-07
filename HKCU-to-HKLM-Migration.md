@@ -57,3 +57,9 @@ accounts.
 - **New:** `HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer\SearchBoxTaskbarMode = 0`
 - **Impact:** ensures the taskbar search box stays hidden system-wide.
 - **Rollback:** delete the HKLM policy value or set it to `1` or `2` to restore the search icon or box.
+
+## Hide-Task-View-Button.ps1
+- **Old:** `HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced\ShowTaskViewButton = 0`
+- **New:** `HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer\ShowTaskViewButton = 0`
+- **Impact:** hides the Task View button on the taskbar for all users.
+- **Rollback:** delete the policy value or set it to `1` to show the button again.
