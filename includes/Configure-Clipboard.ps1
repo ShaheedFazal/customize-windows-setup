@@ -1,28 +1,39 @@
 # Configure Clipboard Settings
 
 # Enable clipboard history and disable cross-device sync for all users
-Write-Host "Configuring clipboard policy..."
+Write-Host "Configuring clipboard policy..." -ForegroundColor Cyan
+
 try {
     # Set system-wide policy to allow clipboard history
     $systemPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System"
-    if (!(Test-Path $systemPath)) {
-        New-Item -Path $systemPath -Force | Out-Null
-    }
-    Set-ItemProperty -Path $systemPath -Name "AllowClipboardHistory" -Type DWord -Value 1
-    Set-ItemProperty -Path $systemPath -Name "AllowCrossDeviceClipboard" -Type DWord -Value 0
-    Write-Host "[OK] Policy applied: Clipboard history allowed, cross-device sync disabled"
+    Set-RegistryValue -Path $systemPath -Name "AllowClipboardHistory" -Value 1 -Type "DWord" -Force
+    Set-RegistryValue -Path $systemPath -Name "AllowCrossDeviceClipboard" -Value 0 -Type "DWord" -Force
+    Write-Host "[POLICY] Clipboard history allowed, cross-device sync disabled" -ForegroundColor Green
 } catch {
-    Write-Host "[WARN] Could not apply clipboard policy: $($_.Exception.Message)"
+    Write-Host "[ERROR] Could not apply clipboard policy: $_" -ForegroundColor Red
 }
 
-# Enable clipboard history at user level for current user and default profile
-Write-Host "Enabling clipboard history for users..."
-try {
-    # Enable for current user
-    $clipboardPath = "HKCU:\Software\Microsoft\Clipboard"
-    Set-RegistryValue -Path $clipboardPath -Name "EnableClipboardHistory" -Value 1 -Type "DWord" -Force
-    
-    Write-Host "[OK] Clipboard history enabled for current user"
-} catch {
-    Write-Host "[WARN] Could not enable clipboard history for current user: $_"
+# Enable clipboard history for all loaded user profiles
+Write-Host "[USERS] Enabling clipboard history for all user profiles..." -ForegroundColor Yellow
+
+$usersConfigured = 0
+Get-ChildItem Registry::HKEY_USERS | Where-Object { $_.PSChildName -notmatch '_Classes$' } | ForEach-Object {
+    $userSID = $_.PSChildName
+    $clipboardPath = "Registry::HKEY_USERS\$userSID\Software\Microsoft\Clipboard"
+
+    try {
+        Set-RegistryValue -Path $clipboardPath -Name "EnableClipboardHistory" -Value 1 -Type "DWord" -Force
+        $usersConfigured++
+
+        # Identify which user this is
+        if ($userSID -eq ".DEFAULT") {
+            Write-Host "  ✓ Enabled for default user template (new accounts)" -ForegroundColor Green
+        } else {
+            Write-Host "  ✓ Enabled for user SID: $userSID" -ForegroundColor Green
+        }
+    } catch {
+        Write-Host "  ✗ Failed for SID $userSID : $_" -ForegroundColor Red
+    }
 }
+
+Write-Host "[CLIPBOARD] ✅ Clipboard history enabled for $usersConfigured user profile(s)" -ForegroundColor Green
