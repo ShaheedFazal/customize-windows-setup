@@ -38,7 +38,7 @@ Try {
         # Apply the changes
         powercfg /setactive $currentGuid
         
-        Write-Host "[POWER] ✅ High Performance configured: Maximum CPU/disk performance + 30min display timeout" -ForegroundColor Green
+        Write-Host "[POWER] High Performance configured: Maximum CPU/disk performance + 30min display timeout" -ForegroundColor Green
     }
     
     # Configure lock screen timeout and password requirement
@@ -55,7 +55,7 @@ Try {
     Set-RegistryValue -Path "HKCU:\Control Panel\Desktop" -Name "ScreenSaveTimeOut" -Value "1800" -Type "String" -Force
     Set-RegistryValue -Path "HKCU:\Control Panel\Desktop" -Name "ScreenSaverIsSecure" -Value "1" -Type "String" -Force
     
-    Write-Host "[SECURITY] ✅ Screen lock enabled: Display turns off + password required after 30 minutes" -ForegroundColor Green
+    Write-Host "[SECURITY] Screen lock enabled: Display turns off + password required after 30 minutes" -ForegroundColor Green
     
 } Catch {
     Write-Warning -Message "Unable to configure power plan: $_" -foregroundcolor $FOREGROUNDCOLOR

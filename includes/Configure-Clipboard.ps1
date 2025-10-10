@@ -36,4 +36,4 @@ Get-ChildItem Registry::HKEY_USERS | Where-Object { $_.PSChildName -notmatch '_C
     }
 }
 
-Write-Host "[CLIPBOARD] ✅ Clipboard history enabled for $usersConfigured user profile(s)" -ForegroundColor Green
+Write-Host "[CLIPBOARD] Clipboard history enabled for $usersConfigured user profile(s)" -ForegroundColor Green
