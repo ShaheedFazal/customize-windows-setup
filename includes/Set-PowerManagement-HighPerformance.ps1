@@ -1,4 +1,4 @@
-# Set Power Management to High Performance with 15-minute display timeout for security
+# Set Power Management to High Performance with 30-minute display timeout for security
 # Note: Use either this script or Disable-Display-Sleep-Mode-Timeouts.ps1, not both, as they could conflict.
 
 Write-Host "Configuring High Performance power plan with screen lock..." -ForegroundColor Cyan
@@ -23,9 +23,9 @@ Try {
         
         Write-Host "[POWER] Configuring High Performance plan with security timeout..." -ForegroundColor Yellow
         
-        # Set display timeout to 15 minutes while keeping everything else high performance
-        powercfg /setacvalueindex $currentGuid SUB_VIDEO VIDEOIDLE 900
-        powercfg /setdcvalueindex $currentGuid SUB_VIDEO VIDEOIDLE 900
+        # Set display timeout to 30 minutes while keeping everything else high performance
+        powercfg /setacvalueindex $currentGuid SUB_VIDEO VIDEOIDLE 1800
+        powercfg /setdcvalueindex $currentGuid SUB_VIDEO VIDEOIDLE 1800
         
         # Ensure disk, system sleep, and hibernate stay disabled (High Performance behavior)
         powercfg /setacvalueindex $currentGuid SUB_DISK DISKIDLE 0
@@ -38,24 +38,24 @@ Try {
         # Apply the changes
         powercfg /setactive $currentGuid
         
-        Write-Host "[POWER] ✅ High Performance configured: Maximum CPU/disk performance + 15min display timeout" -ForegroundColor Green
+        Write-Host "[POWER] ✅ High Performance configured: Maximum CPU/disk performance + 30min display timeout" -ForegroundColor Green
     }
     
     # Configure lock screen timeout and password requirement
-    Set-RegistryValue -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" -Name "InactivityTimeoutSecs" -Value 900 -Type "DWord" -Force
+    Set-RegistryValue -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" -Name "InactivityTimeoutSecs" -Value 1800 -Type "DWord" -Force
     
     # Set screensaver policies for additional security
     $desktopPolicy = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Control Panel\Desktop"
     Set-RegistryValue -Path $desktopPolicy -Name "ScreenSaveActive" -Value "1" -Type "String" -Force
-    Set-RegistryValue -Path $desktopPolicy -Name "ScreenSaveTimeOut" -Value "900" -Type "String" -Force
+    Set-RegistryValue -Path $desktopPolicy -Name "ScreenSaveTimeOut" -Value "1800" -Type "String" -Force
     Set-RegistryValue -Path $desktopPolicy -Name "ScreenSaverIsSecure" -Value "1" -Type "String" -Force
     
     # User-level settings
     Set-RegistryValue -Path "HKCU:\Control Panel\Desktop" -Name "ScreenSaveActive" -Value "1" -Type "String" -Force
-    Set-RegistryValue -Path "HKCU:\Control Panel\Desktop" -Name "ScreenSaveTimeOut" -Value "900" -Type "String" -Force
+    Set-RegistryValue -Path "HKCU:\Control Panel\Desktop" -Name "ScreenSaveTimeOut" -Value "1800" -Type "String" -Force
     Set-RegistryValue -Path "HKCU:\Control Panel\Desktop" -Name "ScreenSaverIsSecure" -Value "1" -Type "String" -Force
     
-    Write-Host "[SECURITY] ✅ Screen lock enabled: Display turns off + password required after 15 minutes" -ForegroundColor Green
+    Write-Host "[SECURITY] ✅ Screen lock enabled: Display turns off + password required after 30 minutes" -ForegroundColor Green
     
 } Catch {
     Write-Warning -Message "Unable to configure power plan: $_" -foregroundcolor $FOREGROUNDCOLOR
