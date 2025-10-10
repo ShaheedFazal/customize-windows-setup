@@ -56,7 +56,7 @@ if ($eligibleAdapters.Count -eq 0) {
                         Write-Host "[INFO] Current value for '$($prop.DisplayName)': $currentValue" -ForegroundColor Gray
                         
                         # Common enabled values - prioritize numeric values first for universal compatibility
-                        $enabledValues = @("1", "0x1", "Enabled", "On", "True", "Aktiviert", "Ein", "Oui", "Sí", "はい", "да")
+                        $enabledValues = @("1", "0x1", "Enabled", "On", "True", "Aktiviert", "Ein", "Oui")
                         
                         # Try each enabled value until one works
                         $propertyEnabled = $false

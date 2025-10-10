@@ -27,12 +27,12 @@ Get-ChildItem Registry::HKEY_USERS | Where-Object { $_.PSChildName -notmatch '_C
 
         # Identify which user this is
         if ($userSID -eq ".DEFAULT") {
-            Write-Host "  ✓ Enabled for default user template (new accounts)" -ForegroundColor Green
+            Write-Host "  [OK] Enabled for default user template (new accounts)" -ForegroundColor Green
         } else {
-            Write-Host "  ✓ Enabled for user SID: $userSID" -ForegroundColor Green
+            Write-Host "  [OK] Enabled for user SID: $userSID" -ForegroundColor Green
         }
     } catch {
-        Write-Host "  ✗ Failed for SID $userSID : $_" -ForegroundColor Red
+        Write-Host "  [ERROR] Failed for SID $userSID : $_" -ForegroundColor Red
     }
 }
 
