@@ -38,6 +38,26 @@ Set-ExecutionPolicy Bypass -Scope Process -Force; `
     & "C:\Temp\customize-windows-setup\customize-windows-setup-main\customize-windows-client.ps1"
 ```
 
+### Method 1b: One-Line Installation (Microsoft Account & OneDrive Enabled)
+
+For machines that need to **keep Microsoft Account and OneDrive functionality**, use this variant:
+
+```powershell
+Set-ExecutionPolicy Bypass -Scope Process -Force; `
+    iwr -useb https://raw.githubusercontent.com/ShaheedFazal/customize-windows-setup/main/download-repo.ps1 | iex; `
+    & "C:\Temp\customize-windows-setup\customize-windows-setup-main\customize-windows-client-with-microsoft.ps1"
+```
+
+This variant skips the following scripts:
+- `ZZ-Disable-MicrosoftAccount.ps1` - Keeps Microsoft Account sign-in enabled
+- `Uninstall-OneDrive.ps1` - Keeps OneDrive installed and functional
+
+**Use this variant for:**
+- Machines requiring cloud sync and backup
+- Users who rely on Microsoft 365 integration
+- Environments using OneDrive for Business
+- Systems that need Microsoft Account authentication
+
 ### Method 2: Manual Installation
 
 1. Download and run `download-repo.ps1` to extract the repository to `C:\Temp`
@@ -50,15 +70,16 @@ Set-ExecutionPolicy Bypass -Scope Process -Force; `
 
 ```
 customize-windows-setup/
-├── customize-windows-client.ps1   # Main orchestrator script
-├── download-repo.ps1              # Repository downloader utility
-├── includes/                      # Modular customization scripts
-│   ├── Shared-Functions.ps1       # Common utility functions
-│   ├── [Feature Scripts]          # Individual customization modules
-│   └── disabled/                  # Scripts excluded from execution
-├── wallpaper/                     # Custom wallpaper assets
-├── HKCU-to-HKLM-Migration.md      # Policy migration documentation
-└── AGENTS.md                      # Development guidelines
+├── customize-windows-client.ps1              # Main orchestrator script (full debloating)
+├── customize-windows-client-with-microsoft.ps1  # Variant keeping Microsoft Account & OneDrive
+├── download-repo.ps1                         # Repository downloader utility
+├── includes/                                 # Modular customization scripts
+│   ├── Shared-Functions.ps1                  # Common utility functions
+│   ├── [Feature Scripts]                     # Individual customization modules
+│   └── disabled/                             # Scripts excluded from execution
+├── wallpaper/                                # Custom wallpaper assets
+├── HKCU-to-HKLM-Migration.md                 # Policy migration documentation
+└── AGENTS.md                                 # Development guidelines
 ```
 
 ### Execution Flow
