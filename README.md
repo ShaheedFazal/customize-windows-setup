@@ -98,8 +98,9 @@ customize-windows-setup/
 - **Advertising Removal**: Blocks Microsoft advertising and consumer features
 - **Cortana Disable**: Turns off voice assistant and data collection
 - **Search Hardening**: Removes Bing integration from Windows Search
-- **Location Tracking**: Disables location services and tracking
 - **Feedback Suppression**: Prevents Windows feedback prompts
+
+> **Note**: Location services are NOT disabled by default to preserve automatic time zone detection and time sync functionality. A disabled script exists in `includes/disabled/` if needed.
 
 ### System Debloating
 - **App Removal**: Uninstalls pre-installed Microsoft Store apps
