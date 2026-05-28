@@ -1,3 +1,5 @@
+if (Test-MachineWideSentinel -Name 'Uninstall-Default-Software-Packages') { return }
+
 # Disable Consumer Features to prevent automatic installation of third-party apps and games
 Set-RegistryValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent" -Name "DisableWindowsConsumerFeatures" -Value 1 -Type "DWord" -Force
 Write-Host "[OK] Disabled Windows Consumer Features (prevents automatic app installs)"
@@ -215,4 +217,3 @@ foreach ($pkg in $SoftwarePackages) {
 }
 
 Write-Host "[COMPLETED] App removal process finished" -ForegroundColor Green
-

@@ -1,3 +1,5 @@
+if (Test-MachineWideSentinel -Name 'Enable-WakeOnLan') { return }
+
 # Enable Wake on LAN (WoL) on the local machine
 
 Write-Host "[INFO] Configuring Wake on LAN..."

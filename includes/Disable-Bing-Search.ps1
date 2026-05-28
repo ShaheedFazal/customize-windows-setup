@@ -1,3 +1,5 @@
+if (Test-MachineWideSentinel -Name 'Disable-Bing-Search') { return }
+
 # Disable Bing Search
 try {
     $searchPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search"

@@ -1,3 +1,5 @@
+if (Test-MachineWideSentinel -Name 'Join-Workgroup') { return }
+
 # Automatically join the predefined workgroup if not already joined
 $CurrentWorkgroup = (Get-WmiObject Win32_ComputerSystem).Workgroup
 $WORKGROUP = 'MYLOCALCHEMIST'

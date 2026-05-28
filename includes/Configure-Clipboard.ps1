@@ -1,3 +1,5 @@
+if (Test-MachineWideSentinel -Name 'Configure-Clipboard') { return }
+
 # Configure Clipboard Settings
 
 # Enable clipboard history and disable cross-device sync for all users

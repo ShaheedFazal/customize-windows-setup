@@ -1,3 +1,5 @@
+if (Test-MachineWideSentinel -Name 'Disable-3D-Objects') { return }
+
 # Hide 3D Objects icon from This PC - The icon remains in personal folders and open/save dialogs
 Remove-RegistryKey -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{0DB7E03F-FC29-4DC6-9020-FF41B59E513A}"
 

@@ -1,3 +1,5 @@
+if (Test-MachineWideSentinel -Name 'Hide-Widgets-Icon') { return }
+
 # Hide Widgets icon on the taskbar for all users using policy keys
 Write-Host "Hiding Widgets icon on the taskbar system-wide..."
 

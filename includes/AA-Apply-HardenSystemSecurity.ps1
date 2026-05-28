@@ -21,6 +21,8 @@
 #   Same hash -> skip. Different/missing -> apply and update. To force a
 #   re-apply on the next run, delete that registry value.
 
+if (Test-MachineWideSentinel -Name 'AA-Apply-HardenSystemSecurity') { return }
+
 $ReportFile = Join-Path $PSScriptRoot 'Harden-System-Security.report.json'
 $StateKey   = 'HKLM:\SOFTWARE\CustomizeWindowsSetup\HardenSystemSecurity'
 $StoreId    = '9p7ggfl7dx57'

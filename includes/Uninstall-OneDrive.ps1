@@ -1,3 +1,5 @@
+if (Test-MachineWideSentinel -Name 'Uninstall-OneDrive') { return }
+
 # Remove OneDrive - Comprehensive removal with fallback disable
 
 Write-Host "[INFO] Starting OneDrive removal process..." -ForegroundColor Cyan
@@ -93,7 +95,7 @@ if ($onedriveInstalled) {
     # Remove Start Menu shortcuts created by OneDrive
     Write-Host "[INFO] Cleaning up OneDrive Start Menu shortcuts..."
 
-    $commonStartMenu = Join-Path $env:ProgramData 'Microsoft\\Windows\\Start Menu\\Programs'
+    $commonStartMenu = Join-Path $env:ProgramData 'Microsoft\Windows\Start Menu\Programs'
     if (Test-Path $commonStartMenu) {
         Get-ChildItem -Path $commonStartMenu -Filter 'OneDrive*.lnk' -ErrorAction SilentlyContinue | ForEach-Object {
             try {
@@ -106,7 +108,7 @@ if ($onedriveInstalled) {
     }
 
     foreach ($profile in $profiles) {
-        $userStartMenu = Join-Path $profile.FullName 'AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs'
+        $userStartMenu = Join-Path $profile.FullName 'AppData\Roaming\Microsoft\Windows\Start Menu\Programs'
         if (Test-Path $userStartMenu) {
             Get-ChildItem -Path $userStartMenu -Filter 'OneDrive*.lnk' -ErrorAction SilentlyContinue | ForEach-Object {
                 try {

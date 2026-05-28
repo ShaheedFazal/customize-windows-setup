@@ -1,3 +1,5 @@
+if (Test-MachineWideSentinel -Name 'Disable-Cortana') { return }
+
 # Disabling Cortana
 try {
     $inputPath = "HKLM:\SOFTWARE\Policies\Microsoft\InputPersonalization"

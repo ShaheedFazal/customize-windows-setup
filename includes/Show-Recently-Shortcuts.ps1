@@ -1,3 +1,5 @@
+if (Test-MachineWideSentinel -Name 'Show-Recently-Shortcuts') { return }
+
 # Show recently and frequently used item shortcuts in Explorer
 $explorerPolicyPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer"
 if (!(Test-Path $explorerPolicyPath)) {
