@@ -52,12 +52,12 @@ $expectedExe = Join-Path $expectedDir $EntryPoint
 # --- 1. Preflight: can we resolve github.com / codeload.github.com? -------
 Write-Host '[INFO] DNS preflight...' -ForegroundColor Cyan
 $dnsOk = $true
-foreach ($host in @('github.com', 'codeload.github.com')) {
+foreach ($dnsHost in @('github.com', 'codeload.github.com')) {
     try {
-        $null = Resolve-DnsName -Name $host -Type A -ErrorAction Stop -QuickTimeout
-        Write-Host "  $host  OK"
+        $null = Resolve-DnsName -Name $dnsHost -Type A -ErrorAction Stop -QuickTimeout
+        Write-Host "  $dnsHost  OK"
     } catch {
-        Write-Host "  $host  FAIL ($_)" -ForegroundColor Yellow
+        Write-Host "  $dnsHost  FAIL ($_)" -ForegroundColor Yellow
         $dnsOk = $false
     }
 }
