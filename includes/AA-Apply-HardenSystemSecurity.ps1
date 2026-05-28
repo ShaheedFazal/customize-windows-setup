@@ -9,8 +9,10 @@
 #
 # Execution context:
 #   - Safe to run as SYSTEM (SuperOps default) OR as an interactive admin.
-#   - HSS.exe is a Microsoft Store app. PATH/AppExecutionAlias does NOT resolve
-#     under SYSTEM, so we locate HSS.exe via Get-AppxPackage -AllUsers.
+#   - HSS is a Microsoft Store app. The 'HSS.exe' alias documented in the wiki
+#     is a per-user AppExecutionAlias that does NOT resolve under SYSTEM. We
+#     locate the actual binary (HardenSystemSecurity.exe, or HSS.exe if the
+#     install ever ships it) via Get-AppxPackage -AllUsers.
 #   - Installation: winget `--source msstore` is unreliable under SYSTEM.
 #     This script will only attempt winget when run interactively. Under SYSTEM
 #     the app must be pre-installed (Store, or one-off user-context winget).
@@ -40,14 +42,20 @@ function Test-IsSystem {
 }
 
 function Resolve-HssExe {
-    # Look up the installed Appx package across all users, then point at HSS.exe
-    # inside its InstallLocation. Works whether we're SYSTEM or an admin user.
+    # Look up the installed Appx package across all users, then point at the
+    # actual binary inside its InstallLocation. The HSS wiki documents the
+    # entrypoint as 'HSS.exe' — that's the per-user AppExecutionAlias, which
+    # does NOT resolve under SYSTEM. The real binary in the WindowsApps folder
+    # is 'HardenSystemSecurity.exe'. Try the alias first (future-proof) then
+    # the real name.
     $pkg = Get-AppxPackage -AllUsers -Name $PkgName -ErrorAction SilentlyContinue |
         Sort-Object -Property Version -Descending |
         Select-Object -First 1
     if (-not $pkg) { return $null }
-    $exe = Join-Path $pkg.InstallLocation 'HSS.exe'
-    if (Test-Path -LiteralPath $exe) { return $exe }
+    foreach ($candidate in 'HSS.exe','HardenSystemSecurity.exe') {
+        $exe = Join-Path $pkg.InstallLocation $candidate
+        if (Test-Path -LiteralPath $exe) { return $exe }
+    }
     return $null
 }
 
