@@ -110,15 +110,23 @@ try {
 
     # Skip if a recent restore point already exists (5-min window matches the
     # throttle above). Saves time on repeated runs and avoids stalls.
+    # Get-ComputerRestorePoint returns CreationTime as a WMI CIM datetime
+    # string (yyyyMMddHHmmss.ffffff-ZZZ), not a .NET DateTime — convert it
+    # via ManagementDateTimeConverter.
     $recent = Get-ComputerRestorePoint -ErrorAction SilentlyContinue |
         Sort-Object -Property CreationTime -Descending |
         Select-Object -First 1
     $skipRestore = $false
     if ($recent) {
-        $elapsedMin = (New-TimeSpan -Start $recent.CreationTime -End (Get-Date)).TotalMinutes
-        if ($elapsedMin -lt 5) {
-            Write-Host "[INFO] Restore point already exists from $([math]::Round($elapsedMin,1)) min ago; reusing." -ForegroundColor DarkGray
-            $skipRestore = $true
+        try {
+            $recentTime = [Management.ManagementDateTimeConverter]::ToDateTime($recent.CreationTime)
+            $elapsedMin = (New-TimeSpan -Start $recentTime -End (Get-Date)).TotalMinutes
+            if ($elapsedMin -lt 5) {
+                Write-Host "[INFO] Restore point already exists from $([math]::Round($elapsedMin,1)) min ago; reusing." -ForegroundColor DarkGray
+                $skipRestore = $true
+            }
+        } catch {
+            Write-Warning "Could not parse existing restore-point CreationTime ('$($recent.CreationTime)'); proceeding to create a new one."
         }
     }
 
