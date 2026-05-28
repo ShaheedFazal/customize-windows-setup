@@ -1,3 +1,5 @@
+if (Test-MachineWideSentinel -Name 'Set-Control-Panel-View-to-Small-Icons') { return }
+
 # Set Control Panel view to Small icons (Classic)
 $policyPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\ControlPanel"
 

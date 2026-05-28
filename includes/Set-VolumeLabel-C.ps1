@@ -1,3 +1,5 @@
+if (Test-MachineWideSentinel -Name 'Set-VolumeLabel-C') { return }
+
 # Set volume label of C: to OS
 try {
     $vol = Get-CimInstance -ClassName Win32_Volume -Filter "DriveLetter='C:'"

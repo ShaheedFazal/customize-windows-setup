@@ -1,3 +1,5 @@
+if (Test-MachineWideSentinel -Name 'Enable-NumLock') { return }
+
 # Enable Num Lock by default for all users
 $initialValue = '2'
 $policyPath   = 'HKLM:\SOFTWARE\Policies\Microsoft\Control Panel\Keyboard'

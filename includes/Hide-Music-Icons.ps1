@@ -1,3 +1,5 @@
+if (Test-MachineWideSentinel -Name 'Hide-Music-Icons') { return }
+
 # Hide Music icon from This PC - The icon remains in personal folders and open/save dialogs
 Remove-RegistryKey -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{3dfdf296-dbec-4fb4-81d1-6a3438bcf4de}"
 Remove-RegistryKey -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{1CF1260C-4DD0-4ebb-811F-33C572699FDE}"

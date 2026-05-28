@@ -16,6 +16,29 @@ function Write-Log {
     }
 }
 
+function Test-MachineWideSentinel {
+    # Per-run sentinel for machine-wide includes that would otherwise re-run
+    # once per user-hive iteration of the orchestrator. Returns $true if the
+    # caller has already run this customize session and should bail out;
+    # returns $false the first time and drops a marker so subsequent calls
+    # exit early.
+    #
+    # customize-windows-client.ps1 sweeps C:\Temp\*.session at startup so a
+    # new customize run gets a clean slate.
+    #
+    # Usage at top of include:
+    #   if (Test-MachineWideSentinel -Name 'Disable-Bing-Search') { return }
+    param([Parameter(Mandatory)][string]$Name)
+    $dir = 'C:\Temp'
+    if (-not (Test-Path -LiteralPath $dir)) {
+        New-Item -Path $dir -ItemType Directory -Force | Out-Null
+    }
+    $path = Join-Path $dir "$Name.session"
+    if (Test-Path -LiteralPath $path) { return $true }
+    New-Item -Path $path -ItemType File -Force | Out-Null
+    return $false
+}
+
 function Set-RegistryValue {
     param(
         [Parameter(Mandatory)][string]$Path,

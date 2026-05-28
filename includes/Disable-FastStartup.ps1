@@ -1,3 +1,5 @@
+if (Test-MachineWideSentinel -Name 'Disable-FastStartup') { return }
+
 # Disable Fast Startup to ensure proper WoL functionality and clean shutdown
 
 Write-Host "Disabling Fast Startup..."
@@ -10,4 +12,3 @@ try {
 }
 
 Write-Host "Fast Startup configuration complete."
-

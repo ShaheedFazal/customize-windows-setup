@@ -21,20 +21,13 @@
 #   Same hash -> skip. Different/missing -> apply and update. To force a
 #   re-apply on the next run, delete that registry value.
 
+if (Test-MachineWideSentinel -Name 'AA-Apply-HardenSystemSecurity') { return }
+
 $ReportFile = Join-Path $PSScriptRoot 'Harden-System-Security.report.json'
 $StateKey   = 'HKLM:\SOFTWARE\CustomizeWindowsSetup\HardenSystemSecurity'
 $StoreId    = '9p7ggfl7dx57'
 $PkgFamily  = 'VioletHansen.HardenSystemSecurity_ea7andspwdn10'
 $PkgName    = 'VioletHansen.HardenSystemSecurity'
-$SessionSentinel = 'C:\Temp\AA-Apply-HardenSystemSecurity.session'
-
-# Orchestrator re-invokes each include once per user hive. This script is
-# machine-wide — only run it the first time. Use a sentinel file rooted in
-# the customize-run's working directory so it auto-clears between runs.
-if (Test-Path -LiteralPath $SessionSentinel) {
-    return
-}
-New-Item -Path $SessionSentinel -ItemType File -Force | Out-Null
 
 if (-not (Test-Path -LiteralPath $ReportFile)) {
     Write-Log "ERROR: Harden System Security report not found at $ReportFile"

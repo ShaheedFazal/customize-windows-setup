@@ -1,3 +1,5 @@
+if (Test-MachineWideSentinel -Name 'Hide-Video-Icons') { return }
+
 # Hide Videos icon from This PC - The icon remains in personal folders and open/save dialogs
 Remove-RegistryKey -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{f86fa3ab-70d2-4fc7-9c99-fcbf05467f3a}"
 Remove-RegistryKey -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{A0953C92-50DC-43bf-BE83-3742FED03C9C}"

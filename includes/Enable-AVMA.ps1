@@ -1,3 +1,5 @@
+if (Test-MachineWideSentinel -Name 'Enable-AVMA') { return }
+
 # Only run on Windows Server editions
 $isServer = ((Get-CimInstance Win32_OperatingSystem).ProductType -ne 1)
 if (-not $isServer) {
