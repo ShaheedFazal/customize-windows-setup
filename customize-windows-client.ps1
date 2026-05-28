@@ -100,22 +100,12 @@ try {
         }
     }
     $srRegPath = 'HKLM:\Software\Microsoft\Windows NT\CurrentVersion\SystemRestore'
-    $freq = (Get-ItemProperty -Path $srRegPath -Name SystemRestorePointCreationFrequency -ErrorAction SilentlyContinue).SystemRestorePointCreationFrequency
-    if (-not $freq) { $freq = 0 }
-    $skipRestore = $false
-    if ($freq -gt 0) {
-        $last = Get-ComputerRestorePoint | Sort-Object -Property CreationTime -Descending | Select-Object -First 1
-        if ($last) {
-            $elapsed = (New-TimeSpan -Start $last.CreationTime -End (Get-Date)).TotalMinutes
-            if ($elapsed -lt $freq) {
-                Write-Host "[INFO] Last restore point created $([math]::Round($elapsed)) minutes ago. Skipping new restore point." -ForegroundColor Yellow
-                $skipRestore = $true
-            }
-        }
-    }
-    if (-not $skipRestore) {
-        Checkpoint-Computer -Description "Before customizations" -RestorePointType MODIFY_SETTINGS | Out-Null
-    }
+    # Windows throttles restore-point creation to one per 24h by default. Set the
+    # frequency override to 0 so every customize run gets its own safety net.
+    if (-not (Test-Path $srRegPath)) { New-Item -Path $srRegPath -Force | Out-Null }
+    Set-ItemProperty -Path $srRegPath -Name SystemRestorePointCreationFrequency -Value 0 -Type DWord -Force
+    Checkpoint-Computer -Description "Before customizations" -RestorePointType MODIFY_SETTINGS | Out-Null
+    Write-Host "[OK] System restore point created" -ForegroundColor Green
 } catch {
     Write-Warning "Failed to create restore point: $_"
     $ScriptSuccess = $false
@@ -131,6 +121,11 @@ try {
     if(!(Test-Path $INSTALLFOLDER)) {
         New-Item -ItemType Directory -Force -Path $INSTALLFOLDER | Out-Null
     }
+    # Clear per-run sentinel files used by machine-wide includes to avoid
+    # repeating themselves once per user-hive iteration. They're recreated
+    # by the relevant scripts the first time they run this session.
+    Get-ChildItem -Path $TEMPFOLDER -Filter '*.session' -File -ErrorAction SilentlyContinue |
+        Remove-Item -Force -ErrorAction SilentlyContinue
 } catch {
     Write-Warning "Failed to create folders: $_"
     $ScriptSuccess = $false
@@ -148,10 +143,12 @@ $regBackupFiles = @{
 foreach ($hive in $regBackupFiles.Keys) {
     $file = $regBackupFiles[$hive]
     try {
-        reg.exe export $hive $file /y
+        # Suppress reg.exe's noisy stdout/stderr; we report success/failure ourselves.
+        $regOutput = reg.exe export $hive $file /y 2>&1
         if ($LASTEXITCODE -ne 0 -or -not (Test-Path $file) -or (Get-Item $file).Length -eq 0) {
-            throw "Registry export for $hive failed"
+            throw "reg.exe exit=$LASTEXITCODE output=$regOutput"
         }
+        Write-Host "[OK] Backed up $hive -> $file" -ForegroundColor Green
     } catch {
         Write-Warning "Failed to backup registry hive ${hive}: $_"
         $ScriptSuccess = $false
@@ -183,14 +180,15 @@ foreach ($hive in $userHives) {
     $sid = $hive.PSChildName
     $file = Join-Path $hkuBackupDir ("registry-backup-hku-$sid.reg")
     try {
-        reg.exe export "HKU\$sid" $file /y
+        $regOutput = reg.exe export "HKU\$sid" $file /y 2>&1
         if ($LASTEXITCODE -ne 0 -or -not (Test-Path $file) -or (Get-Item $file).Length -eq 0) {
-            throw "Registry export for HKU\$sid failed"
+            throw "reg.exe exit=$LASTEXITCODE output=$regOutput"
         }
+        Write-Host "[OK] Backed up HKU\$sid" -ForegroundColor Green
     } catch {
-        Write-Warning "Failed to backup registry hive HKU\${sid}: $_"
-        $ScriptSuccess = $false
-        $ErrorMessages += "Registry backup HKU\${sid}: $_"
+        # Some loaded hives (system-protected SIDs like DefaultUser overlays) deny read access.
+        # Log a warning but don't mark the whole script as failed — these aren't critical.
+        Write-Warning "Skipped HKU\${sid} backup: $_"
     }
 }
 

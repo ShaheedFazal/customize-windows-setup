@@ -4,16 +4,27 @@
 Write-Host "Configuring High Performance power plan with screen lock..." -ForegroundColor Cyan
 
 Try {
-    # Get High Performance plan GUID
-    $highPerf = powercfg -l | ForEach-Object{if($_.contains($POWERMANAGEMENT)) {$_.split()[3]}}
-    $currPlan = $(powercfg -getactivescheme).split()[3]
-    
-    # Switch to High Performance if not already active
-    if ($currPlan -ne $highPerf) {
-        powercfg -setactive $highPerf
-        Write-Host "[POWER] Switched to High Performance plan" -ForegroundColor Green
+    # Get High Performance plan GUID. On Win11 Home / certain SKUs the plan
+    # isn't pre-installed; we duplicate from the well-known builtin GUID if so.
+    $builtinHighPerf = '8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c'
+    $highPerf = powercfg -l | ForEach-Object { if ($_.contains($POWERMANAGEMENT)) { $_.split()[3] } } | Select-Object -First 1
+    if (-not $highPerf) {
+        Write-Host "[POWER] High Performance plan not present; creating from builtin..." -ForegroundColor Yellow
+        $dup = powercfg -duplicatescheme $builtinHighPerf 2>&1
+        if ($dup -match '([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})') {
+            $highPerf = $matches[1]
+        }
+    }
+    if (-not $highPerf) {
+        Write-Warning "Could not locate or create a High Performance plan. Skipping plan switch."
     } else {
-        Write-Host "[POWER] Already using High Performance plan" -ForegroundColor Gray
+        $currPlan = $(powercfg -getactivescheme).split()[3]
+        if ($currPlan -ne $highPerf) {
+            powercfg -setactive $highPerf
+            Write-Host "[POWER] Switched to High Performance plan" -ForegroundColor Green
+        } else {
+            Write-Host "[POWER] Already using High Performance plan" -ForegroundColor Gray
+        }
     }
     
     # Get the active scheme GUID for modification

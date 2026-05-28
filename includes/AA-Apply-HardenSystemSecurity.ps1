@@ -26,6 +26,15 @@ $StateKey   = 'HKLM:\SOFTWARE\CustomizeWindowsSetup\HardenSystemSecurity'
 $StoreId    = '9p7ggfl7dx57'
 $PkgFamily  = 'VioletHansen.HardenSystemSecurity_ea7andspwdn10'
 $PkgName    = 'VioletHansen.HardenSystemSecurity'
+$SessionSentinel = 'C:\Temp\AA-Apply-HardenSystemSecurity.session'
+
+# Orchestrator re-invokes each include once per user hive. This script is
+# machine-wide — only run it the first time. Use a sentinel file rooted in
+# the customize-run's working directory so it auto-clears between runs.
+if (Test-Path -LiteralPath $SessionSentinel) {
+    return
+}
+New-Item -Path $SessionSentinel -ItemType File -Force | Out-Null
 
 if (-not (Test-Path -LiteralPath $ReportFile)) {
     Write-Log "ERROR: Harden System Security report not found at $ReportFile"
@@ -98,6 +107,11 @@ try {
 
     $hss = Resolve-HssExe
     if (-not $hss) {
+        if (Test-IsSystem) {
+            Write-Host '[SKIP] Harden System Security not installed yet (waiting for user-logon install task to fire). Will apply on a later run.' -ForegroundColor Yellow
+            Write-Log 'Harden System Security: skipped — package not yet installed under SYSTEM context.'
+            return
+        }
         Install-Hss
         $hss = Resolve-HssExe
         if (-not $hss) { throw 'HSS.exe still not found after install attempt.' }

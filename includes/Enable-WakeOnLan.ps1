@@ -7,15 +7,17 @@ $allAdapters = Get-NetAdapter
 Write-Host "[INFO] Found $($allAdapters.Count) total network adapters"
 
 # Filter for physical network adapters using a more universal approach
-$eligibleAdapters = Get-NetAdapter | Where-Object {
+# Force array context with @(...) so .Count always returns the correct number,
+# even when Where-Object yields a single object (PowerShell otherwise unwraps it).
+$eligibleAdapters = @(Get-NetAdapter | Where-Object {
     # Must be a hardware interface (not virtual)
     $_.HardwareInterface -eq $true -and
     # Exclude known virtual/software adapters by description patterns
     $_.InterfaceDescription -notmatch "Virtual|VPN|TAP|Loopback|Teredo|6to4|Fortinet|Hyper-V|VMware|Bluetooth|Tunnel" -and
     # Only include adapters that can potentially support Wake on LAN (have advanced properties)
-    (Get-NetAdapterAdvancedProperty -Name $_.Name -ErrorAction SilentlyContinue | 
+    (Get-NetAdapterAdvancedProperty -Name $_.Name -ErrorAction SilentlyContinue |
      Where-Object { $_.DisplayName -match "Wake|Power" }) -ne $null
-}
+})
 
 Write-Host "[INFO] Found $($eligibleAdapters.Count) eligible physical network adapters"
 
