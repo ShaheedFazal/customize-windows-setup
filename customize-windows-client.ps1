@@ -100,12 +100,44 @@ try {
         }
     }
     $srRegPath = 'HKLM:\Software\Microsoft\Windows NT\CurrentVersion\SystemRestore'
-    # Windows throttles restore-point creation to one per 24h by default. Set the
-    # frequency override to 0 so every customize run gets its own safety net.
+    # Windows throttles restore-point creation to one per 24h by default. Drop
+    # the override to 5 minutes so each customize run normally gets a fresh
+    # safety net, but back-to-back reruns within minutes share one (avoids
+    # hammering VSS — which can stall Checkpoint-Computer for many minutes
+    # if invoked too aggressively).
     if (-not (Test-Path $srRegPath)) { New-Item -Path $srRegPath -Force | Out-Null }
-    Set-ItemProperty -Path $srRegPath -Name SystemRestorePointCreationFrequency -Value 0 -Type DWord -Force
-    Checkpoint-Computer -Description "Before customizations" -RestorePointType MODIFY_SETTINGS | Out-Null
-    Write-Host "[OK] System restore point created" -ForegroundColor Green
+    Set-ItemProperty -Path $srRegPath -Name SystemRestorePointCreationFrequency -Value 5 -Type DWord -Force
+
+    # Skip if a recent restore point already exists (5-min window matches the
+    # throttle above). Saves time on repeated runs and avoids stalls.
+    $recent = Get-ComputerRestorePoint -ErrorAction SilentlyContinue |
+        Sort-Object -Property CreationTime -Descending |
+        Select-Object -First 1
+    $skipRestore = $false
+    if ($recent) {
+        $elapsedMin = (New-TimeSpan -Start $recent.CreationTime -End (Get-Date)).TotalMinutes
+        if ($elapsedMin -lt 5) {
+            Write-Host "[INFO] Restore point already exists from $([math]::Round($elapsedMin,1)) min ago; reusing." -ForegroundColor DarkGray
+            $skipRestore = $true
+        }
+    }
+
+    if (-not $skipRestore) {
+        # Run Checkpoint-Computer in a background job with a hard timeout so a
+        # stalled VSS doesn't hang the entire customize run (and SuperOps).
+        $job = Start-Job -ScriptBlock {
+            Checkpoint-Computer -Description 'Before customizations' -RestorePointType MODIFY_SETTINGS
+        }
+        if (Wait-Job -Job $job -Timeout 90) {
+            Receive-Job -Job $job | Out-Null
+            Write-Host "[OK] System restore point created" -ForegroundColor Green
+        } else {
+            Stop-Job -Job $job -ErrorAction SilentlyContinue
+            Write-Warning "Checkpoint-Computer did not complete within 90s; continuing without a fresh restore point. Check VSS health on this endpoint."
+            $ErrorMessages += 'Restore point: timed out after 90s'
+        }
+        Remove-Job -Job $job -Force -ErrorAction SilentlyContinue
+    }
 } catch {
     Write-Warning "Failed to create restore point: $_"
     $ScriptSuccess = $false
