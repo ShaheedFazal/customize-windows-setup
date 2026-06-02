@@ -7,6 +7,9 @@
 # - Registers a per-user scheduled task that installs msstore / per-user apps
 #   (Harden System Security) at logon and daily, in the user's context where
 #   `winget --source msstore` actually works.
+# - Registers an admin-elevated scheduled task that applies the HSS report
+#   (HardenSystemSecurity.exe needs UAC + interactive desktop, which SYSTEM
+#   session 0 can't provide).
 # - Writes status flags under HKLM:\SOFTWARE\CustomizeWindowsSetup\Apps for a
 #   companion Verify-Apps.ps1 to alert on.
 #
@@ -14,8 +17,9 @@
 
 [CmdletBinding()]
 param(
-    [string] $TaskPath = '\CustomizeWindowsSetup\',
-    [string] $TaskName = 'Install-UserApps'
+    [string] $TaskPath        = '\CustomizeWindowsSetup\',
+    [string] $InstallTaskName = 'Install-UserApps',
+    [string] $ApplyTaskName   = 'Apply-HardenSystemSecurityReport'
 )
 
 $ErrorActionPreference = 'Continue'  # never block the rest of the script
@@ -175,20 +179,154 @@ foreach (`$app in `$apps) {
         -StartWhenAvailable -MultipleInstances IgnoreNew `
         -ExecutionTimeLimit (New-TimeSpan -Hours 1)
 
-    $existing = Get-ScheduledTask -TaskPath $TaskPath -TaskName $TaskName -ErrorAction SilentlyContinue
+    $existing = Get-ScheduledTask -TaskPath $TaskPath -TaskName $InstallTaskName -ErrorAction SilentlyContinue
     if ($existing) {
-        Unregister-ScheduledTask -TaskPath $TaskPath -TaskName $TaskName -Confirm:$false
+        Unregister-ScheduledTask -TaskPath $TaskPath -TaskName $InstallTaskName -Confirm:$false
     }
     Register-ScheduledTask `
-        -TaskPath $TaskPath -TaskName $TaskName `
+        -TaskPath $TaskPath -TaskName $InstallTaskName `
         -Action $action -Trigger @($logon, $daily) `
         -Principal $principal -Settings $settings `
         -Description 'CustomizeWindowsSetup: installs per-user MS Store / msstore-source apps for the logged-in user. Idempotent. Logon + daily 03:00.' | Out-Null
 
-    Write-AppLog "Scheduled task registered: $TaskPath$TaskName (payload: $payloadPath)"
+    Write-AppLog "Scheduled task registered: $TaskPath$InstallTaskName (payload: $payloadPath)"
     Set-AppState -Key 'UserAppsTask' -Name 'Registered'  -Value 1                            -Type 'DWord'
     Set-AppState -Key 'UserAppsTask' -Name 'PayloadPath' -Value $payloadPath                 -Type 'String'
     Set-AppState -Key 'UserAppsTask' -Name 'RegisteredUtc' -Value (Get-Date).ToUniversalTime().ToString('o') -Type 'String'
+}
+
+# --- Step 4: register admin-elevated apply task for HSS report -------------
+function Register-ApplyHssTask {
+    # Payload script — runs in an admin user's session (NO UAC prompt because
+    # task is registered with RunLevel Highest). Reads staged report from
+    # ProgramData, hash-checks vs HKLM, applies via HSS.exe if needed, writes
+    # detailed status back to HKLM for Verify-Apps to read.
+    $payload = @'
+$ErrorActionPreference = 'Continue'
+$report   = 'C:\ProgramData\CustomizeWindowsSetup\Harden-System-Security.report.json'
+$stateKey = 'HKLM:\SOFTWARE\CustomizeWindowsSetup\HardenSystemSecurity'
+$log      = 'C:\Temp\Apply-HardenSystemSecurityReport.log'
+$pkgName  = 'VioletHansen.HardenSystemSecurity'
+
+function Log($m) {
+    if (-not (Test-Path 'C:\Temp')) { New-Item 'C:\Temp' -ItemType Directory -Force | Out-Null }
+    Add-Content -Path $log -Value "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] [$env:USERNAME] $m"
+}
+function SetState($name, $value, $type = 'String') {
+    if (-not (Test-Path $stateKey)) { New-Item -Path $stateKey -Force | Out-Null }
+    New-ItemProperty -Path $stateKey -Name $name -Value $value -PropertyType $type -Force | Out-Null
+}
+
+Log "Apply task fired."
+
+if (-not (Test-Path -LiteralPath $report)) {
+    Log "No staged report at $report; nothing to apply."
+    return
+}
+
+$currentHash = (Get-FileHash -LiteralPath $report -Algorithm SHA256).Hash
+$storedHash  = (Get-ItemProperty -Path $stateKey -Name 'ReportHash' -ErrorAction SilentlyContinue).ReportHash
+$storedStat  = (Get-ItemProperty -Path $stateKey -Name 'LastAppliedStatus' -ErrorAction SilentlyContinue).LastAppliedStatus
+
+if ($currentHash -eq $storedHash -and $storedStat -eq 'success') {
+    Log "Hash matches ($($currentHash.Substring(0,12))...) and last status is success; skip."
+    return
+}
+
+$pkg = Get-AppxPackage -AllUsers -Name $pkgName -ErrorAction SilentlyContinue |
+    Sort-Object Version -Descending | Select-Object -First 1
+if (-not $pkg) {
+    Log "HSS package not installed yet; will retry next trigger."
+    SetState 'LastAppliedStatus' 'pending-install'
+    SetState 'LastAttemptUtc'    (Get-Date).ToUniversalTime().ToString('o')
+    return
+}
+
+$exe = $null
+foreach ($name in 'HardenSystemSecurity.exe','HSS.exe') {
+    $p = Join-Path $pkg.InstallLocation $name
+    if (Test-Path -LiteralPath $p) { $exe = $p; break }
+}
+if (-not $exe) {
+    Log "Binary not found in $($pkg.InstallLocation)."
+    SetState 'LastAppliedStatus' 'binary-missing'
+    SetState 'LastAttemptUtc'    (Get-Date).ToUniversalTime().ToString('o')
+    return
+}
+
+Log "Applying via $exe (hash $($currentHash.Substring(0,12))..., HSS v$($pkg.Version))."
+SetState 'LastAppliedStatus' 'in-progress'
+SetState 'LastAttemptUtc'    (Get-Date).ToUniversalTime().ToString('o')
+
+$proc = Start-Process -FilePath $exe `
+    -ArgumentList @('--cli','ImportReport',"--in=$report",'--mode=full') `
+    -PassThru -Wait -WindowStyle Hidden -ErrorAction SilentlyContinue
+
+if (-not $proc) {
+    Log "Start-Process returned null."
+    SetState 'LastAppliedStatus'   'launch-failed'
+    SetState 'LastAppliedExitCode' -1 'DWord'
+    return
+}
+
+$exit = $proc.ExitCode
+SetState 'LastAppliedExitCode' $exit 'DWord'
+
+if ($exit -eq 0) {
+    SetState 'ReportHash'        $currentHash
+    SetState 'ReportPath'        $report
+    SetState 'LastAppliedUtc'    (Get-Date).ToUniversalTime().ToString('o')
+    SetState 'AppliedHssVersion' $pkg.Version.ToString()
+    SetState 'LastAppliedStatus' 'success'
+    Log "Apply succeeded."
+} else {
+    SetState 'LastAppliedStatus' 'failed'
+    Log "Apply failed (exit $exit)."
+}
+'@
+
+    $payloadDir  = Join-Path $env:ProgramData 'CustomizeWindowsSetup'
+    if (-not (Test-Path $payloadDir)) { New-Item -Path $payloadDir -ItemType Directory -Force | Out-Null }
+    $payloadPath = Join-Path $payloadDir 'Apply-HardenSystemSecurityReport.task.ps1'
+    Set-Content -Path $payloadPath -Value $payload -Encoding UTF8 -Force
+
+    $action = New-ScheduledTaskAction `
+        -Execute 'powershell.exe' `
+        -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$payloadPath`""
+
+    # Logon trigger delayed 5 min so the Install-UserApps task (2 min delay)
+    # has a chance to install HSS first when both fire from the same logon.
+    $logon = New-ScheduledTaskTrigger -AtLogOn
+    $logon.Delay = 'PT5M'
+    # Daily at 04:00 so it lands after the 03:00 install task.
+    $daily = New-ScheduledTaskTrigger -Daily -At 4am
+
+    # Principal = local Administrators group, RunLevel Highest.
+    # Task fires for any signed-in admin user with full elevation — no UAC.
+    $principal = New-ScheduledTaskPrincipal `
+        -GroupId 'S-1-5-32-544' `
+        -RunLevel Highest
+
+    $settings = New-ScheduledTaskSettingsSet `
+        -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
+        -StartWhenAvailable -MultipleInstances IgnoreNew `
+        -Hidden `
+        -ExecutionTimeLimit (New-TimeSpan -Hours 1)
+
+    $existing = Get-ScheduledTask -TaskPath $TaskPath -TaskName $ApplyTaskName -ErrorAction SilentlyContinue
+    if ($existing) {
+        Unregister-ScheduledTask -TaskPath $TaskPath -TaskName $ApplyTaskName -Confirm:$false
+    }
+    Register-ScheduledTask `
+        -TaskPath $TaskPath -TaskName $ApplyTaskName `
+        -Action $action -Trigger @($logon, $daily) `
+        -Principal $principal -Settings $settings `
+        -Description 'CustomizeWindowsSetup: applies the staged HSS hardening report via HardenSystemSecurity.exe in an elevated admin user session. Idempotent.' | Out-Null
+
+    Write-AppLog "Scheduled task registered: $TaskPath$ApplyTaskName (payload: $payloadPath)"
+    Set-AppState -Key 'ApplyHssTask' -Name 'Registered'    -Value 1                                                -Type 'DWord'
+    Set-AppState -Key 'ApplyHssTask' -Name 'PayloadPath'   -Value $payloadPath                                     -Type 'String'
+    Set-AppState -Key 'ApplyHssTask' -Name 'RegisteredUtc' -Value (Get-Date).ToUniversalTime().ToString('o')       -Type 'String'
 }
 
 # --- Run -------------------------------------------------------------------
@@ -196,6 +334,7 @@ Write-AppLog '--- Ensure-Apps.ps1 starting ---'
 Ensure-Winget
 foreach ($app in $MachineApps) { Install-MachineApp -App $app }
 Register-UserAppsTask
+Register-ApplyHssTask
 Set-AppState -Key 'Bootstrap' -Name 'LastRunUtc' -Value (Get-Date).ToUniversalTime().ToString('o') -Type 'String'
 Write-AppLog '--- Ensure-Apps.ps1 finished ---'
 Write-Host '[SUCCESS] Ensure-Apps complete. See HKLM:\SOFTWARE\CustomizeWindowsSetup\Apps for status.' -ForegroundColor Green
