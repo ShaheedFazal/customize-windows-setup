@@ -3,7 +3,7 @@
 # SuperOps monitor companion to Ensure-Apps.ps1.
 # Reads HKLM:\SOFTWARE\CustomizeWindowsSetup\Apps state AND re-checks each
 # app's actual presence. Prints one line per check and exits non-zero if
-# anything looks wrong — schedule this in SuperOps to get alerts when an
+# anything looks wrong - schedule this in SuperOps to get alerts when an
 # endpoint drifts.
 
 $ErrorActionPreference = 'Continue'

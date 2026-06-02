@@ -70,7 +70,7 @@ function Ensure-Winget {
         return
     }
     # Provisioning the MSIX bundle works under SYSTEM (unlike `winget install`).
-    # If App Installer is missing, you typically need to download the bundle —
+    # If App Installer is missing, you typically need to download the bundle -
     # SuperOps users usually keep one cached. We try Get-AppxPackage first in
     # case it's installed but not on SYSTEM's PATH.
     $appx = Get-AppxPackage -AllUsers -Name 'Microsoft.DesktopAppInstaller' -ErrorAction SilentlyContinue
@@ -197,7 +197,7 @@ foreach (`$app in `$apps) {
 
 # --- Step 4: register admin-elevated apply task for HSS report -------------
 function Register-ApplyHssTask {
-    # Payload script — runs in an admin user's session (NO UAC prompt because
+    # Payload script - runs in an admin user's session (NO UAC prompt because
     # task is registered with RunLevel Highest). Reads staged report from
     # ProgramData, hash-checks vs HKLM, applies via HSS.exe if needed, writes
     # detailed status back to HKLM for Verify-Apps to read.
@@ -302,7 +302,7 @@ if ($exit -eq 0) {
     $daily = New-ScheduledTaskTrigger -Daily -At 4am
 
     # Principal = local Administrators group, RunLevel Highest.
-    # Task fires for any signed-in admin user with full elevation — no UAC.
+    # Task fires for any signed-in admin user with full elevation - no UAC.
     $principal = New-ScheduledTaskPrincipal `
         -GroupId 'S-1-5-32-544' `
         -RunLevel Highest

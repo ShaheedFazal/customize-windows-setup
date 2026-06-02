@@ -1,5 +1,5 @@
 # Stages the Harden System Security report and triggers the per-user apply
-# task. This file runs under SYSTEM (session 0) where HSS.exe CANNOT run —
+# task. This file runs under SYSTEM (session 0) where HSS.exe CANNOT run -
 # the packaged WinUI app needs an interactive desktop + UAC elevation, and
 # session 0 has neither. So instead we:
 #
@@ -50,7 +50,7 @@ if (-not $task) {
 
 try {
     Start-ScheduledTask -TaskPath $TaskPath -TaskName $TaskName
-    Write-Host "[OK] Triggered $TaskPath$TaskName — apply will run in the next admin user session." -ForegroundColor Green
+    Write-Host "[OK] Triggered $TaskPath$TaskName - apply will run in the next admin user session." -ForegroundColor Green
     Write-Log "Triggered $TaskPath$TaskName."
 } catch {
     Write-Log "ERROR: Failed to trigger $TaskPath$TaskName - $_"
