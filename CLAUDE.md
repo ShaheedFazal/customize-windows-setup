@@ -219,6 +219,8 @@ The MS Security Baseline in the report sets `SeDenyNetworkLogonRight = *S-1-5-11
 
 Do **not** move this logic into a customize `includes/` script — the HSS apply runs asynchronously in a scheduled task, so an include would race it and get clobbered when the baseline re-applies.
 
+**Related server carve-out:** [includes/Join-Workgroup.ps1](includes/Join-Workgroup.ps1) enables File and Printer Sharing / Network Discovery for pharmacy workstation LANs, but **disables** them for hosts in its own `$noFileSharingHosts` list (the servers) — because the network-logon relaxation above makes inbound SMB on those boxes a lateral-movement surface. Keep `$noFileSharingHosts` in sync with `$sshHosts` in [Ensure-Apps.ps1](Ensure-Apps.ps1): a host that gets SSH should also be kept off file sharing.
+
 ## Per-run sentinel pattern for machine-wide includes
 
 The orchestrator iterates every include once per loaded user hive (typically 3×: current user, default template, signed-in user). Includes that only write to HKLM or otherwise machine-wide state should guard with `Test-MachineWideSentinel` from [includes/Shared-Functions.ps1](includes/Shared-Functions.ps1):
