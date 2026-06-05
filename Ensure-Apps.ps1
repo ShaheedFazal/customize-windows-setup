@@ -217,6 +217,48 @@ function SetState($name, $value, $type = 'String') {
     New-ItemProperty -Path $stateKey -Name $name -Value $value -PropertyType $type -Force | Out-Null
 }
 
+function Set-RemoteAccessOverride {
+    # The HSS Microsoft Security Baseline applies "Deny access to this computer
+    # from the network" (SeDenyNetworkLogonRight = Local account / *S-1-5-113).
+    # That denies local accounts any network-class (Type 3) logon. With NLA on,
+    # RDP performs exactly that during pre-auth, so local-account RDP fails with
+    # 0x1307 / STATUS_LOGON_TYPE_NOT_GRANTED - and Windows OpenSSH (also a
+    # network logon) would fail the same way. HSS exposes no override for it.
+    #
+    # SCOPED TO NAMED HOSTS ONLY. On a listed host we relax the network-logon
+    # right to Guests-only (drop the local-account deny) so OpenSSH and
+    # RDP-with-NLA both work; NLA stays ON. Every other endpoint is left
+    # completely untouched and fully hardened - no RDP change, no NLA change.
+    # Runs AFTER ImportReport so it wins over the freshly-applied baseline; it
+    # is idempotent.
+    $sshHosts = @('GFC-SERVER-01')
+    if ($env:COMPUTERNAME -notin $sshHosts) { return }
+
+    $tsRoot = 'HKLM:\System\CurrentControlSet\Control\Terminal Server'
+    try {
+        Set-ItemProperty -Path $tsRoot -Name 'fDenyTSConnections' -Value 0 -Type DWord -Force
+    } catch { Log "RemoteAccess override: could not enable RDP (fDenyTSConnections) - $_" }
+
+    $infLines = @(
+        '[Unicode]'
+        'Unicode=yes'
+        '[Version]'
+        'signature="$CHICAGO$"'
+        'Revision=1'
+        '[Privilege Rights]'
+        'SeDenyNetworkLogonRight = *S-1-5-32-546'
+    )
+    $infPath = Join-Path $env:TEMP 'cws-net-logon.inf'
+    $dbPath  = Join-Path $env:TEMP 'cws-net-logon.sdb'
+    try {
+        Set-Content -LiteralPath $infPath -Value $infLines -Encoding Unicode -Force
+        $null = & secedit.exe /configure /db $dbPath /cfg $infPath /areas USER_RIGHTS
+        SetState 'RemoteAccessOverride'    'network-logon-relaxed'
+        SetState 'RemoteAccessOverrideUtc' (Get-Date).ToUniversalTime().ToString('o')
+        Log "RemoteAccess override: SeDenyNetworkLogonRight relaxed to Guests-only ($env:COMPUTERNAME)."
+    } catch { Log "RemoteAccess override FAILED - $_" }
+}
+
 Log "Apply task fired."
 
 if (-not (Test-Path -LiteralPath $report)) {
@@ -229,7 +271,8 @@ $storedHash  = (Get-ItemProperty -Path $stateKey -Name 'ReportHash' -ErrorAction
 $storedStat  = (Get-ItemProperty -Path $stateKey -Name 'LastAppliedStatus' -ErrorAction SilentlyContinue).LastAppliedStatus
 
 if ($currentHash -eq $storedHash -and $storedStat -eq 'success') {
-    Log "Hash matches ($($currentHash.Substring(0,12))...) and last status is success; skip."
+    Log "Hash matches ($($currentHash.Substring(0,12))...) and last status is success; skip ImportReport."
+    Set-RemoteAccessOverride
     return
 }
 
@@ -283,6 +326,10 @@ if ($exit -eq 0) {
     SetState 'LastAppliedStatus' 'failed'
     Log "Apply failed (exit $exit)."
 }
+
+# Re-open remote access AFTER ImportReport so it wins over the freshly-applied
+# baseline (runs on both success and failure paths).
+Set-RemoteAccessOverride
 '@
 
     $payloadDir  = Join-Path $env:ProgramData 'CustomizeWindowsSetup'

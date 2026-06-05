@@ -208,6 +208,17 @@ HSS is a Microsoft Store app and can't be installed under SYSTEM (winget msstore
 
 Verify install state on an endpoint with `Get-AppxPackage -AllUsers VioletHansen.HardenSystemSecurity`. If empty, the user-logon task hasn't fired yet — see [Ensure-Apps.ps1](Ensure-Apps.ps1) for the bootstrap path.
 
+### Remote-access override (scoped to named hosts only)
+
+The MS Security Baseline in the report sets `SeDenyNetworkLogonRight = *S-1-5-113` ("Deny access to this computer from the network" for all **local** accounts). With NLA on, RDP does a Type 3 network logon during pre-auth, so local-account RDP fails with `0x1307` / `STATUS_LOGON_TYPE_NOT_GRANTED` — and Windows OpenSSH (also a network logon) would fail identically. HSS ships no override for this specific right.
+
+`Set-RemoteAccessOverride` in the apply-task payload ([Ensure-Apps.ps1](Ensure-Apps.ps1)) re-opens access **after** `ImportReport` (so it always wins over the freshly-applied baseline) and on the hash-match no-op path (so steady-state machines keep it). It is **scoped to the `$sshHosts` list** (currently just `GFC-SERVER-01`):
+
+- **Listed hosts:** enable RDP (`fDenyTSConnections=0`) and relax `SeDenyNetworkLogonRight` to Guests-only via `secedit`, enabling OpenSSH and RDP-with-NLA. **NLA stays on.**
+- **Every other endpoint:** the function returns immediately — left completely untouched and fully hardened (no RDP change, no NLA change). This is deliberate: local-account RDP requires dropping either NLA or the network-logon deny, so the relaxation is confined to the one box that needs SSH. Add a hostname to `$sshHosts` to extend it to another box.
+
+Do **not** move this logic into a customize `includes/` script — the HSS apply runs asynchronously in a scheduled task, so an include would race it and get clobbered when the baseline re-applies.
+
 ## Per-run sentinel pattern for machine-wide includes
 
 The orchestrator iterates every include once per loaded user hive (typically 3×: current user, default template, signed-in user). Includes that only write to HKLM or otherwise machine-wide state should guard with `Test-MachineWideSentinel` from [includes/Shared-Functions.ps1](includes/Shared-Functions.ps1):
