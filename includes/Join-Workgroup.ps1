@@ -4,6 +4,27 @@ if (Test-MachineWideSentinel -Name 'Join-Workgroup') { return }
 $CurrentWorkgroup = (Get-WmiObject Win32_ComputerSystem).Workgroup
 $WORKGROUP = 'MYLOCALCHEMIST'
 
+# File and Printer Sharing / Network Discovery below is for pharmacy workstation
+# LANs - peer-to-peer sharing within a branch. Servers must NOT expose it:
+# GFC-SERVER-01 is administered remotely over the cloudflared tunnel, has its
+# network-logon right relaxed for SSH (see Ensure-Apps.ps1), and serves no
+# shares - so inbound SMB/NetBIOS there is pure lateral-movement surface. For
+# those hosts we DISABLE sharing on every run instead of enabling it. Keep this
+# list in sync with $sshHosts in Ensure-Apps.ps1.
+$noFileSharingHosts = @('GFC-SERVER-01')
+
+if ($env:COMPUTERNAME -in $noFileSharingHosts) {
+    Write-Host ($CR + "Server host '$env:COMPUTERNAME' - disabling File and Printer Sharing / Network Discovery") -foregroundcolor $FOREGROUNDCOLOR
+    if ($CurrentWorkgroup -ne $WORKGROUP) {
+        Try { Add-Computer -WorkgroupName $WORKGROUP -ErrorAction Stop } Catch { Write-Warning $Error[0] }
+    }
+    foreach ($grp in 'File and Printer Sharing', 'Network Discovery') {
+        Disable-NetFirewallRule -DisplayGroup $grp -ErrorAction SilentlyContinue
+    }
+    Write-Log "Server host $env:COMPUTERNAME: File and Printer Sharing + Network Discovery disabled (not a P2P sharing node)"
+    return
+}
+
 Write-Host ($CR + "Current workgroup: $CurrentWorkgroup") -foregroundcolor $FOREGROUNDCOLOR
 
 if ($CurrentWorkgroup -eq $WORKGROUP) {
