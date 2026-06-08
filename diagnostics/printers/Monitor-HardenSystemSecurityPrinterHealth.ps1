@@ -1,20 +1,18 @@
 <#
 .SYNOPSIS
-    Compact, read-only FLEET sweep for the print-stack hardening that blocks legacy
-    (non-CFG / non-ACG) third-party printer driver plug-ins - Zebra (ZDesigner),
-    Brother (BRU*), Star (star*/tsp*), etc. Push fleet-wide via SuperOps to find the
-    pattern: which machines are blocked, and does it correlate with Windows Protected
-    Print Mode (WPP) state, OS build, or HSS apply state?
+    Read-only SuperOps monitor for Harden System Security rollout state and
+    printer-stack health.
 
 .DESCRIPTION
-    Emits ONE pipe-delimited SUMMARY line per endpoint (easy to eyeball / aggregate
-    across many SuperOps results), then a short human-readable detail block. Reports:
+    Emits ONE pipe-delimited SUMMARY line per endpoint for fleet aggregation,
+    then a short human-readable detail block. Reports:
       - OS build
-      - WPP policy + effective state  (the usual trigger for CFG/ACG plug-in blocks)
-      - PrintService/Admin Event 808 plug-in-load blocks: count, distinct DLLs,
-        distinct error codes, most recent timestamp
-      - printer queues: total + how many are NOT in Normal state
-      - HSS apply state (did our baseline run here, and when)
+      - Harden System Security apply state, version, report hash, and exit code
+      - Windows Protected Print Mode (WPP) policy and effective state
+      - current PrintService/Admin Event 808 plug-in-load blocks after latest
+        HSS apply, plus historical block context in the transcript
+      - printer queue count and non-Normal printer count
+      - SuperOps custom fields for dashboard filtering
 
     Read-only: no registry/driver/printer/service/policy changes.
 
@@ -23,6 +21,10 @@
 #>
 
 $ErrorActionPreference = 'Continue'
+
+# If HSS has never recorded an apply time, events newer than this window are
+# treated as current. If HSS has applied, "current" means after LastAppliedUtc.
+$CurrentBlockWindowHours = 2
 
 # Import the SuperOps module so Send-CustomField is available. SuperOps injects
 # the $SuperOpsModule variable into the script runtime (both run-now and
@@ -36,7 +38,7 @@ if ($SuperOpsModule) {
 
 $logDir = 'C:\Temp'
 if (-not (Test-Path -LiteralPath $logDir)) { New-Item -Path $logDir -ItemType Directory -Force | Out-Null }
-$transcript = Join-Path $logDir "PrinterCFGSweep-$env:COMPUTERNAME.log"
+$transcript = Join-Path $logDir "HSSPrinterHealth-$env:COMPUTERNAME.log"
 function Write-Log {
     param([string]$m)
     Write-Host $m
@@ -73,12 +75,10 @@ $wppOn  = ($wppEff -eq 1)
 $wppOnText = if ($wppOn) { 'ON' } else { 'OFF' }
 
 # --- Event 808 plug-in load blocks ------------------------------------------
-# Distinguish three states: BLOCKED (>0), CLEAN (log readable, 0 events), and
-# UNKNOWN (log disabled / unreadable - so a blank dashboard cell isn't mistaken
-# for "genuinely clean"). We check the log is enabled FIRST (-ListLog), then use
-# SilentlyContinue for the query so the benign "no events match" case returns
-# $null instead of a locale-dependent terminating error.
-$blockCount = 0; $dlls = @(); $codes = @(); $lastBlock = ''
+# We collect recent Event 808 records first, then classify them after HSS state
+# is known. Dashboard fields are current-only; historical events are retained in
+# the SUMMARY/transcript for context.
+$blockCount = 0; $dlls = @(); $codes = @(); $lastBlock = ''; $events = @()
 $logName     = 'Microsoft-Windows-PrintService/Admin'
 $logReadable = $false
 try {
@@ -88,8 +88,9 @@ try {
 
 if ($logReadable) {
     try {
-        $events = Get-WinEvent -FilterHashtable @{ LogName = $logName; Id = 808 } `
-            -MaxEvents 200 -ErrorAction Stop
+        $events = @(Get-WinEvent -FilterHashtable @{ LogName = $logName; Id = 808 } `
+            -MaxEvents 200 -ErrorAction SilentlyContinue
+        )
     } catch {
         $events = @()
         $logReadable = $false
@@ -119,16 +120,12 @@ if (-not $codeList) { $codeList = '-' }
 
 # Classify vendors from the DLL names for a quick read.
 $vendors = @()
-if ($dllList -match 'ZDesigner') { $vendors += 'Zebra' }
+if ($dllList -match 'ZDesigner|ZDN|zdn') { $vendors += 'Zebra' }
 if ($dllList -match 'BRU|brother|broh') { $vendors += 'Brother' }
+if ($dllList -match 'Epson|EPSON|E_[A-Za-z0-9_]+\.DLL|EFX') { $vendors += 'Epson' }
+if ($dllList -match 'BIXOLON|Bixolon|BX|XD5|SLP|SRP') { $vendors += 'Bixolon' }
 if ($dllList -match 'star|tsp|tup') { $vendors += 'Star' }
 $vendorList = if ($vendors) { ($vendors | Sort-Object -Unique) -join ',' } else { '-' }
-
-# Three-state status: BLOCKED / CLEAN / UNKNOWN (log disabled or unreadable).
-$printBlockStatus =
-    if (-not $logReadable) { 'UNKNOWN' }
-    elseif ($blockCount -gt 0) { 'BLOCKED' }
-    else { 'CLEAN' }
 
 # --- Printer queues ----------------------------------------------------------
 $prnTotal = 0; $prnBad = 0; $prnNames = '-'
@@ -143,8 +140,8 @@ try {
 
 # --- HSS apply state ---------------------------------------------------------
 # Has our hardening stack actually run on this endpoint? Key written by the
-# Apply-HSS scheduled task (see Ensure-Apps.ps1). This lets us correlate
-# "blocked" vs "HSS has run here" across branches - the whole point of the sweep.
+# Apply-HSS scheduled task (see Ensure-Apps.ps1). This is the primary rollout
+# state used by the monitor.
 $hssStatus = '-'; $hssWhen = '-'; $hssHash = '-'; $hssVer = '-'; $hssExit = '-'
 $hssKey = 'HKLM:\SOFTWARE\CustomizeWindowsSetup\HardenSystemSecurity'
 $s = Get-RegVal $hssKey 'LastAppliedStatus';   if ($s) { $hssStatus = $s }
@@ -152,8 +149,67 @@ $w = Get-RegVal $hssKey 'LastAppliedUtc';      if ($w) { $hssWhen   = $w }
 $h = Get-RegVal $hssKey 'ReportHash';          if ($h) { $hssHash   = ($h.Substring(0, [Math]::Min(12, $h.Length))) }
 $v = Get-RegVal $hssKey 'AppliedHssVersion';   if ($v) { $hssVer    = $v }
 $x = Get-RegVal $hssKey 'LastAppliedExitCode'; if ($null -ne $x) { $hssExit = $x }
-# 'hss_ran' is the clean yes/no: did the apply task ever record a state here?
-$hssRan = (Test-Path $hssKey) -and ($hssStatus -ne '-')
+# 'hss_ran' is the clean yes/no: did HSS actually complete an apply here?
+# States such as pending-install mean the monitor/task exists, but HSS has not
+# successfully applied a report on this endpoint yet.
+$hssRan = ($hssWhen -ne '-')
+
+$hssAppliedAt = $null
+if ($hssWhen -ne '-') {
+    try { $hssAppliedAt = [datetimeoffset]::Parse($hssWhen).LocalDateTime } catch { $hssAppliedAt = $null }
+}
+
+# Current = blocks after latest HSS apply. If HSS has no parseable apply time,
+# use a short rolling window so stale historical events do not keep an endpoint
+# flagged forever.
+$currentSince = if ($hssAppliedAt) { $hssAppliedAt } else { (Get-Date).AddHours(-1 * $CurrentBlockWindowHours) }
+$currentEvents = @()
+if ($logReadable -and $events) {
+    $currentEvents = @($events | Where-Object { $_.TimeCreated -ge $currentSince })
+}
+$currentBlockCount = $currentEvents.Count
+$historicalBlockCount = [Math]::Max(0, $blockCount - $currentBlockCount)
+$currentSinceText = $currentSince.ToString('yyyy-MM-dd HH:mm')
+
+$currentDlls = @()
+$currentCodes = @()
+$currentLastBlock = '-'
+if ($currentEvents.Count -gt 0) {
+    $currentLastBlock = $currentEvents[0].TimeCreated.ToString('yyyy-MM-dd HH:mm')
+    foreach ($e in $currentEvents) {
+        $ud = ''
+        try { $ud = ([xml]$e.ToXml()).Event.UserData.InnerXml } catch {}
+        $src = "$($e.Message) $ud"
+        $m = [regex]::Match($src, '([A-Za-z0-9_\-]+\.dll)', 'IgnoreCase')
+        if ($m.Success) { $currentDlls += $m.Groups[1].Value }
+        $c = [regex]::Match($src, '0x[0-9A-Fa-f]{1,8}')
+        if ($c.Success) { $currentCodes += $c.Value }
+    }
+}
+$currentDllList = ($currentDlls | Sort-Object -Unique) -join ','
+$currentCodeList = ($currentCodes | Sort-Object -Unique) -join ','
+if (-not $currentDllList) { $currentDllList = '-' }
+if (-not $currentCodeList) { $currentCodeList = '-' }
+
+$currentVendors = @()
+if ($currentDllList -match 'ZDesigner|ZDN|zdn') { $currentVendors += 'Zebra' }
+if ($currentDllList -match 'BRU|brother|broh') { $currentVendors += 'Brother' }
+if ($currentDllList -match 'Epson|EPSON|E_[A-Za-z0-9_]+\.DLL|EFX') { $currentVendors += 'Epson' }
+if ($currentDllList -match 'BIXOLON|Bixolon|BX|XD5|SLP|SRP') { $currentVendors += 'Bixolon' }
+if ($currentDllList -match 'star|tsp|tup') { $currentVendors += 'Star' }
+$currentVendorList = if ($currentVendors) { ($currentVendors | Sort-Object -Unique) -join ',' } else { '-' }
+
+# Current-only status for dashboards:
+#   BLOCKED_CURRENT = 808 block happened after latest HSS apply / current window
+#   CLEAN           = no current block evidence, even if historical blocks exist
+#   UNKNOWN         = log disabled or unreadable
+if (-not $logReadable) {
+    $printBlockStatus = 'UNKNOWN'
+} elseif ($currentBlockCount -gt 0) {
+    $printBlockStatus = 'BLOCKED_CURRENT'
+} else {
+    $printBlockStatus = 'CLEAN'
+}
 
 # --- SUMMARY line (pipe-delimited; grep across SuperOps results) -------------
 # Built from an array so no single physical line is long enough for the SuperOps
@@ -171,9 +227,15 @@ $fields = @(
     "wpp_eff=$wppEff"
     "wpp_on=$wppOn"
     "blocks=$blockCount"
-    "vendors=$vendorList"
-    "codes=$codeList"
-    "dlls=$dllList"
+    "current_blocks=$currentBlockCount"
+    "historical_blocks=$historicalBlockCount"
+    "current_since=$currentSinceText"
+    "current_vendors=$currentVendorList"
+    "current_codes=$currentCodeList"
+    "current_dlls=$currentDllList"
+    "historical_vendors=$vendorList"
+    "historical_codes=$codeList"
+    "historical_dlls=$dllList"
     "printers=$prnTotal"
     "not_normal=$prnBad"
     "hss_ran=$hssRan"
@@ -182,7 +244,8 @@ $fields = @(
     "hss_ver=$hssVer"
     "hss_exit=$hssExit"
     "hss_hash=$hssHash"
-    "last_block=$lastBlock"
+    "current_last_block=$currentLastBlock"
+    "historical_last_block=$lastBlock"
 )
 Write-Log ($fields -join '|')
 
@@ -194,18 +257,25 @@ Write-Log "WPP policy value : $wppPolicy   (Policies\...\Printers\WPP\WindowsPro
 Write-Log "WPP local value  : $wppLocal   EnabledBy=$wppEnby"
 Write-Log "WPP effective    : $wppEff   -> Protected Print Mode $wppOnText"
 Write-Log "Print block status: $printBlockStatus   (log readable: $logReadable)"
-Write-Log "808 plug-in blocks: $blockCount   last: $lastBlock"
-Write-Log "  vendors        : $vendorList"
-Write-Log "  error codes    : $codeList   (0x679=CFG, 0x677=ACG/dynamic-code)"
-Write-Log "  blocked DLLs   : $dllList"
+Write-Log "808 plug-in blocks: $blockCount total, $currentBlockCount current, $historicalBlockCount historical"
+Write-Log "  current since  : $currentSinceText"
+Write-Log "  current last   : $currentLastBlock"
+Write-Log "  current vendors: $currentVendorList"
+Write-Log "  current codes  : $currentCodeList   (0x679=CFG, 0x677=ACG/dynamic-code)"
+Write-Log "  current DLLs   : $currentDllList"
+Write-Log "  historic last  : $lastBlock"
+Write-Log "  historic vendors: $vendorList"
+Write-Log "  historic codes : $codeList"
+Write-Log "  historic DLLs  : $dllList"
 Write-Log "Printer queues   : $prnTotal total, $prnBad not-Normal"
 Write-Log "  names          : $prnNames"
 Write-Log "HSS has run here : $hssRan   (status=$hssStatus, exit=$hssExit, ver=$hssVer)"
 Write-Log "  last applied   : $hssWhen   reportHash=$hssHash"
 Write-Log ''
-Write-Log "Correlation to check across branches: does blocks>0 line up with hss_ran=True?"
-Write-Log "If unhardened machines (hss_ran=False) are clean and hardened ones are blocked,"
-Write-Log "the hardening stack is implicated even though WPP/mitigations read as off."
+Write-Log "Dashboard status is current-only: BLOCKED_CURRENT / CLEAN / UNKNOWN."
+Write-Log "If current_blocks>0 after HSS apply, investigate WPP, HSS report hash,"
+Write-Log "and the named printer driver DLLs."
+Write-Log "Historical blocks are retained as context only; PrintBlock_Status is current-only."
 Write-Log ''
 
 # --- Push to SuperOps custom fields (for fleet-wide reporting) ----------------
@@ -214,11 +284,12 @@ Write-Log ''
 # Supported data types: text, long text, decimal, number. Create these fields in
 # the RMM Monitoring class first; rename the LEFT side here to match your fields.
 $customFields = [ordered]@{
-    'PrintBlock_Status'  = $printBlockStatus      # text  : BLOCKED / CLEAN  (primary filter)
-    'PrintBlock_Count'   = [int]$blockCount       # number: # of 808 plug-in blocks
-    'PrintBlock_Vendors' = $vendorList            # text  : Zebra,Brother,Star
-    'PrintBlock_Codes'   = $codeList              # text  : 0x679,0x677
-    'PrintBlock_LastUtc' = $lastBlock             # text  : most recent block time
+    'PrintBlock_Status'  = $printBlockStatus      # text  : BLOCKED_CURRENT / CLEAN / UNKNOWN
+    'PrintBlock_Count'   = [int]$currentBlockCount # number: current # of 808 blocks after latest HSS apply/current window
+    'PrintBlock_Total'   = [int]$blockCount       # number: optional historical context, total recent 808 plug-in blocks
+    'PrintBlock_Vendors' = $currentVendorList     # text  : current Zebra,Brother,Star, or -
+    'PrintBlock_Codes'   = $currentCodeList       # text  : current 0x679,0x677, or -
+    'PrintBlock_LastUtc' = $currentLastBlock      # text  : most recent current block time, or blank
     'WPP_State'          = $wppOnText             # text  : ON / OFF
     'HSS_Ran'            = "$hssRan"              # text  : True / False
     'HSS_Status'         = $hssStatus             # text  : success / pending-install / -
