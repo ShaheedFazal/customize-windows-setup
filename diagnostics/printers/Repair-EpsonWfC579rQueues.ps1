@@ -10,7 +10,7 @@
       - Does not run HSS.
       - Does not enable Windows Protected Print.
       - Does not remove any printer queues unless -RemoveSurplusEpsonQueues is
-        explicitly supplied.
+        explicitly supplied. Fax queues are always left untouched.
       - Requires an installed EPSON WF-C579R Series driver.
       - Prefers an EpsonNet/IP-style port over WSD when one is available.
       - Creates missing A4 and Token queues.
@@ -28,7 +28,7 @@
 
 .PARAMETER RemoveSurplusEpsonQueues
     Optional cleanup mode. Only removes surplus Epson WF-C579R queues after both
-    A4 and Token exist. Defaults to off.
+    A4 and Token exist. Fax queues are always excluded. Defaults to off.
 
 .PARAMETER ApplySavedSettings
     Experimental mode. Attempts to replay bundled Epson DEVMODE captures using
@@ -263,11 +263,10 @@ Write-Section '5. Optional surplus queue cleanup'
 $Wanted = @('A4', 'Token')
 $HaveWanted = @(Get-Printer -ErrorAction SilentlyContinue | Where-Object { $_.Name -in $Wanted })
 $Surplus = @(Get-Printer -ErrorAction SilentlyContinue | Where-Object {
-    (
-        $_.DriverName -eq $DriverName -or
-        $_.Name -match 'EPSON|WF-C579R|Token Printer'
-    ) -and
+    $_.DriverName -eq $DriverName -and
     $_.Name -notin $Wanted
+} | Where-Object {
+    $_.Name -notmatch 'Fax'
 })
 
 if ($Surplus.Count -eq 0) {
