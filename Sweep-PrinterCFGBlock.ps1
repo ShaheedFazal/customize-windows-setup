@@ -24,6 +24,14 @@
 
 $ErrorActionPreference = 'Continue'
 
+# Import the SuperOps module so Send-CustomField is available. SuperOps injects
+# the $SuperOpsModule variable into the script runtime (both run-now and
+# scheduled). Without this, Send-CustomField is undefined and the custom-field
+# push is silently skipped. Guarded so the script still runs outside SuperOps.
+if ($SuperOpsModule) {
+    try { Import-Module $SuperOpsModule -ErrorAction Stop } catch { }
+}
+
 $logDir = 'C:\Temp'
 if (-not (Test-Path -LiteralPath $logDir)) { New-Item -Path $logDir -ItemType Directory -Force | Out-Null }
 $transcript = Join-Path $logDir "PrinterCFGSweep-$env:COMPUTERNAME.log"
@@ -210,7 +218,9 @@ if (Get-Command Send-CustomField -ErrorAction SilentlyContinue) {
         }
     }
 } else {
-    Write-Log "Send-CustomField not available (not running under SuperOps) - skipped."
+    $hint = if ($SuperOpsModule) { '$SuperOpsModule set but Import-Module failed' }
+            else { '$SuperOpsModule not set - not running under SuperOps, or module not injected' }
+    Write-Log "Send-CustomField not available ($hint) - custom fields skipped."
 }
 
 Write-Log ''
