@@ -81,12 +81,9 @@ foreach ($lf in $hssLogs) {
         $m = [regex]::Match($line, $tsRegex)
         if (-not $m.Success) { continue }
         $t = $null
-        if ([datetime]::TryParse($m.Groups[1].Value, [ref]$t)) {
-            if ($t -ge $since) {
-                $short = ($line -replace $tsRegex, '').Trim()
-                if ($short.Length -gt 60) { $short = $short.Substring(0,60) }
-                Add-Row $t 'HSS' (Split-Path $lf -Leaf)
-            }
+        try { $t = [datetime]::Parse($m.Groups[1].Value) } catch { $t = $null }
+        if ($t -and $t -ge $since) {
+            Add-Row $t 'HSS' (Split-Path $lf -Leaf)
         }
     }
 }
@@ -94,10 +91,8 @@ foreach ($lf in $hssLogs) {
 try {
     $lastUtc = (Get-ItemProperty 'HKLM:\SOFTWARE\CustomizeWindowsSetup\HardenSystemSecurity' -Name LastAppliedUtc -ErrorAction Stop).LastAppliedUtc
     $t = $null
-    if ([datetime]::TryParse($lastUtc, [ref]$t)) {
-        $tl = $t.ToLocalTime()
-        if ($tl -ge $since) { Add-Row $tl 'HSS' 'HKLM LastAppliedUtc' }
-    }
+    try { $t = ([datetimeoffset]::Parse($lastUtc)).LocalDateTime } catch { $t = $null }
+    if ($t -and $t -ge $since) { Add-Row $t 'HSS' 'HKLM LastAppliedUtc' }
 } catch { }
 
 # --- 808 bursts (collapse into 10-minute buckets) ----------------------------
