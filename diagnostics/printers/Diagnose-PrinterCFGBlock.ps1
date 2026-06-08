@@ -43,7 +43,9 @@ $transcript = Join-Path $logDir "PrinterCFGBlock-Diag-$env:COMPUTERNAME.log"
 function Write-Log {
     param([string]$Message)
     Write-Host $Message
-    try { Add-Content -LiteralPath $transcript -Value $Message -Encoding UTF8 } catch { }
+    try { Add-Content -LiteralPath $transcript -Value $Message -Encoding UTF8 } catch {
+        Write-Host "WARN: failed to append to transcript '$transcript': $($_.Exception.Message)"
+    }
 }
 function Write-Section {
     param([string]$Title)
@@ -65,7 +67,9 @@ function Write-Block {
     }
 }
 
-try { Remove-Item -LiteralPath $transcript -ErrorAction SilentlyContinue } catch { }
+try { Remove-Item -LiteralPath $transcript -ErrorAction SilentlyContinue } catch {
+    Write-Host "WARN: failed to reset transcript '$transcript': $($_.Exception.Message)"
+}
 
 Write-Log "Printer CFG/ACG enforcement diagnostic"
 Write-Log "Host        : $env:COMPUTERNAME"
@@ -219,7 +223,7 @@ function Get-PeFlags {
         $peOff = $br.ReadInt32()
         $fs.Seek($peOff, 'Begin') | Out-Null
         if ($br.ReadUInt32() -ne 0x00004550) { return $null }   # 'PE\0\0'
-        $fs.Seek($peOff + 4 + 16, 'Begin') | Out-Null            # skip COFF header to optional header
+        $fs.Seek($peOff + 4 + 20, 'Begin') | Out-Null            # skip PE signature + full COFF header
         $magic = $br.ReadUInt16()                                # 0x10B PE32, 0x20B PE32+
         # DllCharacteristics is at optional-header offset 70 (0x46) for both.
         $fs.Seek($peOff + 24 + 70, 'Begin') | Out-Null

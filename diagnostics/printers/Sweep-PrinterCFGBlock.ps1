@@ -29,14 +29,24 @@ $ErrorActionPreference = 'Continue'
 # scheduled). Without this, Send-CustomField is undefined and the custom-field
 # push is silently skipped. Guarded so the script still runs outside SuperOps.
 if ($SuperOpsModule) {
-    try { Import-Module $SuperOpsModule -ErrorAction Stop } catch { }
+    try { Import-Module $SuperOpsModule -ErrorAction Stop } catch {
+        Write-Warning "Import-Module failed for '$SuperOpsModule': $($_.Exception.Message)"
+    }
 }
 
 $logDir = 'C:\Temp'
 if (-not (Test-Path -LiteralPath $logDir)) { New-Item -Path $logDir -ItemType Directory -Force | Out-Null }
 $transcript = Join-Path $logDir "PrinterCFGSweep-$env:COMPUTERNAME.log"
-function Write-Log { param([string]$m) Write-Host $m; try { Add-Content -LiteralPath $transcript -Value $m -Encoding UTF8 } catch {} }
-try { Remove-Item -LiteralPath $transcript -ErrorAction SilentlyContinue } catch {}
+function Write-Log {
+    param([string]$m)
+    Write-Host $m
+    try { Add-Content -LiteralPath $transcript -Value $m -Encoding UTF8 } catch {
+        Write-Warning "Transcript append failed for '$transcript': $($_.Exception.Message)"
+    }
+}
+try { Remove-Item -LiteralPath $transcript -ErrorAction SilentlyContinue } catch {
+    Write-Warning "Transcript cleanup failed for '$transcript': $($_.Exception.Message)"
+}
 
 # --- OS version / build ------------------------------------------------------
 $os      = try { Get-CimInstance Win32_OperatingSystem -ErrorAction Stop } catch { $null }
@@ -77,14 +87,22 @@ try {
 } catch { $logReadable = $false }
 
 if ($logReadable) {
-    $events = Get-WinEvent -FilterHashtable @{ LogName = $logName; Id = 808 } `
-        -MaxEvents 200 -ErrorAction SilentlyContinue
+    try {
+        $events = Get-WinEvent -FilterHashtable @{ LogName = $logName; Id = 808 } `
+            -MaxEvents 200 -ErrorAction Stop
+    } catch {
+        $events = @()
+        $logReadable = $false
+        Write-Log "Event query failed for $logName/808: $($_.Exception.Message)"
+    }
     if ($events) {
         $blockCount = @($events).Count
         $lastBlock  = $events[0].TimeCreated.ToString('yyyy-MM-dd HH:mm')
         foreach ($e in $events) {
             $ud = ''
-            try { $ud = ([xml]$e.ToXml()).Event.UserData.InnerXml } catch {}
+            try { $ud = ([xml]$e.ToXml()).Event.UserData.InnerXml } catch {
+                Write-Log "Event XML parse failed for $logName/808 RecordId $($e.RecordId): $($_.Exception.Message)"
+            }
             # Pull the DLL leaf name and the 0x.... code from the message/userdata.
             $src = "$($e.Message) $ud"
             $m = [regex]::Match($src, '([A-Za-z0-9_\-]+\.dll)', 'IgnoreCase')

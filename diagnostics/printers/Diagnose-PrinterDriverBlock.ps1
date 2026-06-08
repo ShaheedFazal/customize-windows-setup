@@ -52,7 +52,9 @@ $transcript = Join-Path $logDir "PrinterDriverBlock-Diag-$env:COMPUTERNAME.log"
 function Write-Log {
     param([string]$Message)
     Write-Host $Message
-    try { Add-Content -LiteralPath $transcript -Value $Message -Encoding UTF8 } catch { }
+    try { Add-Content -LiteralPath $transcript -Value $Message -Encoding UTF8 } catch {
+        Write-Host "WARN: failed to append to transcript '$transcript': $($_.Exception.Message)"
+    }
 }
 function Write-Section {
     param([string]$Title)
@@ -76,7 +78,9 @@ function Write-Block {
 }
 
 # Fresh transcript per run so collected output is unambiguous.
-try { Remove-Item -LiteralPath $transcript -ErrorAction SilentlyContinue } catch { }
+try { Remove-Item -LiteralPath $transcript -ErrorAction SilentlyContinue } catch {
+    Write-Host "WARN: failed to reset transcript '$transcript': $($_.Exception.Message)"
+}
 
 $os         = Get-CimInstance Win32_OperatingSystem -ErrorAction SilentlyContinue
 $osCaption  = if ($os) { $os.Caption }     else { '<unknown>' }
@@ -270,9 +274,11 @@ foreach ($name in $dllNames) {
     $direct = Join-Path $driverRoot $name
     if (Test-Path -LiteralPath $direct) { $hits += $direct }
     try {
-        $hits += (Get-ChildItem -LiteralPath $driverRoot -Filter $name -Recurse -ErrorAction SilentlyContinue |
+        $hits += (Get-ChildItem -LiteralPath $driverRoot -Filter $name -Recurse -ErrorAction Stop |
             Select-Object -ExpandProperty FullName)
-    } catch { }
+    } catch {
+        Write-Log ("  ERROR scanning {0} for {1}: {2}" -f $driverRoot, $name, $_.Exception.Message)
+    }
     $hits = $hits | Select-Object -Unique
     if (-not $hits) {
         Write-Log "  not found under $driverRoot"

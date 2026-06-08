@@ -18,9 +18,9 @@
       - If every [808] burst sits right after a [BOOT] and never next to a
         lone [HSS] -> the block is boot/OS-driven, not HSS.
 
-    Also reports when the box went to its current build (24H2/25H2 feature
-    update) and the earliest 808 ever recorded, to see whether blocks predate
-    recent hardening runs.
+    Also reports when the box went to its current Windows build and the
+    earliest 808 ever recorded, to see whether blocks predate recent hardening
+    runs.
 
     ONLY READS. No changes. Console + transcript. Run on a box showing
     PrintBlock_Status = BLOCKED with a recent PrintBlock_LastUtc.
@@ -34,9 +34,17 @@ $ErrorActionPreference = 'Continue'
 $logDir = 'C:\Temp'
 if (-not (Test-Path -LiteralPath $logDir)) { New-Item -Path $logDir -ItemType Directory -Force | Out-Null }
 $transcript = Join-Path $logDir "PrinterBlockTimeline-$env:COMPUTERNAME.log"
-function Write-Log { param([string]$m) Write-Host $m; try { Add-Content -LiteralPath $transcript -Value $m -Encoding UTF8 } catch {} }
+function Write-Log {
+    param([string]$m)
+    Write-Host $m
+    try { Add-Content -LiteralPath $transcript -Value $m -Encoding UTF8 } catch {
+        Write-Host "WARN: failed to append to transcript '$transcript': $($_.Exception.Message)"
+    }
+}
 function Write-Section { param([string]$t) Write-Log ''; Write-Log ('=' * 78); Write-Log "== $t"; Write-Log ('=' * 78) }
-try { Remove-Item -LiteralPath $transcript -ErrorAction SilentlyContinue } catch {}
+try { Remove-Item -LiteralPath $transcript -ErrorAction SilentlyContinue } catch {
+    Write-Host "WARN: failed to reset transcript '$transcript': $($_.Exception.Message)"
+}
 
 $sinceDays = 14
 $since = (Get-Date).AddDays(-$sinceDays)
@@ -56,12 +64,16 @@ function Add-Row { param([datetime]$Time,[string]$Type,[string]$Detail)
 try {
     $boots = Get-WinEvent -FilterHashtable @{ LogName='System'; Id=6005; StartTime=$since } -ErrorAction Stop
     foreach ($b in $boots) { Add-Row $b.TimeCreated 'BOOT' 'system start (EventLog 6005)' }
-} catch { }
+} catch {
+    Write-Log "WARN: System/EventLog 6005 boot query failed: $($_.Exception.Message)"
+}
 # Also Kernel-Boot 27 / Kernel-General 12 as backup signal.
 try {
     $k = Get-WinEvent -FilterHashtable @{ LogName='System'; ProviderName='Microsoft-Windows-Kernel-General'; Id=12; StartTime=$since } -ErrorAction Stop
     foreach ($e in $k) { Add-Row $e.TimeCreated 'BOOT' 'OS started (Kernel-General 12)' }
-} catch { }
+} catch {
+    Write-Log "WARN: Kernel-General 12 boot query failed: $($_.Exception.Message)"
+}
 
 # --- HSS apply runs (parse the apply log + customize log) --------------------
 # Lines look like: [yyyy-MM-dd HH:mm:ss] [user] message
@@ -74,7 +86,10 @@ foreach ($lf in $hssLogs) {
     if (-not (Test-Path -LiteralPath $lf)) { continue }
     try {
         $lines = Get-Content -LiteralPath $lf -ErrorAction Stop
-    } catch { continue }
+    } catch {
+        Write-Log "WARN: HSS log read failed for '$lf': $($_.Exception.Message)"
+        continue
+    }
     foreach ($line in $lines) {
         # Only the meaningful apply markers, to avoid flooding the timeline.
         if ($line -notmatch 'Apply task fired|Applying via|Apply succeeded|Apply failed|Hash matches|ImportReport') { continue }
@@ -83,7 +98,9 @@ foreach ($lf in $hssLogs) {
         $t = $null
         try { $t = [datetime]::Parse($m.Groups[1].Value) } catch { $t = $null }
         if ($t -and $t -ge $since) {
-            Add-Row $t 'HSS' (Split-Path $lf -Leaf)
+            $short = ($line -replace $tsRegex, '').Trim()
+            if ($short.Length -gt 80) { $short = $short.Substring(0, 80) }
+            Add-Row $t 'HSS' ("{0}: {1}" -f (Split-Path $lf -Leaf), $short)
         }
     }
 }
@@ -93,19 +110,24 @@ try {
     $t = $null
     try { $t = ([datetimeoffset]::Parse($lastUtc)).LocalDateTime } catch { $t = $null }
     if ($t -and $t -ge $since) { Add-Row $t 'HSS' 'HKLM LastAppliedUtc' }
-} catch { }
+} catch {
+    Write-Log "WARN: LastAppliedUtc read failed: $($_.Exception.Message)"
+}
 
 # --- 808 bursts (collapse into 10-minute buckets) ----------------------------
 $blocks = @()
 try {
     $blocks = Get-WinEvent -FilterHashtable @{ LogName='Microsoft-Windows-PrintService/Admin'; Id=808; StartTime=$since } -ErrorAction Stop
-} catch { }
+} catch {
+    Write-Log "WARN: PrintService/Admin 808 query failed for analysis window: $($_.Exception.Message)"
+}
 $earliest808Overall = $null
 try {
-    $allBlocks = Get-WinEvent -FilterHashtable @{ LogName='Microsoft-Windows-PrintService/Admin'; Id=808 } -MaxEvents 1000 -ErrorAction Stop |
-        Sort-Object TimeCreated
-    if ($allBlocks) { $earliest808Overall = $allBlocks[0].TimeCreated }
-} catch { }
+    $firstBlock = Get-WinEvent -FilterHashtable @{ LogName='Microsoft-Windows-PrintService/Admin'; Id=808 } -Oldest -MaxEvents 1 -ErrorAction Stop
+    if ($firstBlock) { $earliest808Overall = $firstBlock.TimeCreated }
+} catch {
+    Write-Log "WARN: earliest PrintService/Admin 808 query failed: $($_.Exception.Message)"
+}
 
 # Bucket the in-window blocks by 10-min slot.
 $buckets = @{}
