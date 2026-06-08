@@ -14,7 +14,8 @@
       - Requires an installed EPSON WF-C579R Series driver.
       - Prefers an EpsonNet/IP-style port over WSD when one is available.
       - Creates missing A4 and Token queues.
-      - Replays saved Epson DEVMODE blobs for tray/paper defaults when present.
+      - Replays saved Epson DEVMODE blobs for tray/paper defaults when present,
+        including per-user settings captured with printui's `u` flag.
 
     Expected Titan queues:
       - A4    -> Cassette 1, A4 paper.
@@ -202,11 +203,11 @@ function Restore-QueueSettings {
 
     try {
         $Process = Start-Process -FilePath 'rundll32.exe' `
-            -ArgumentList @('printui.dll,PrintUIEntry', '/Sr', '/n', $QueueName, '/a', $ConfigPath, 'd', 'g') `
+            -ArgumentList @('printui.dll,PrintUIEntry', '/Sr', '/n', $QueueName, '/a', $ConfigPath, 'd', 'g', 'u') `
             -Wait -PassThru -WindowStyle Hidden
 
         if ($Process.ExitCode -eq 0) {
-            Write-Log "SUCCESS: restored saved Epson tray settings for '$QueueName' from '$BlobName'."
+            Write-Log "SUCCESS: restored saved Epson tray settings for '$QueueName' from '$BlobName' using flags d g u."
         } else {
             Write-Log "WARN: printui returned exit code $($Process.ExitCode) restoring '$QueueName'. Check preferences manually."
         }
