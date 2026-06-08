@@ -10201,8 +10201,8 @@
       {
         "Name": "Prevent the browser process from creating dynamic code",
         "Category": "EdgeBrowserConfigurations",
-        "IsApplied": true,
-        "StatusState": "Applied",
+        "IsApplied": false,
+        "StatusState": "NotApplied",
         "SubCategoryName": "",
         "DeviceIntents": [
           "All"
