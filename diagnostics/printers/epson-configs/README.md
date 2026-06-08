@@ -1,14 +1,18 @@
 # Epson WF-C579R saved settings
 
-These `.dat` files are Epson driver DEVMODE captures used by
-`../Repair-EpsonWfC579rQueues.ps1`.
+These `.dat` files are Epson driver DEVMODE captures retained for controlled
+experiments with `../Repair-EpsonWfC579rQueues.ps1 -ApplySavedSettings`.
 
 - `a4_epson_config.dat` applies the saved A4 queue defaults.
 - `token_epson_config.dat` applies the saved Token queue defaults.
 
 They are driver-private settings blobs captured with `printui.dll /Ss` using
-the `d g u` flags; they are not ordinary text config files. If the Epson driver
-package changes, recapture them from a known-good reference machine.
+the `d g u` flags; they are not ordinary text config files.
+
+Canary testing showed `printui.dll /Sr` can return success without actually
+changing WF-C579R tray routing, so the main repair script does not apply these
+by default. Use them only for controlled experiments, not as proof of tray
+configuration.
 
 Current known-good capture hashes:
 

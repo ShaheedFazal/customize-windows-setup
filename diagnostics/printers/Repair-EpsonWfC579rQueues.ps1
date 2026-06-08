@@ -14,8 +14,9 @@
       - Requires an installed EPSON WF-C579R Series driver.
       - Prefers an EpsonNet/IP-style port over WSD when one is available.
       - Creates missing A4 and Token queues.
-      - Replays saved Epson DEVMODE blobs for tray/paper defaults when present,
-        including per-user settings captured with printui's `u` flag.
+      - Does not attempt automatic tray restore unless -ApplySavedSettings is
+        explicitly supplied. Epson tray/custom-paper settings have proven
+        driver-private and unreliable to restore across machines.
 
     Expected Titan queues:
       - A4    -> Cassette 1, A4 paper.
@@ -29,6 +30,11 @@
     Optional cleanup mode. Only removes surplus Epson WF-C579R queues after both
     A4 and Token exist. Defaults to off.
 
+.PARAMETER ApplySavedSettings
+    Experimental mode. Attempts to replay bundled Epson DEVMODE captures using
+    printui flags d g u. Defaults to off because canary testing showed the import
+    can return success without actually changing tray routing.
+
 .NOTES
     Run from elevated PowerShell. PS 5.1 and PowerShell 7 compatible.
 #>
@@ -37,7 +43,7 @@ param(
     [string]$DriverName = 'EPSON WF-C579R Series',
     [string]$PreferredPortName = '',
     [switch]$RemoveSurplusEpsonQueues,
-    [switch]$SkipSavedSettings
+    [switch]$ApplySavedSettings
 )
 
 $ErrorActionPreference = 'Continue'
@@ -190,8 +196,8 @@ function Restore-QueueSettings {
         [string]$BlobName
     )
 
-    if ($SkipSavedSettings) {
-        Write-Log "INFO: skipped saved settings for '$QueueName' because -SkipSavedSettings was supplied."
+    if (-not $ApplySavedSettings) {
+        Write-Log "INFO: skipped saved settings for '$QueueName'. Use -ApplySavedSettings only for controlled experiments."
         return
     }
 
@@ -249,7 +255,7 @@ Write-Section '3. Ensure A4 and Token queues'
 Ensure-Queue -Name 'A4' -Driver $DriverName -Port $PortName
 Ensure-Queue -Name 'Token' -Driver $DriverName -Port $PortName
 
-Write-Section '4. Apply saved tray settings'
+Write-Section '4. Saved tray settings'
 Restore-QueueSettings -QueueName 'A4' -BlobName 'a4_epson_config.dat'
 Restore-QueueSettings -QueueName 'Token' -BlobName 'token_epson_config.dat'
 
@@ -304,7 +310,8 @@ foreach ($QueueName in 'A4', 'Token') {
     }
 }
 
-Write-Section '8. Manual verification still required'
-Write-Log 'Print one real A4 document and one real Token job from Titan.'
+Write-Section '8. Manual tray configuration required'
+Write-Log 'Automatic Epson tray restore is disabled by default because printui DEVMODE import was not reliable in canary testing.'
+Write-Log 'Set A4 and Token tray/paper preferences manually, then print one real A4 document and one real Token job from Titan.'
 Write-Log 'Windows may still show stale "driver unavailable" device entries; trust Get-Printer for real queues.'
 Write-Log 'Done.'
