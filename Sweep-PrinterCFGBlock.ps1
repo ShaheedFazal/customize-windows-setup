@@ -178,8 +178,8 @@ $customFields = [ordered]@{
     'HSS_Ran'            = "$hssRan"              # text  : True / False
     'HSS_Status'         = $hssStatus             # text  : success / pending-install / -
     'HSS_LastUtc'        = $hssWhen               # text  : last HSS apply time
-    'Win_Version'        = "$caption $display"    # text  : Windows 11 Pro 25H2
-    'Win_Build'          = "$build.$ubr"          # text  : 26200.1234
+    'Win_BuildUBR'       = "$build.$ubr"          # text  : 26200.1234 (UBR pins the KB level;
+                                                  #         OS / OS Version are already built-in)
 }
 if (Get-Command Send-CustomField -ErrorAction SilentlyContinue) {
     foreach ($f in $customFields.GetEnumerator()) {
