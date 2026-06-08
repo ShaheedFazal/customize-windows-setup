@@ -56,11 +56,17 @@ function Write-Section {
 # Fresh transcript per run so collected output is unambiguous.
 try { Remove-Item -LiteralPath $transcript -ErrorAction SilentlyContinue } catch { }
 
+$os         = Get-CimInstance Win32_OperatingSystem -ErrorAction SilentlyContinue
+$osCaption  = if ($os) { $os.Caption }     else { '<unknown>' }
+$osBuild    = if ($os) { $os.BuildNumber } else { '<unknown>' }
+$runUtc     = (Get-Date).ToUniversalTime().ToString('o')
+$runLocal   = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
+
 Write-Log "Printer driver-block diagnostic"
 Write-Log "Host        : $env:COMPUTERNAME"
-Write-Log "Run (UTC)   : $((Get-Date).ToUniversalTime().ToString('o'))"
-Write-Log "Run (local) : $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
-Write-Log "OS          : $((Get-CimInstance Win32_OperatingSystem -ErrorAction SilentlyContinue).Caption) (build $((Get-CimInstance Win32_OperatingSystem -ErrorAction SilentlyContinue).BuildNumber))"
+Write-Log "Run (UTC)   : $runUtc"
+Write-Log "Run (local) : $runLocal"
+Write-Log "OS          : $osCaption (build $osBuild)"
 Write-Log "Transcript  : $transcript"
 
 # -----------------------------------------------------------------------------
