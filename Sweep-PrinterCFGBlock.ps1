@@ -55,13 +55,24 @@ $wppOn  = ($wppEff -eq 1)
 $wppOnText = if ($wppOn) { 'ON' } else { 'OFF' }
 
 # --- Event 808 plug-in load blocks ------------------------------------------
+# Distinguish three states: BLOCKED (>0), CLEAN (log readable, 0 events), and
+# UNKNOWN (log disabled / unreadable - so a blank dashboard cell isn't mistaken
+# for "genuinely clean"). We check the log is enabled FIRST (-ListLog), then use
+# SilentlyContinue for the query so the benign "no events match" case returns
+# $null instead of a locale-dependent terminating error.
 $blockCount = 0; $dlls = @(); $codes = @(); $lastBlock = ''
+$logName     = 'Microsoft-Windows-PrintService/Admin'
+$logReadable = $false
 try {
-    $events = Get-WinEvent -FilterHashtable @{
-        LogName = 'Microsoft-Windows-PrintService/Admin'; Id = 808
-    } -MaxEvents 200 -ErrorAction Stop
+    $logInfo = Get-WinEvent -ListLog $logName -ErrorAction Stop
+    if ($logInfo.IsEnabled) { $logReadable = $true }
+} catch { $logReadable = $false }
+
+if ($logReadable) {
+    $events = Get-WinEvent -FilterHashtable @{ LogName = $logName; Id = 808 } `
+        -MaxEvents 200 -ErrorAction SilentlyContinue
     if ($events) {
-        $blockCount = $events.Count
+        $blockCount = @($events).Count
         $lastBlock  = $events[0].TimeCreated.ToString('yyyy-MM-dd HH:mm')
         foreach ($e in $events) {
             $ud = ''
@@ -74,7 +85,7 @@ try {
             if ($c.Success) { $codes += $c.Value }
         }
     }
-} catch { }
+}
 $dllList  = ($dlls  | Sort-Object -Unique) -join ','
 $codeList = ($codes | Sort-Object -Unique) -join ','
 if (-not $dllList)  { $dllList  = '-' }
@@ -86,6 +97,12 @@ if ($dllList -match 'ZDesigner') { $vendors += 'Zebra' }
 if ($dllList -match 'BRU|brother|broh') { $vendors += 'Brother' }
 if ($dllList -match 'star|tsp|tup') { $vendors += 'Star' }
 $vendorList = if ($vendors) { ($vendors | Sort-Object -Unique) -join ',' } else { '-' }
+
+# Three-state status: BLOCKED / CLEAN / UNKNOWN (log disabled or unreadable).
+$printBlockStatus =
+    if (-not $logReadable) { 'UNKNOWN' }
+    elseif ($blockCount -gt 0) { 'BLOCKED' }
+    else { 'CLEAN' }
 
 # --- Printer queues ----------------------------------------------------------
 $prnTotal = 0; $prnBad = 0; $prnNames = '-'
@@ -121,6 +138,8 @@ $fields = @(
     "os=$caption"
     "winver=$display"
     "build=$build.$ubr"
+    "status=$printBlockStatus"
+    "log_readable=$logReadable"
     "wpp_policy=$wppPolicy"
     "wpp_local=$wppLocal"
     "wpp_eff=$wppEff"
@@ -148,6 +167,7 @@ Write-Log "Windows          : $winVer"
 Write-Log "WPP policy value : $wppPolicy   (Policies\...\Printers\WPP\WindowsProtectedPrintMode)"
 Write-Log "WPP local value  : $wppLocal   EnabledBy=$wppEnby"
 Write-Log "WPP effective    : $wppEff   -> Protected Print Mode $wppOnText"
+Write-Log "Print block status: $printBlockStatus   (log readable: $logReadable)"
 Write-Log "808 plug-in blocks: $blockCount   last: $lastBlock"
 Write-Log "  vendors        : $vendorList"
 Write-Log "  error codes    : $codeList   (0x679=CFG, 0x677=ACG/dynamic-code)"
@@ -167,7 +187,6 @@ Write-Log ''
 # script still runs (and just skips this) when tested outside SuperOps.
 # Supported data types: text, long text, decimal, number. Create these fields in
 # the RMM Monitoring class first; rename the LEFT side here to match your fields.
-$printBlockStatus = if ($blockCount -gt 0) { 'BLOCKED' } else { 'CLEAN' }
 $customFields = [ordered]@{
     'PrintBlock_Status'  = $printBlockStatus      # text  : BLOCKED / CLEAN  (primary filter)
     'PrintBlock_Count'   = [int]$blockCount       # number: # of 808 plug-in blocks
