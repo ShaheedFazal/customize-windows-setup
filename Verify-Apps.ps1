@@ -29,7 +29,36 @@ foreach ($c in $Checks) {
 
 $hssKey       = 'HKLM:\SOFTWARE\CustomizeWindowsSetup\HardenSystemSecurity'
 $stagedReport = 'C:\ProgramData\CustomizeWindowsSetup\Harden-System-Security.report.json'
+$applyTaskPath = '\CustomizeWindowsSetup\'
+$applyTaskName = 'Apply-HardenSystemSecurityReport'
+$applyLog      = 'C:\Temp\Apply-HardenSystemSecurityReport.log'
 $state        = if (Test-Path $hssKey) { Get-ItemProperty -Path $hssKey -ErrorAction SilentlyContinue } else { $null }
+
+function Write-HssApplyTaskInfo {
+    try {
+        $task = Get-ScheduledTask -TaskPath $applyTaskPath -TaskName $applyTaskName -ErrorAction Stop
+        $info = $task | Get-ScheduledTaskInfo -ErrorAction SilentlyContinue
+        Write-Host ("INFO    HSS apply task: State={0}, LastRun={1}, LastResult={2}" -f $task.State, $info.LastRunTime, $info.LastTaskResult)
+        foreach ($action in @($task.Actions)) {
+            Write-Host ("INFO    HSS apply task action: {0} {1}" -f $action.Execute, $action.Arguments)
+        }
+    } catch {
+        Write-Host "WARN    HSS apply task: $applyTaskPath$applyTaskName not registered"
+    }
+    if ($state -and $state.LastAttemptUtc) {
+        Write-Host "INFO    HSS apply last attempt: $($state.LastAttemptUtc)"
+    }
+    if (Test-Path -LiteralPath $applyLog) {
+        try {
+            $logItem = Get-Item -LiteralPath $applyLog -ErrorAction Stop
+            Write-Host "INFO    HSS apply log: $applyLog ($($logItem.Length) bytes, modified $($logItem.LastWriteTime))"
+        } catch {
+            Write-Host "INFO    HSS apply log: $applyLog"
+        }
+    } else {
+        Write-Host "WARN    HSS apply log missing: $applyLog"
+    }
+}
 
 if (-not $state -or -not $state.LastAppliedStatus) {
     Write-Host 'WARN    HSS report: never applied'
@@ -72,6 +101,7 @@ if (Test-Path -LiteralPath $stagedReport) {
     if ($state -and $state.ReportHash) {
         if ($stagedHash -ne $state.ReportHash) {
             Write-Host "WARN    HSS report drift: staged hash $($stagedHash.Substring(0,12))... differs from applied $($state.ReportHash.Substring(0,12))..."
+            Write-HssApplyTaskInfo
             $bad++
         }
     }
