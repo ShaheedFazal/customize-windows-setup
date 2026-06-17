@@ -3,6 +3,32 @@
 # to Generic / Text Only. Titan PMR profiles depend on stable Windows printer
 # names, so the queue name is the matched ZDesigner driver name.
 
+$sharedFunctions = if ($PSScriptRoot) { Join-Path $PSScriptRoot 'Shared-Functions.ps1' } else { $null }
+if (-not (Get-Command -Name Write-Log -CommandType Function -ErrorAction SilentlyContinue) -and
+    $sharedFunctions -and
+    (Test-Path -LiteralPath $sharedFunctions)) {
+    . $sharedFunctions
+}
+
+if (-not (Get-Command -Name Write-Log -CommandType Function -ErrorAction SilentlyContinue)) {
+    function Write-Log {
+        param([string]$Message)
+        try {
+            if (-not (Test-Path -LiteralPath 'C:\Temp')) {
+                New-Item -Path 'C:\Temp' -ItemType Directory -Force | Out-Null
+            }
+            Add-Content -Path 'C:\Temp\Customization.log' -Value "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')`t$Message"
+        } catch {}
+    }
+}
+
+if (-not (Get-Command -Name Test-MachineWideSentinel -CommandType Function -ErrorAction SilentlyContinue)) {
+    function Test-MachineWideSentinel {
+        param([Parameter(Mandatory)][string]$Name)
+        return $false
+    }
+}
+
 if (Test-MachineWideSentinel -Name 'Ensure-ZebraUsbQueues') { return }
 
 function Get-ZebraModelToken {
@@ -63,44 +89,44 @@ $ports = @(Get-PrinterPort -ErrorAction SilentlyContinue |
         ($_.Description -match 'Zebra|ZDesigner|ZTC' -or $_.Name -match 'Zebra|ZDesigner')
     })
 
-if ($ports.Count -eq 0) { return }
-
-if ($drivers.Count -eq 0) {
-    Write-Host "[WARN] Zebra USB port found but no ZDesigner/Zebra driver is installed; skipping queue repair." -ForegroundColor Yellow
-    Write-Log "WARN: Ensure-ZebraUsbQueues found Zebra USB port(s) but no installed Zebra driver"
+if ($ports.Count -eq 0) {
     return
-}
+} elseif ($drivers.Count -eq 0) {
+    $portList = ($ports | Select-Object -ExpandProperty Name) -join ', '
+    Write-Host "[WARN] Zebra USB port(s) found ($portList) but no ZDesigner/Zebra driver is installed; install the Zebra driver first." -ForegroundColor Yellow
+    Write-Log "WARN: Ensure-ZebraUsbQueues found Zebra USB port(s) ($portList) but no installed Zebra driver"
+} else {
+    foreach ($port in $ports) {
+        $existingOnPort = @($printers | Where-Object { $_.PortName -eq $port.Name })
+        if ($existingOnPort.Count -gt 0) {
+            Write-Host "[INFO] Zebra USB port '$($port.Name)' already has queue '$($existingOnPort[0].Name)'; leaving unchanged." -ForegroundColor DarkGray
+            Write-Log "Ensure-ZebraUsbQueues: port '$($port.Name)' already has queue '$($existingOnPort[0].Name)'"
+            continue
+        }
 
-foreach ($port in $ports) {
-    $existingOnPort = @($printers | Where-Object { $_.PortName -eq $port.Name })
-    if ($existingOnPort.Count -gt 0) {
-        Write-Host "[INFO] Zebra USB port '$($port.Name)' already has queue '$($existingOnPort[0].Name)'; leaving unchanged." -ForegroundColor DarkGray
-        Write-Log "Ensure-ZebraUsbQueues: port '$($port.Name)' already has queue '$($existingOnPort[0].Name)'"
-        continue
-    }
+        $driver = Get-BestZebraDriver -Port $port -Drivers $drivers
+        if (-not $driver) {
+            Write-Host "[WARN] Zebra USB port '$($port.Name)' found but no unambiguous matching driver; skipping." -ForegroundColor Yellow
+            Write-Log "WARN: Ensure-ZebraUsbQueues no unambiguous driver for port '$($port.Name)' description '$($port.Description)'"
+            continue
+        }
 
-    $driver = Get-BestZebraDriver -Port $port -Drivers $drivers
-    if (-not $driver) {
-        Write-Host "[WARN] Zebra USB port '$($port.Name)' found but no unambiguous matching driver; skipping." -ForegroundColor Yellow
-        Write-Log "WARN: Ensure-ZebraUsbQueues no unambiguous driver for port '$($port.Name)' description '$($port.Description)'"
-        continue
-    }
+        $queueName = $driver.Name
+        $existingByName = Get-Printer -Name $queueName -ErrorAction SilentlyContinue
+        if ($existingByName) {
+            Write-Host "[WARN] Queue '$queueName' already exists on port '$($existingByName.PortName)', not reusing name for '$($port.Name)'." -ForegroundColor Yellow
+            Write-Log "WARN: Ensure-ZebraUsbQueues queue '$queueName' already exists on '$($existingByName.PortName)', skipped port '$($port.Name)'"
+            continue
+        }
 
-    $queueName = $driver.Name
-    $existingByName = Get-Printer -Name $queueName -ErrorAction SilentlyContinue
-    if ($existingByName) {
-        Write-Host "[WARN] Queue '$queueName' already exists on port '$($existingByName.PortName)', not reusing name for '$($port.Name)'." -ForegroundColor Yellow
-        Write-Log "WARN: Ensure-ZebraUsbQueues queue '$queueName' already exists on '$($existingByName.PortName)', skipped port '$($port.Name)'"
-        continue
-    }
-
-    try {
-        Add-Printer -Name $queueName -DriverName $driver.Name -PortName $port.Name -ErrorAction Stop
-        Write-Host "[SUCCESS] Created Zebra queue '$queueName' on '$($port.Name)'." -ForegroundColor Green
-        Write-Log "Ensure-ZebraUsbQueues: created queue '$queueName' driver '$($driver.Name)' port '$($port.Name)'"
-        $printers = @(Get-Printer -ErrorAction SilentlyContinue)
-    } catch {
-        Write-Host "[ERROR] Failed to create Zebra queue '$queueName' on '$($port.Name)': $_" -ForegroundColor Red
-        Write-Log "ERROR: Ensure-ZebraUsbQueues failed queue '$queueName' port '$($port.Name)' - $_"
+        try {
+            Add-Printer -Name $queueName -DriverName $driver.Name -PortName $port.Name -ErrorAction Stop
+            Write-Host "[SUCCESS] Created Zebra queue '$queueName' on '$($port.Name)'." -ForegroundColor Green
+            Write-Log "Ensure-ZebraUsbQueues: created queue '$queueName' driver '$($driver.Name)' port '$($port.Name)'"
+            $printers = @(Get-Printer -ErrorAction SilentlyContinue)
+        } catch {
+            Write-Host "[ERROR] Failed to create Zebra queue '$queueName' on '$($port.Name)': $_" -ForegroundColor Red
+            Write-Log "ERROR: Ensure-ZebraUsbQueues failed queue '$queueName' port '$($port.Name)' - $_"
+        }
     }
 }
