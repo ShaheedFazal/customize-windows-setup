@@ -10,7 +10,7 @@ $ErrorActionPreference = 'Continue'
 
 $Checks = @(
     @{ Key='Winget';               Detect={ [bool](Get-Command winget.exe -ErrorAction SilentlyContinue) -or [bool](Get-AppxPackage -AllUsers -Name 'Microsoft.DesktopAppInstaller' -ErrorAction SilentlyContinue) } },
-    @{ Key='PowerShell7';          Detect={ Test-Path 'C:\Program Files\PowerShell\7\pwsh.exe' } },
+    @{ Key='PowerShell7';          Detect={ (Test-Path 'C:\Program Files\PowerShell\7\pwsh.exe') -or [bool](Get-AppxPackage -AllUsers -Name 'Microsoft.PowerShell' -ErrorAction SilentlyContinue) } },
     @{ Key='Chrome';               Detect={ Test-Path 'C:\Program Files\Google\Chrome\Application\chrome.exe' } },
     @{ Key='GoogleDrive';          Detect={ Test-Path 'C:\Program Files\Google\Drive File Stream\launch.bat' } },
     @{ Key='HardenSystemSecurity'; Detect={ [bool](Get-AppxPackage -AllUsers -Name 'VioletHansen.HardenSystemSecurity' -ErrorAction SilentlyContinue) } }
