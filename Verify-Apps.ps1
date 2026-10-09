@@ -79,20 +79,36 @@ if (-not $state -or -not $state.LastAppliedStatus) {
     }
 }
 
-# Staleness: apply older than 30 days = something's wrong
+# Staleness: the apply task skips ImportReport while the report is unchanged,
+# so an old LastAppliedUtc is normal. What matters is that the task still
+# fires; it stamps LastCheckedUtc on every run, including the no-op path.
 if ($state -and $state.LastAppliedUtc) {
+    Write-Host "INFO    HSS report last applied: $($state.LastAppliedUtc)"
+}
+if ($state -and $state.LastCheckedUtc) {
     try {
-        $applied = [DateTime]::Parse($state.LastAppliedUtc).ToUniversalTime()
-        $ageDays = (New-TimeSpan -Start $applied -End ([DateTime]::UtcNow)).TotalDays
-        if ($ageDays -gt 30) {
-            Write-Host "WARN    HSS report stale: applied $([math]::Round($ageDays)) days ago ($($state.LastAppliedUtc))"
+        $checked = [DateTime]::Parse($state.LastCheckedUtc).ToUniversalTime()
+        $ageDays = (New-TimeSpan -Start $checked -End ([DateTime]::UtcNow)).TotalDays
+        if ($ageDays -gt 14) {
+            Write-Host "WARN    HSS apply task stale: last ran $([math]::Round($ageDays)) days ago ($($state.LastCheckedUtc))"
+            Write-HssApplyTaskInfo
             $bad++
         } else {
-            Write-Host "INFO    HSS report last applied: $($state.LastAppliedUtc) ($([math]::Round($ageDays,1)) days ago)"
+            Write-Host "INFO    HSS apply task last ran: $($state.LastCheckedUtc) ($([math]::Round($ageDays,1)) days ago)"
         }
     } catch {
-        Write-Host "INFO    HSS report last applied: $($state.LastAppliedUtc) (could not parse)"
+        Write-Host "INFO    HSS apply task last ran: $($state.LastCheckedUtc) (could not parse)"
     }
+}
+
+# Controlled Folder Access must be in Audit (2). Block (1) silently rolls back
+# line-of-business installers such as Titan's IDAutomation barcode UFL.
+$cfa = (Get-MpPreference -ErrorAction SilentlyContinue).EnableControlledFolderAccess
+switch ("$cfa") {
+    '2'     { Write-Host 'OK      Controlled Folder Access: Audit' }
+    '1'     { Write-Host 'WARN    Controlled Folder Access: Block (expected Audit; apply task override not run yet?)'; $bad++ }
+    '0'     { Write-Host 'WARN    Controlled Folder Access: Disabled (expected Audit)'; $bad++ }
+    default { Write-Host "INFO    Controlled Folder Access: $cfa" }
 }
 
 # Drift: staged report on disk differs from what HKLM says was applied

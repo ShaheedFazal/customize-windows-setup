@@ -259,7 +259,29 @@ function Set-RemoteAccessOverride {
     } catch { Log "RemoteAccess override FAILED - $_" }
 }
 
+function Set-CfaAuditOverride {
+    # The HSS report enables Controlled Folder Access in Block mode (policy
+    # value 1). Block mode silently rolls back installers that write to
+    # protected folders: on REMOTE-FA031-5426 (2 Jun 2026) it blocked Titan's
+    # IDAutomation DataMatrix installer, so the Crystal UFL was never
+    # registered and every barcode label was deleted in the spooler.
+    # The pre-HSS hardening ran CFA in Audit mode (2); restore that. Audit
+    # still logs would-be blocks as Defender event 1124. Runs AFTER
+    # ImportReport so it wins over the freshly-applied report; idempotent.
+    $cfaKey = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender\Windows Defender Exploit Guard\Controlled Folder Access'
+    try {
+        if (-not (Test-Path $cfaKey)) { New-Item -Path $cfaKey -Force | Out-Null }
+        New-ItemProperty -Path $cfaKey -Name 'EnableControlledFolderAccess' -Value 2 -PropertyType DWord -Force | Out-Null
+        try { Set-MpPreference -EnableControlledFolderAccess AuditMode -ErrorAction Stop } catch { }
+        $mode = (Get-MpPreference -ErrorAction SilentlyContinue).EnableControlledFolderAccess
+        SetState 'CfaOverride'    'audit'
+        SetState 'CfaOverrideUtc' (Get-Date).ToUniversalTime().ToString('o')
+        Log "CFA override: policy set to Audit (2); Defender reports $mode."
+    } catch { Log "CFA override FAILED - $_" }
+}
+
 Log "Apply task fired."
+SetState 'LastCheckedUtc' (Get-Date).ToUniversalTime().ToString('o')
 
 if (-not (Test-Path -LiteralPath $report)) {
     Log "No staged report at $report; nothing to apply."
@@ -273,6 +295,7 @@ $storedStat  = (Get-ItemProperty -Path $stateKey -Name 'LastAppliedStatus' -Erro
 if ($currentHash -eq $storedHash -and $storedStat -eq 'success') {
     Log "Hash matches ($($currentHash.Substring(0,12))...) and last status is success; skip ImportReport."
     Set-RemoteAccessOverride
+    Set-CfaAuditOverride
     return
 }
 
@@ -327,9 +350,10 @@ if ($exit -eq 0) {
     Log "Apply failed (exit $exit)."
 }
 
-# Re-open remote access AFTER ImportReport so it wins over the freshly-applied
-# baseline (runs on both success and failure paths).
+# Re-open remote access and put CFA back to Audit AFTER ImportReport so both
+# win over the freshly-applied baseline (runs on both success and failure paths).
 Set-RemoteAccessOverride
+Set-CfaAuditOverride
 '@
 
     $payloadDir  = Join-Path $env:ProgramData 'CustomizeWindowsSetup'

@@ -221,6 +221,10 @@ The MS Security Baseline in the report sets `SeDenyNetworkLogonRight = *S-1-5-11
 - **Listed hosts:** enable RDP (`fDenyTSConnections=0`) and relax `SeDenyNetworkLogonRight` to Guests-only via `secedit`, enabling OpenSSH and RDP-with-NLA. **NLA stays on.**
 - **Every other endpoint:** the function returns immediately — left completely untouched and fully hardened (no RDP change, no NLA change). This is deliberate: local-account RDP requires dropping either NLA or the network-logon deny, so the relaxation is confined to the one box that needs SSH. Add a hostname to `$sshHosts` to extend it to another box.
 
+### Controlled Folder Access override (all endpoints)
+
+The report enables Controlled Folder Access in **Block** mode. Block mode silently rolls back installers that write to protected folders (e.g. Titan's IDAutomation DataMatrix installer writes to `C:\Users\Public\Documents`), so an app installed after HSS can end up half-installed. On REMOTE-FA031-5426 this left the Crystal barcode UFL unregistered and every barcode label was deleted in the spooler. `Set-CfaAuditOverride` in the apply-task payload sets the CFA policy to **Audit (2)**, matching the pre-HSS hardening, on both the apply and the hash-match no-op paths. Would-be blocks are still logged as Defender event 1124. [Verify-Apps.ps1](Verify-Apps.ps1) fails if CFA is not in Audit. Leave the report JSON as exported; the override is the place to change this.
+
 Do **not** move this logic into a customize `includes/` script — the HSS apply runs asynchronously in a scheduled task, so an include would race it and get clobbered when the baseline re-applies.
 
 ## Per-run sentinel pattern for machine-wide includes
