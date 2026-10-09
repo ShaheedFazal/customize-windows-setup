@@ -12,11 +12,15 @@ so the normal customization chain never runs them automatically.
   driver-file evidence for blocked printer plug-ins.
 - `Diagnose-PrinterCFGBlock.ps1` inspects Device Guard, WDAC/App Control,
   mitigation state, and PE CFG flags.
-- `Diagnose-PrinterBlockTimeline.ps1` correlates BOOT, HSS, and Event 808
-  timing.
+- `Diagnose-PrinterBlockTimeline.ps1` correlates BOOT, HSS full apply vs
+  no-op, spooler restarts, driver/device installs, Event 808 blocks and Event
+  318 printer-settings resets.
+- `Inspect-ZebraPrinterSettings.ps1` decodes Zebra queue Printing Defaults and
+  signed-in users' Printing Preferences (label size in mm). `-SaveBaseline`
+  saves a technician-confirmed known-good capture (files only).
 - `Monitor-HardenSystemSecurityPrinterHealth.ps1` reports HSS rollout state,
-  WPP state, printer queue health, and current printer-driver block events for
-  SuperOps monitoring.
+  WPP state, printer queue health, current printer-driver block events, and
+  Zebra label-settings resets (`ZebraSettings_*`) for SuperOps monitoring.
 
 ## Destructive or state-changing experiments
 
@@ -43,3 +47,5 @@ These files are preserved for investigation history only. Do not move them into
 
 - `PRINTER-HSS-ROOT-CAUSE-HANDOFF.md` captures the root-cause reasoning and
   evidence trail for independent review.
+- `ZEBRA-DEVMODE-GUARD-DESIGN.md` covers Event 318 Zebra settings resets: cause
+  analysis, detection, and the specified (not yet built) restore guard.

@@ -12,6 +12,9 @@
       - current PrintService/Admin Event 808 plug-in-load blocks after latest
         HSS apply, plus historical block context in the transcript
       - printer queue count and non-Normal printer count
+      - Zebra label queue settings: Event 318 DEVMODE resets and whether the
+        Printing Defaults / signed-in users' Printing Preferences are at the
+        4x6in driver default (ZebraSettings_* fields)
       - SuperOps custom fields for dashboard filtering
 
     Read-only: no registry/driver/printer/service/policy changes.
@@ -211,6 +214,78 @@ if (-not $logReadable) {
     $printBlockStatus = 'CLEAN'
 }
 
+# --- Zebra label settings: Event 318 DEVMODE reset ----------------------------
+# Event 318 ("Failed to upgrade printer settings ... set to those configured by
+# the manufacturer") resets a queue's saved settings to the driver default. For
+# ZDesigner that is 4x6in, which puts a printer loaded with smaller label stock
+# into media-out while Windows still shows the queue as Normal. The event is a
+# one-shot, so the dashboard status is driven by the settings as they are NOW:
+#   DEFAULT_SIZE = Printing Defaults or a signed-in user's Printing Preferences
+#                  decode as 4x6in (alert)
+#   RESET_RECENT = a Zebra 318 in the last $RecentResetHours but sizes are not
+#                  the default any more (someone fixed it; context)
+#   OK / NO_ZEBRA / UNKNOWN
+# Per-user preferences are only readable for users whose hive is loaded
+# (signed in); Titan prints as its own Windows user, so run while it is signed in.
+$RecentResetHours = 24
+function Get-DevModeSize { param([byte[]]$Bytes)
+    # DEVMODEW dmPaperLength @80, dmPaperWidth @82, both in 0.1 mm.
+    if (-not $Bytes -or $Bytes.Length -lt 84) { return $null }
+    $len = [BitConverter]::ToInt16($Bytes, 80); $wid = [BitConverter]::ToInt16($Bytes, 82)
+    [pscustomobject]@{
+        Text      = '{0}x{1}' -f ($wid / 10.0), ($len / 10.0)
+        IsDefault = (($wid -eq 1016 -and $len -eq 1524) -or ($wid -eq 1524 -and $len -eq 1016))
+    }
+}
+$zebraQueues = @()
+try { $zebraQueues = @(Get-Printer -ErrorAction Stop | Where-Object { $_.Name -match 'ZDesigner|Zebra' -or $_.DriverName -match 'ZDesigner|Zebra' }) } catch {}
+$zebraDetail = @(); $zebraAnyDefault = $false
+$loadedUsers = @(Get-ChildItem -LiteralPath 'Registry::HKEY_USERS' -ErrorAction SilentlyContinue |
+    Where-Object { $_.PSChildName -match '^S-1-5-21-[\d-]+$' })
+foreach ($zq in $zebraQueues) {
+    $parts = @()
+    $gBytes = $null
+    try { $gBytes = (Get-ItemProperty -LiteralPath ('HKLM:\SYSTEM\CurrentControlSet\Control\Print\Printers\' + ($zq.Name -replace '\\', ',')) -Name 'Default DevMode' -ErrorAction Stop).'Default DevMode' } catch {}
+    $g = Get-DevModeSize $gBytes
+    if ($g) { $parts += "defaults=$($g.Text)"; if ($g.IsDefault) { $zebraAnyDefault = $true } } else { $parts += 'defaults=?' }
+    foreach ($hive in $loadedUsers) {
+        $uBytes = $null
+        try { $uBytes = (Get-ItemProperty -LiteralPath "Registry::HKEY_USERS\$($hive.PSChildName)\Printers\DevModePerUser" -Name $zq.Name -ErrorAction Stop).($zq.Name) } catch {}
+        $u = Get-DevModeSize $uBytes
+        if (-not $u) { continue }
+        $who = $hive.PSChildName
+        try { $who = ((New-Object Security.Principal.SecurityIdentifier($who)).Translate([Security.Principal.NTAccount]).Value -split '\\')[-1] } catch {}
+        $parts += "$who=$($u.Text)"
+        if ($u.IsDefault) { $zebraAnyDefault = $true }
+    }
+    $zebraDetail += "$($zq.Name): $($parts -join ',')"
+}
+
+$zebra318 = @()
+if ($logReadable -and $zebraQueues.Count -gt 0) {
+    try {
+        $zebra318 = @(Get-WinEvent -FilterHashtable @{ LogName = $logName; Id = 318 } -MaxEvents 50 -ErrorAction Stop |
+            Where-Object { "$($_.Message)" -match 'ZDesigner|Zebra' })
+    } catch {
+        if ($_.Exception.Message -notmatch 'No events were found') { Write-Log "Event query failed for $logName/318: $($_.Exception.Message)" }
+    }
+}
+$zebraLast318 = if ($zebra318.Count -gt 0) { $zebra318[0].TimeCreated.ToString('yyyy-MM-dd HH:mm') } else { '-' }
+$zebraRecent318 = @($zebra318 | Where-Object { $_.TimeCreated -ge (Get-Date).AddHours(-1 * $RecentResetHours) })
+# Near HSS = within 15 min either side of the latest FULL apply (LastAppliedUtc is
+# only written by ImportReport, never by a hash-match no-op run).
+$zebra318NearHss = $false
+if ($hssAppliedAt) {
+    foreach ($e in $zebra318) { if ([math]::Abs(($e.TimeCreated - $hssAppliedAt).TotalMinutes) -le 15) { $zebra318NearHss = $true } }
+}
+
+if ($zebraQueues.Count -eq 0) { $zebraStatus = 'NO_ZEBRA' }
+elseif ($zebraAnyDefault) { $zebraStatus = 'DEFAULT_SIZE' }
+elseif ($zebraRecent318.Count -gt 0) { $zebraStatus = 'RESET_RECENT' }
+elseif (@($zebraDetail | Where-Object { $_ -match 'defaults=\?' }).Count -gt 0) { $zebraStatus = 'UNKNOWN' }
+else { $zebraStatus = 'OK' }
+$zebraDetailText = if ($zebraDetail) { $zebraDetail -join '; ' } else { '-' }
+
 # --- SUMMARY line (pipe-delimited; grep across SuperOps results) -------------
 # Built from an array so no single physical line is long enough for the SuperOps
 # editor to hard-wrap and corrupt.
@@ -246,6 +321,10 @@ $fields = @(
     "hss_hash=$hssHash"
     "current_last_block=$currentLastBlock"
     "historical_last_block=$lastBlock"
+    "zebra_settings=$zebraStatus"
+    "zebra_last318=$zebraLast318"
+    "zebra_318_near_hss=$zebra318NearHss"
+    "zebra_detail=$zebraDetailText"
 )
 Write-Log ($fields -join '|')
 
@@ -271,6 +350,10 @@ Write-Log "Printer queues   : $prnTotal total, $prnBad not-Normal"
 Write-Log "  names          : $prnNames"
 Write-Log "HSS has run here : $hssRan   (status=$hssStatus, exit=$hssExit, ver=$hssVer)"
 Write-Log "  last applied   : $hssWhen   reportHash=$hssHash"
+Write-Log "Zebra settings   : $zebraStatus   (last Zebra Event 318: $zebraLast318, near HSS full apply: $zebra318NearHss)"
+Write-Log "  sizes (W x L mm): $zebraDetailText"
+Write-Log "  DEFAULT_SIZE = saved settings are the 4x6in driver default; labels will"
+Write-Log "  media-out on smaller stock. Signed-out users' preferences are not checked."
 Write-Log ''
 Write-Log "Dashboard status is current-only: BLOCKED_CURRENT / CLEAN / UNKNOWN."
 Write-Log "If current_blocks>0 after HSS apply, investigate WPP, HSS report hash,"
@@ -296,6 +379,10 @@ $customFields = [ordered]@{
     'HSS_LastUtc'        = $hssWhen               # text  : last HSS apply time
     'Win_BuildUBR'       = "$build.$ubr"          # text  : 26200.1234 (UBR pins the KB level;
                                                   #         OS / OS Version are already built-in)
+    'ZebraSettings_Status'   = $zebraStatus        # text  : DEFAULT_SIZE / RESET_RECENT / OK / NO_ZEBRA / UNKNOWN
+    'ZebraSettings_Last318'  = $zebraLast318       # text  : latest Zebra Event 318 time, or -
+    'ZebraSettings_NearHss'  = "$zebra318NearHss"  # text  : True if a Zebra 318 was within 15 min of the last HSS full apply
+    'ZebraSettings_Detail'   = $zebraDetailText    # long text: per-queue defaults + per-user sizes in mm
 }
 if (Get-Command Send-CustomField -ErrorAction SilentlyContinue) {
     foreach ($f in $customFields.GetEnumerator()) {
