@@ -29,7 +29,9 @@ $LogFile   = Join-Path $LogDir 'Ensure-Apps.log'
 
 # --- Machine-scope apps: installed now, as SYSTEM, via winget --------------
 $MachineApps = @(
-    @{ Key='PowerShell7';  WingetId='Microsoft.PowerShell';  Detect={ Test-Path 'C:\Program Files\PowerShell\7\pwsh.exe' } },
+    # PowerShell 7 counts as present as the machine MSI or the Store/MSIX package
+    # (seen on REMOTE-FA031: MSIX for the user, so winget refuses the MSI).
+    @{ Key='PowerShell7';  WingetId='Microsoft.PowerShell';  Detect={ (Test-Path 'C:\Program Files\PowerShell\7\pwsh.exe') -or [bool](Get-AppxPackage -AllUsers -Name 'Microsoft.PowerShell' -ErrorAction SilentlyContinue) } },
     @{ Key='Chrome';       WingetId='Google.Chrome';         Detect={ Test-Path 'C:\Program Files\Google\Chrome\Application\chrome.exe' } },
     @{ Key='GoogleDrive';  WingetId='Google.GoogleDrive';    Detect={ Test-Path 'C:\Program Files\Google\Drive File Stream\launch.bat' } }
 )
@@ -58,25 +60,36 @@ function Test-IsAdmin {
     $cur.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
+# winget.exe is an App Execution Alias that lives in the user's
+# WindowsApps PATH entry, so SYSTEM (SuperOps) never finds it with
+# Get-Command. Fall back to the App Installer package folder; winget
+# runs fine as SYSTEM from there. Without this every machine-scope
+# install was silently skipped ("winget not on PATH for SYSTEM").
+function Resolve-Winget {
+    $cmd = Get-Command winget.exe -ErrorAction SilentlyContinue
+    if ($cmd) { return $cmd.Source }
+    $dir = Get-ChildItem 'C:\Program Files\WindowsApps' -Directory `
+            -Filter 'Microsoft.DesktopAppInstaller_*_x64__8wekyb3d8bbwe' -ErrorAction SilentlyContinue |
+        Sort-Object { try { [version]($_.Name -split '_')[1] } catch { [version]'0.0' } } |
+        Select-Object -Last 1
+    if ($dir) {
+        $exe = Join-Path $dir.FullName 'winget.exe'
+        if (Test-Path -LiteralPath $exe) { return $exe }
+    }
+    return $null
+}
+
 if (-not (Test-IsAdmin)) {
     throw 'Ensure-Apps.ps1 must run as Administrator or SYSTEM.'
 }
 
 # --- Step 1: ensure winget (App Installer) is present for all users --------
 function Ensure-Winget {
-    if (Get-Command winget.exe -ErrorAction SilentlyContinue) {
-        Write-AppLog 'winget already present.'
+    $script:WingetExe = Resolve-Winget
+    if ($script:WingetExe) {
+        Write-AppLog "winget available: $script:WingetExe"
         Set-AppState -Key 'Winget' -Name 'Installed' -Value 1 -Type 'DWord'
-        return
-    }
-    # Provisioning the MSIX bundle works under SYSTEM (unlike `winget install`).
-    # If App Installer is missing, you typically need to download the bundle -
-    # SuperOps users usually keep one cached. We try Get-AppxPackage first in
-    # case it's installed but not on SYSTEM's PATH.
-    $appx = Get-AppxPackage -AllUsers -Name 'Microsoft.DesktopAppInstaller' -ErrorAction SilentlyContinue
-    if ($appx) {
-        Write-AppLog "App Installer present (Appx) v$($appx.Version) but not on PATH for SYSTEM. Will be picked up at user logon."
-        Set-AppState -Key 'Winget' -Name 'Installed' -Value 1 -Type 'DWord'
+        Set-AppState -Key 'Winget' -Name 'Path' -Value $script:WingetExe -Type 'String'
         return
     }
     Write-AppLog 'WARNING: winget / App Installer not present. Push your existing Install/Upgrade Winget script first, or pre-provision Microsoft.DesktopAppInstaller MSIX.'
@@ -91,14 +104,14 @@ function Install-MachineApp {
         Set-AppState -Key $App.Key -Name 'Installed' -Value 1 -Type 'DWord'
         return
     }
-    if (-not (Get-Command winget.exe -ErrorAction SilentlyContinue)) {
-        Write-AppLog "$($App.Key) install skipped: winget not on PATH for SYSTEM."
+    if (-not $script:WingetExe) {
+        Write-AppLog "$($App.Key) install skipped: winget not found."
         Set-AppState -Key $App.Key -Name 'Installed' -Value 0 -Type 'DWord'
         return
     }
     Write-AppLog "Installing $($App.Key) ($($App.WingetId)) machine-scope..."
-    & winget.exe install --id $App.WingetId --exact --source winget --scope machine `
-        --accept-package-agreements --accept-source-agreements --silent *>> $LogFile
+    & $script:WingetExe install --id $App.WingetId --exact --source winget --scope machine `
+        --accept-package-agreements --accept-source-agreements --silent --disable-interactivity *>> $LogFile
     $code = $LASTEXITCODE
     $ok   = (& $App.Detect)
     Set-AppState -Key $App.Key -Name 'Installed'      -Value ([int]$ok)  -Type 'DWord'
@@ -408,4 +421,12 @@ Register-UserAppsTask
 Register-ApplyHssTask
 Set-AppState -Key 'Bootstrap' -Name 'LastRunUtc' -Value (Get-Date).ToUniversalTime().ToString('o') -Type 'String'
 Write-AppLog '--- Ensure-Apps.ps1 finished ---'
+
+# Exit non-zero when a machine-scope app is still missing, so SuperOps shows
+# Failure instead of a green run that installed nothing.
+$missing = @($MachineApps | Where-Object { -not (& $_.Detect) } | ForEach-Object { $_.Key })
+if ($missing.Count -gt 0) {
+    Write-Host "[FAIL] Ensure-Apps: still missing after this run: $($missing -join ', '). See $LogFile" -ForegroundColor Red
+    exit 1
+}
 Write-Host '[SUCCESS] Ensure-Apps complete. See HKLM:\SOFTWARE\CustomizeWindowsSetup\Apps for status.' -ForegroundColor Green
