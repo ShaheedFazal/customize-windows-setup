@@ -123,6 +123,41 @@ if (Test-Path -LiteralPath $stagedReport) {
     }
 }
 
+# --- ASR blocks (Defender 1121 = block, 1122 = audit), last 8 days ------------
+# One line per rule+path, newest first, blocks before audits, capped at 10.
+# The weekly routine email quotes the "ASR BLOCK" lines, so keep that prefix.
+# Any 1121 fails the run; 1122 (audit) lines are information only.
+$asrBlockCount = 0; $asrAuditCount = 0; $asrLines = @()
+$asrEvents = @(Get-WinEvent -FilterHashtable @{
+    LogName   = 'Microsoft-Windows-Windows Defender/Operational'
+    Id        = 1121, 1122
+    StartTime = (Get-Date).AddDays(-8)
+} -ErrorAction SilentlyContinue)
+$asrSeen = @{}
+foreach ($e in $asrEvents) {
+    $d = @{}
+    try { foreach ($n in ([xml]$e.ToXml()).Event.EventData.Data) { $d[$n.Name] = $n.'#text' } } catch { continue }
+    $ruleId = "$($d['ID'])".ToLower()
+    $key = "$($e.Id)|$ruleId|$($d['Path'])"
+    if ($asrSeen.ContainsKey($key)) { continue }
+    $asrSeen[$key] = $true
+    $kind = if ($e.Id -eq 1121) { 'BLOCK' } else { 'AUDIT' }
+    if ($kind -eq 'BLOCK') { $asrBlockCount++ } else { $asrAuditCount++ }
+    $asrLines += [pscustomobject]@{
+        Kind = $kind
+        Text = "ASR $kind $ruleId $($d['Path']) $($d['Process Name']) $($e.TimeCreated.ToString('yyyy-MM-dd HH:mm'))"
+    }
+}
+$asrShown = @((@($asrLines | Where-Object Kind -eq 'BLOCK') + @($asrLines | Where-Object Kind -eq 'AUDIT')) |
+    Select-Object -First 10)
+foreach ($l in $asrShown) { Write-Host $l.Text }
+if ($asrBlockCount -gt 0) {
+    Write-Host "FAIL    ASR blocked $asrBlockCount program(s) in the last 8 days"
+    $bad++
+} else {
+    Write-Host "OK      ASR blocks (last 8 days): none ($asrAuditCount audited)"
+}
+
 if ($bad -gt 0) {
     Write-Host "[FAIL] $bad issue(s)." -ForegroundColor Red
     exit 1

@@ -179,6 +179,7 @@ Set-RegistryValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Control Panel
 - [Verify-Apps.ps1](Verify-Apps.ps1) - SuperOps drift detector for the apps Ensure-Apps installs
 - [includes/A0-Backup-PrintersBeforeHSS.ps1](includes/A0-Backup-PrintersBeforeHSS.ps1) - Creates a local PrintBrm printer backup before the HSS apply task is triggered.
 - [includes/AA-Apply-HardenSystemSecurity.ps1](includes/AA-Apply-HardenSystemSecurity.ps1) - Stages the HSS report into `C:\ProgramData\CustomizeWindowsSetup` and triggers the elevated scheduled task that runs HSS in an admin user session.
+- [includes/AB-Allow-NCSOrderSheetsASR.ps1](includes/AB-Allow-NCSOrderSheetsASR.ps1) - Only where `C:\NCS\NCS_Order_Sheets.exe` exists: locks the exe (owner Administrators, Users RX) and adds it to `AttackSurfaceReductionOnlyExclusions`. Safe as an include because HSS only adds ASR exclusions, never clears them.
 - [includes/Harden-System-Security.report.json](includes/Harden-System-Security.report.json) - The hardening config that AA-Apply imports
 - [HKCU-to-HKLM-Migration.md](HKCU-to-HKLM-Migration.md) - Registry policy migration documentation
 - [AGENTS.md](AGENTS.md) - Testing framework guidance
