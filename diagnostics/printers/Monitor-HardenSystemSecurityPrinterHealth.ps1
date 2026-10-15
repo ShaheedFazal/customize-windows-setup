@@ -12,6 +12,8 @@
       - current PrintService/Admin Event 808 plug-in-load blocks after latest
         HSS apply, plus historical block context in the transcript
       - printer queue count and non-Normal printer count
+      - ASR block (1121) and audit (1122) events from the last 8 days, one
+        'ASR BLOCK' / 'ASR AUDIT' line per rule+path; exits 1 on any block
       - SuperOps custom fields for dashboard filtering
 
     Read-only: no registry/driver/printer/service/policy changes.
@@ -211,6 +213,34 @@ if (-not $logReadable) {
     $printBlockStatus = 'CLEAN'
 }
 
+# --- ASR blocks (Defender 1121 = block, 1122 = audit), last 8 days ------------
+# One line per rule+path, newest first, blocks before audits, capped at 10.
+# The weekly routine email quotes the "ASR BLOCK" lines, so keep that prefix.
+# Any 1121 fails the run; 1122 (audit) lines are information only.
+$asrBlockCount = 0; $asrAuditCount = 0; $asrLines = @()
+$asrEvents = @(Get-WinEvent -FilterHashtable @{
+    LogName   = 'Microsoft-Windows-Windows Defender/Operational'
+    Id        = 1121, 1122
+    StartTime = (Get-Date).AddDays(-8)
+} -ErrorAction SilentlyContinue)
+$asrSeen = @{}
+foreach ($e in $asrEvents) {
+    $d = @{}
+    try { foreach ($n in ([xml]$e.ToXml()).Event.EventData.Data) { $d[$n.Name] = $n.'#text' } } catch { continue }
+    $ruleId = "$($d['ID'])".ToLower()
+    $key = "$($e.Id)|$ruleId|$($d['Path'])"
+    if ($asrSeen.ContainsKey($key)) { continue }
+    $asrSeen[$key] = $true
+    $kind = if ($e.Id -eq 1121) { 'BLOCK' } else { 'AUDIT' }
+    if ($kind -eq 'BLOCK') { $asrBlockCount++ } else { $asrAuditCount++ }
+    $asrLines += [pscustomobject]@{
+        Kind = $kind
+        Text = "ASR $kind $ruleId $($d['Path']) $($d['Process Name']) $($e.TimeCreated.ToString('yyyy-MM-dd HH:mm'))"
+    }
+}
+$asrShown = @((@($asrLines | Where-Object Kind -eq 'BLOCK') + @($asrLines | Where-Object Kind -eq 'AUDIT')) |
+    Select-Object -First 10)
+
 # --- SUMMARY line (pipe-delimited; grep across SuperOps results) -------------
 # Built from an array so no single physical line is long enough for the SuperOps
 # editor to hard-wrap and corrupt.
@@ -246,6 +276,8 @@ $fields = @(
     "hss_hash=$hssHash"
     "current_last_block=$currentLastBlock"
     "historical_last_block=$lastBlock"
+    "asr_blocks=$asrBlockCount"
+    "asr_audits=$asrAuditCount"
 )
 Write-Log ($fields -join '|')
 
@@ -313,4 +345,11 @@ if (Get-Command Send-CustomField -ErrorAction SilentlyContinue) {
 }
 
 Write-Log ''
+Write-Log "ASR events (last 8 days): $asrBlockCount blocked, $asrAuditCount audited (unique rule+path)"
+foreach ($l in $asrShown) { Write-Log $l.Text }
+Write-Log ''
 Write-Log "Transcript: $transcript"
+
+# Fail the run on any ASR block so it shows as a failure in SuperOps.
+if ($asrBlockCount -gt 0) { exit 1 }
+exit 0
